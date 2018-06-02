@@ -150,6 +150,7 @@ defmodule Curie.Leaderboard do
     {:ok, message} = Curie.send(message.channel_id, embed: format_output(:new))
     GenServer.cast(@self, {:update, %{channel_id: message.channel_id, message_id: message.id}})
     GenServer.cast(@self, :save)
+
     for button <- @buttons do
       Api.create_reaction!(message.channel_id, message.id, button)
       Process.sleep(300)
@@ -167,6 +168,7 @@ defmodule Curie.Leaderboard do
   def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
     me = Nostrum.Cache.Me.get()
     lead_id = GenServer.call(@self, :get).message_id
+
     if me.id != user_id and message_id == lead_id and emoji.name in @buttons,
       do: interaction(@actions[emoji.name])
   end

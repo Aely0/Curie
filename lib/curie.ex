@@ -145,36 +145,38 @@ defmodule Curie do
     |> Enum.map_join(", ", fn {key, value} -> "#{value}" <> key end)
   end
 
-  def get_member(message, position) do
+  def get_member(%{guild_id: guild} = message, position) do
     full_name =
       message.content
       |> String.split()
       |> (&Enum.slice(&1, position..length(&1))).()
       |> Enum.join(" ")
 
-    cond do
-      !Enum.empty?(message.mentions) ->
-        id = message.mentions |> hd() |> (& &1.id).()
+    if guild do
+      cond do
+        !Enum.empty?(message.mentions) ->
+          id = message.mentions |> hd() |> (& &1.id).()
 
-        GuildCache.get!(message.guild_id).members
-        |> Enum.find(&(&1.user.id == id))
+          GuildCache.get!(guild).members
+          |> Enum.find(&(&1.user.id == id))
 
-      match?({_id, ""}, Integer.parse(full_name)) ->
-        {id, ""} = Integer.parse(full_name)
+        match?({_id, ""}, Integer.parse(full_name)) ->
+          {id, ""} = Integer.parse(full_name)
 
-        GuildCache.get!(message.guild_id).members
-        |> Enum.find(&(&1.user.id == id))
+          GuildCache.get!(guild).members
+          |> Enum.find(&(&1.user.id == id))
 
-      full_name =~ ~r/#\d{4}$/ ->
-        name = Regex.replace(~r/#\d{4}$/, full_name, "")
-        [disc] = Regex.run(~r/\d{4}$/, full_name)
+        full_name =~ ~r/#\d{4}$/ ->
+          name = Regex.replace(~r/#\d{4}$/, full_name, "")
+          [disc] = Regex.run(~r/\d{4}$/, full_name)
 
-        GuildCache.get!(message.guild_id).members
-        |> Enum.find(&(&1.user.username == name and &1.user.discriminator == disc))
+          GuildCache.get!(guild).members
+          |> Enum.find(&(&1.user.username == name and &1.user.discriminator == disc))
 
-      true ->
-        GuildCache.get!(message.guild_id).members
-        |> Enum.find(&(&1.user.username == full_name))
+        true ->
+          GuildCache.get!(guild).members
+          |> Enum.find(&(&1.user.username == full_name))
+      end
     end
   end
 
