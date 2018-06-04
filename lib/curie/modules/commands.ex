@@ -9,12 +9,12 @@ defmodule Curie.Commands do
   @roles Application.get_env(:curie, :roles)
   @owner Curie.owner()
 
-  def command({"eval", @owner = message, words}) do
-    eval_code = words |> tl() |> Enum.join(" ")
-
+  def command({"eval", @owner = message, [_ | code]}) do
     result =
       try do
-        Code.eval_string(eval_code, [message: message, words: words], __ENV__)
+        code
+        |> Enum.join(" ")
+        |> Code.eval_string([message: message], __ENV__)
         |> elem(0)
         |> inspect()
       rescue
@@ -31,12 +31,30 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({"purge", @owner = message, words}) when length(words) == 2 do
-    Enum.at(words, 1)
+  def command({"purge", @owner = message, [_, count]}) do
+    count
     |> String.to_integer()
     |> (&Api.get_channel_messages!(message.channel_id, &1 + 1, {})).()
     |> Enum.map(& &1.id)
     |> (&Api.bulk_delete_messages!(message.channel_id, &1)).()
+  end
+
+  def command({"avatar", @owner = message, [_, path]}) do
+    case File.read(path) do
+      {:ok, file} ->
+        %{".jpg" => "jpeg", ".png" => "png", ".gif" => "gif"}
+        |> (& &1[Path.extname(path)]).()
+        |> (&"data:image/#{&1};base64,").()
+        |> (&(&1 <> Base.encode64(file))).()
+        |> (&Api.modify_current_user!(avatar: &1)).()
+        Curie.embed(message, "Avatar changed.", "green")
+
+      {:error, reason} ->
+        :file.format_error(reason)
+        |> List.to_string()
+        |> (&"#{String.capitalize(&1)}.").()
+        |> (&Curie.embed(message, &1, "red")).()
+    end
   end
 
   def command({role, message, words}) when role in ["felweed", "rally"] and length(words) >= 2 do
