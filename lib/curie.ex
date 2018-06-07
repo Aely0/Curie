@@ -9,6 +9,7 @@ defmodule Curie do
 
   @owner Application.get_env(:curie, :owner)
   @tempest Application.get_env(:curie, :tempest)
+  @colors Application.get_env(:curie, :colors)
   @prefix Application.get_env(:curie, :prefix)
 
   def prefix, do: @prefix
@@ -43,18 +44,7 @@ defmodule Curie do
 
   def color(name) when is_integer(name), do: name
 
-  def color(name) when is_binary(name) do
-    %{
-      "green" => 0x13A324,
-      "red" => 0xB21A1A,
-      "lblue" => 0x193C4,
-      "dblue" => 0xB3F93,
-      "yellow" => 0xFFC107,
-      "purple" => 0x6441A5,
-      "white" => 0xFFFFFF
-    }
-    |> Map.get(name)
-  end
+  def color(name) when is_binary(name), do: @colors |> Map.get(name)
 
   def embed!(channel, description, color), do: embed(channel, description, color) |> bangify()
 
@@ -88,7 +78,8 @@ defmodule Curie do
 
   def edit!(message, options), do: edit(message, options) |> bangify()
 
-  def edit!(channel_id, message_id, options), do: edit(channel_id, message_id, options) |> bangify()
+  def edit!(channel_id, message_id, options),
+    do: edit(channel_id, message_id, options) |> bangify()
 
   def edit(%{channel_id: channel_id, message_id: message_id} = _message, options),
     do: edit(channel_id, message_id, options)

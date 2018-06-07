@@ -2,7 +2,7 @@ defmodule Curie.Colors do
   alias Nostrum.Api
 
   @special_snowflake 371_732_667_080_638_466
-  @colors Application.get_env(:curie, :colors)
+  @colors Application.get_env(:curie, :color_roles)
 
   def get_color(color) do
     color
