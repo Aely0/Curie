@@ -13,16 +13,18 @@ defmodule Curie.Announcements do
          true <- !Enum.empty?(invites) do
       latest =
         invites
-        |> Enum.filter(&(&1["uses"] > 0))
-        |> Enum.max_by(&(&1["created_at"] |> iso_to_unix()), fn -> nil end)
+        |> Enum.filter(&(&1.uses > 0))
+        |> Enum.max_by(&(&1.created_at |> iso_to_unix()), fn -> nil end)
 
       if !is_nil(latest) do
-        content =
-          "#{latest["inviter"]["username"]} invited #{member.user.username} " <>
-            "to the server. (#{length(invites)})"
-
-        Curie.embed(@notify, content, "dblue")
+        ("#{latest.inviter.username} invited #{member.user.username} " <>
+           "to the server. (#{length(invites)}) #{Curie.time_now()}")
+        |> (&Curie.embed(@notify, &1, "dblue")).()
       end
+    else
+      _no_invites ->
+        "#{member.user.username} joined with a one time invite. #{Curie.time_now()}"
+        |> (&Curie.embed(@notify, &1, "dblue")).()
     end
   end
 
@@ -40,7 +42,7 @@ defmodule Curie.Announcements do
     content =
       if Timex.local() |> Timex.format!("%H%M", :strftime) == "0000",
         do: "#{member.user.username} was pruned for 30 days of inactivity #{Curie.time_now()}",
-        else: "#{member.user.username} left #{Curie.time_now()}"
+        else: "#{member.user.username} left. #{Curie.time_now()}"
 
     Curie.embed(@notify, content, "dblue")
   end
