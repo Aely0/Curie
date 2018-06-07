@@ -103,7 +103,7 @@ defmodule Curie.Help do
       Curie.embed(message, content, "green")
     else
       _no_match ->
-        Curie.embed(message, "Command no found.", "red")
+        Curie.embed(message, "Command unrecognized.", "red")
     end
   end
 
