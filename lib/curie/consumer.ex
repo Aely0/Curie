@@ -1,19 +1,8 @@
 defmodule Curie.Consumer do
   use Nostrum.Consumer
 
-  @spec start_link() :: no_return()
-  def start_link do
-    {:ok, pid} = Consumer.start_link(__MODULE__)
-    Process.register(pid, __MODULE__)
-    {:ok, pid}
-  end
-
-  def add_heartbeat(message, ws) do
-    Map.put(message, :heartbeat, %{send: ws.last_heartbeat_send, ack: ws.last_heartbeat_ack})
-  end
-
-  def message_handlers(message) do
-    [
+  @handlers %{
+    message: [
       &Curie.Commands.handler/1,
       &Curie.Help.handler/1,
       &Curie.Images.handler/1,
@@ -23,36 +12,41 @@ defmodule Curie.Consumer do
       &Curie.Pot.handler/1,
       &Curie.TwentyOne.handler/1,
       &Curie.Leaderboard.handler/1
-    ]
-    |> Enum.each(&Task.start(fn -> &1.(message) end))
-  end
-
-  def presence_handlers(presence) do
-    [
+    ],
+    presence: [
       &Curie.Storage.store_details/1,
       &Curie.Storage.status_gather/1,
       &Curie.Announcements.stream/1
     ]
-    |> Enum.each(&Task.start(fn -> &1.(presence) end))
+  }
+
+  @spec start_link() :: no_return()
+  def start_link do
+    {:ok, pid} = Consumer.start_link(__MODULE__)
+    Process.register(pid, __MODULE__)
+    {:ok, pid}
   end
+
+  def call_handlers(payload, handlers), do: Enum.each(handlers, & &1.(payload))
+
+  def add_heartbeat(message, ws),
+    do: Map.put(message, :heartbeat, %{send: ws.last_heartbeat_send, ack: ws.last_heartbeat_ack})
 
   def handle_event({:READY, _payload, _ws_state}) do
     IO.puts("# Curie: Awake! #{Curie.time_now()}")
     Curie.Scheduler.set_status()
   end
 
-  def handle_event({:MESSAGE_CREATE, {message}, ws_state}) do
-    add_heartbeat(message, ws_state) |> message_handlers()
+  def handle_event({:MESSAGE_CREATE, {%{content: _content} = message}, ws_state}) do
+    add_heartbeat(message, ws_state) |> call_handlers(@handlers.message)
   end
 
-  def handle_event({:MESSAGE_UPDATE, {updated}, ws_state}) do
-    if Map.has_key?(updated, :content) and String.starts_with?(updated.content, Curie.prefix()) do
-      add_heartbeat(updated, ws_state) |> message_handlers()
-    end
+  def handle_event({:MESSAGE_UPDATE, {%{content: _content} = updated}, ws_state}) do
+    add_heartbeat(updated, ws_state) |> call_handlers(@handlers.message)
   end
 
   def handle_event({:PRESENCE_UPDATE, {_guild, _old, new}, _ws_state}) do
-    presence_handlers(new)
+    call_handlers(new, @handlers.presence)
   end
 
   def handle_event({:MESSAGE_DELETE, {message}, _ws_state}) do
@@ -76,7 +70,5 @@ defmodule Curie.Consumer do
     Curie.Storage.remove(member.user.id)
   end
 
-  def handle_event(_event) do
-    :ok
-  end
+  def handle_event(_event), do: :ok
 end
