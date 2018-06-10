@@ -35,11 +35,11 @@ defmodule Curie do
 
   def check_typo(call, commands) do
     similarity =
-      if(is_list(commands), do: commands, else: [commands])
-      |> Enum.map(&{&1, String.jaro_distance(String.downcase(call), &1)})
+      if(is_binary(commands), do: List.wrap(commands), else: commands)
+      |> Enum.map(&{&1, call |> String.downcase() |> String.jaro_distance(&1)})
       |> Enum.max_by(fn {_call, similarity} -> similarity end)
 
-    if elem(similarity, 1) >= 0.75, do: {:ok, elem(similarity, 0)}, else: nil
+    if elem(similarity, 1) >= 0.75, do: {:ok, elem(similarity, 0)}
   end
 
   def color(name) when is_integer(name), do: name

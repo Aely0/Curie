@@ -27,7 +27,7 @@ defmodule Curie.Consumer do
     {:ok, pid}
   end
 
-  def call_handlers(payload, handlers), do: Enum.each(handlers, & &1.(payload))
+  def call_handlers(payload, handlers), do: for handler <- handlers, do: handler.(payload)
 
   def add_heartbeat(message, ws),
     do: Map.put(message, :heartbeat, %{send: ws.last_heartbeat_send, ack: ws.last_heartbeat_ack})

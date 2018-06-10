@@ -234,13 +234,10 @@ defmodule Curie.TwentyOne do
     if timer == 20 do
       for player <- players do
         if player != me and player not in ready_check do
-          with {:ok, channel} <- Api.create_dm(player),
-               do:
-                 Curie.embed(
-                   channel.id,
-                   "You have 20 seconds to finish your moves.",
-                   "lblue"
-                 )
+          with {:ok, channel} <- Api.create_dm(player) do
+            "You have 20 seconds to finish your moves."
+            |> (&Curie.embed(channel.id, &1, "lblue")).()
+          end
         end
       end
 
