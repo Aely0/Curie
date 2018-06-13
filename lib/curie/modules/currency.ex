@@ -75,12 +75,10 @@ defmodule Curie.Currency do
     case message.author.id |> get_balance() do
       nil ->
         with {:ok, guild} <- GuildCache.get(message.guild_id),
-             {:ok, owner} <- UserCache.get(guild.owner_id),
-             do:
-               Curie.send(
-                 message.channel_id,
-                 content: "Whitelisting required, ask #{owner.username}."
-               )
+             {:ok, owner} <- UserCache.get(guild.owner_id) do
+          "Whitelisting required, ask #{owner.username}."
+          |> (&Curie.send(message.channel_id, content: &1)).()
+        end
 
         false
 
@@ -146,8 +144,7 @@ defmodule Curie.Currency do
   end
 
   def subcommand({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "curie"),
-         do: subcommand({match, message, words})
+    with {:ok, match} <- Curie.check_typo(call, "curie"), do: subcommand({match, message, words})
   end
 
   def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
