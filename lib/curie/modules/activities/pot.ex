@@ -142,8 +142,7 @@ defmodule Curie.Pot do
     time = Enum.random(50..70)
 
     for remaining <- time..1 do
-      if time - 30 == remaining,
-        do: Curie.embed(message, "Rolling in 20-40 seconds.", "dblue")
+      if time - 30 == remaining, do: Curie.embed(message, "Rolling in 20-40 seconds.", "dblue")
 
       if 1 == remaining, do: curie_join(message.channel_id)
       Process.sleep(1000)
@@ -247,8 +246,8 @@ defmodule Curie.Pot do
   end
 
   def command({call, message, words}) do
-    registered = ["pot", "add"]
-    with {:ok, match} <- Curie.check_typo(call, registered), do: command({match, message, words})
+    with {:ok, match} <- Curie.check_typo(call, ["pot", "add"]),
+         do: command({match, message, words})
   end
 
   def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())

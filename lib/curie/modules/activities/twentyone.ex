@@ -479,8 +479,8 @@ defmodule Curie.TwentyOne do
   end
 
   def command({call, message, words}) do
-    registered = ["21", "ace", "hit", "stand", "deck"]
-    with {:ok, match} <- Curie.check_typo(call, registered), do: command({match, message, words})
+    with {:ok, match} <- Curie.check_typo(call, ["21", "ace", "hit", "stand", "deck"]),
+         do: command({match, message, words})
   end
 
   def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())

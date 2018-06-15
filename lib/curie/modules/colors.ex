@@ -101,9 +101,7 @@ defmodule Curie.Colors do
   end
 
   def subcommand({call, message, words}) do
-    registered = ["remove", "preview"]
-
-    with {:ok, match} <- Curie.check_typo(call, registered) do
+    with {:ok, match} <- Curie.check_typo(call, ["remove", "preview"]) do
       subcommand({match, message, words})
     else
       _unknown_command_or_color ->
