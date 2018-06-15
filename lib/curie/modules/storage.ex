@@ -1,56 +1,60 @@
 defmodule Curie.Storage do
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
 
+  alias Curie.Data.{Balance, Details, Status}
+  alias Curie.Data
+
   @owner Curie.owner()
 
   def remove(member) do
-    Postgrex.query!(Postgrex, "DELETE FROM balance WHERE member=$1", [member])
-    Postgrex.query!(Postgrex, "DELETE FROM details WHERE member=$1", [member])
+    for table <- [Balance, Details],
+        do: Data.get(table, member) |> (&if(&1, do: Data.delete(&1))).()
   end
 
-  def check_entry(member) do
-    query = "SELECT member FROM details WHERE member=$1"
-
-    if Postgrex.query!(Postgrex, query, [member]).rows == [] do
-      query = "INSERT INTO details (member) VALUES ($1)"
-      Postgrex.query!(Postgrex, query, [member])
-    end
-  end
-
-  def store_details(%{author: author, channel_id: channel_id, type: type}) do
-    check_entry(author.id)
-
+  def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
     channel = ChannelCache.get!(channel_id)
 
     if type == 0 do
       now = Timex.local() |> Timex.to_unix()
       channel_name = if channel.name, do: "#" <> channel.name, else: "#DirectMessage"
-      query = "UPDATE details SET spoke=$1, channel=$2 WHERE member=$3"
-      Postgrex.query!(Postgrex, query, [now, channel_name, author.id])
+
+      case Data.get(Details, id) do
+        nil ->
+          %Details{member: id}
+
+        entry ->
+          entry
+      end
+      |> Details.changeset(%{spoke: now, channel: channel_name})
+      |> Data.insert_or_update()
     end
   end
 
-  def store_details(%{user: user, status: status}) do
-    check_entry(user.id)
-
+  def store_details(%{user: %{id: id}, status: status}) do
     if status == :offline do
       now = Timex.local() |> Timex.to_unix()
-      query = "UPDATE details SET online=$1 WHERE member=$2"
-      Postgrex.query!(Postgrex, query, [now, user.id])
+
+      case Data.get(Details, id) do
+        nil ->
+          %Details{member: id}
+
+        entry ->
+          entry
+      end
+      |> Details.changeset(%{online: now})
+      |> Data.insert_or_update()
     end
   end
 
   def store_details(_unusable), do: nil
 
   def fetch_details(member) do
-    query = "SELECT online, spoke, channel FROM details WHERE member=$1"
-
-    case Postgrex.query!(Postgrex, query, [member]).rows do
-      [] ->
+    case Data.get(Details, member) do
+      nil ->
         %{online: "Never seen online", spoke: "Never", channel: "None"}
 
-      [[online, spoke, channel]] ->
-        %{online: online, spoke: spoke, channel: channel}
+      details ->
+        details
         |> (&if(is_nil(&1.online), do: %{&1 | online: "Never seen online"}, else: &1)).()
         |> (&if(is_nil(&1.spoke), do: %{&1 | spoke: "Never"}, else: &1)).()
         |> (&if(is_nil(&1.channel), do: %{&1 | channel: "None"}, else: &1)).()
@@ -59,61 +63,47 @@ defmodule Curie.Storage do
 
   def status_gather(presence) do
     if !is_nil(presence.game) and presence.game.type == 0 do
-      query = "SELECT message FROM status WHERE message=$1"
+      if Data.get(Status, presence.game.name) |> is_nil() do
+        member = UserCache.get!(presence.user.id).username
 
-      case Postgrex.query!(Postgrex, query, [presence.game.name]).rows do
-        [] ->
-          member = UserCache.get!(presence.user.id).username
-          query = "INSERT INTO status (message, member) VALUES ($1, $2)"
-          Postgrex.query!(Postgrex, query, [presence.game.name, member])
-
-        _exists ->
-          nil
+        %Status{message: presence.game.name, member: member}
+        |> Data.insert()
       end
     end
   end
 
-  def command({action, @owner = message, _words}) do
-    if action in ["whitelist", "remove"] do
-      case Curie.get_member(message, 1) do
-        nil ->
-          Curie.embed(message, "Member not found.", "red")
+  def command({action, @owner = message, _words}) when action in ["whitelist", "remove"] do
+    case Curie.get_member(message, 1) do
+      nil ->
+        Curie.embed(message, "Member not found.", "red")
 
-        member ->
-          case action do
-            "whitelist" ->
-              query = "SELECT member FROM balance WHERE member=$1"
+      %{user: user} ->
+        case action do
+          "whitelist" ->
+            if Data.get(Balance, user.id) |> is_nil() do
+              %Balance{member: user.id, value: 0}
+              |> Data.insert()
 
-              case Postgrex.query!(Postgrex, query, [member.user.id]).rows do
-                [] ->
-                  query = "INSERT INTO balance (member, value) VALUES ($1, 0)"
-                  Postgrex.query!(Postgrex, query, [member.user.id])
+              "#{user.username} added, wooo! :tada:"
+              |> (&Curie.embed(message, &1, "green")).()
+            else
+              "Member already whitelisted."
+              |> (&Curie.embed(message, &1, "red")).()
+            end
 
-                  "#{member.user.username} added, wooo! :tada:"
-                  |> (&Curie.embed(message, &1, "green")).()
+          "remove" ->
+            case Data.get(Balance, user.id) do
+              nil ->
+                "Already does not exist. Job's done... I guess?"
+                |> (&Curie.embed(message, &1, "red")).()
 
-                _exists ->
-                  "Member already whitelisted."
-                  |> (&Curie.embed(message, &1, "red")).()
-              end
+              member ->
+                Data.delete(member)
 
-            "remove" ->
-              query = "SELECT member FROM balance WHERE member=$1"
-
-              case Postgrex.query!(Postgrex, query, [member.user.id]).rows do
-                [] ->
-                  "Already does not exist. Job's done ...I guess?"
-                  |> (&Curie.embed(message, &1, "red")).()
-
-                _exists ->
-                  query = "DELETE FROM balance WHERE member=$1"
-                  Postgrex.query!(Postgrex, query, [member.user.id])
-
-                  "#{member.user.username} removed, never liked that one anyway."
-                  |> (&Curie.embed(message, &1, "green")).()
-              end
-          end
-      end
+                "#{user.username} removed, never liked that one anyway."
+                |> (&Curie.embed(message, &1, "green")).()
+            end
+        end
     end
   end
 

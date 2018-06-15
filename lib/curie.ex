@@ -69,7 +69,7 @@ defmodule Curie do
       {:error, %{message: response, status_code: code}} ->
         if code >= 500 and retries <= 10 do
           Process.sleep(250)
-          send(channel, options, retries + 1)
+          Curie.send(channel, options, retries + 1)
         else
           {:error, %{message: response, status_code: code}}
         end

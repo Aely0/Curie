@@ -7,12 +7,12 @@ defmodule Curie.Supervisor do
 
   def init(_args) do
     children = [
-      {Postgrex, Application.get_env(:curie, :postgrex)},
-      Curie.ActivitySupervisor,
-      Curie.Scheduler,
+      Curie.Data,
       Curie.Consumer,
+      Curie.Scheduler,
       Curie.Images,
-      Curie.Help
+      Curie.Help,
+      Curie.ActivitySupervisor
     ]
 
     Supervisor.init(children, strategy: :one_for_one)

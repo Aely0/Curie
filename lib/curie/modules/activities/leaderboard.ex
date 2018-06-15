@@ -4,6 +4,9 @@ defmodule Curie.Leaderboard do
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
 
+  alias Curie.Data.{Balance, Leaderboard}
+  alias Curie.Data
+
   import Nostrum.Struct.Embed
 
   @actions %{"◀" => :backward, "▶" => :forward, "🔄" => :refresh}
@@ -37,33 +40,29 @@ defmodule Curie.Leaderboard do
   def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
 
   def handle_cast(:save, state) do
-    query =
-      "UPDATE leaderboard SET channel_id=$1, message_id=$2, last_refresh=$3, " <>
-        "page_count=$4, current_page=$5, entries=$6"
+    parameters = %{
+      channel_id: state.channel_id,
+      message_id: state.message_id,
+      last_refresh: state.last_refresh,
+      page_count: state.page_count,
+      current_page: state.current_page,
+      entries: state.entries |> parse_entries()
+    }
 
-    parameters = [
-      state.channel_id,
-      state.message_id,
-      state.last_refresh,
-      state.page_count,
-      state.current_page,
-      state.entries |> parse_entries()
-    ]
-
-    Postgrex.query!(Postgrex, query, parameters)
+    %Leaderboard{id: state.id}
+    |> Leaderboard.changeset(parameters)
+    |> Data.update()
 
     {:noreply, state}
   end
 
   def parse_entries(entries) when is_list(entries), do: Enum.join(entries, "<&&>")
+  
   def parse_entries(entries) when is_binary(entries), do: String.split(entries, "<&&>")
 
   def recover_state do
-    Postgrex.query!(Postgrex, "SELECT * FROM leaderboard", [])
-    |> (&Enum.zip(&1.columns, &1.rows |> hd)).()
-    |> Enum.filter(&(!match?({"id", _id}, &1)))
-    |> Enum.map(fn {key, value} -> {String.to_atom(key), value} end)
-    |> Enum.into(%{})
+    Leaderboard
+    |> Data.one()
     |> (&%{&1 | entries: parse_entries(&1.entries)}).()
   end
 
@@ -84,8 +83,9 @@ defmodule Curie.Leaderboard do
     overflow = fn list -> if length(list) > 3, do: ", + #{length(list) - 3}", else: "" end
     format = fn list -> Enum.slice(list, 0..2) |> Enum.join(", ") end
 
-    Postgrex.query!(Postgrex, "SELECT member, value FROM balance", []).rows
-    |> Enum.group_by(&Enum.at(&1, 1), &Enum.at(&1, 0))
+    Balance
+    |> Data.all()
+    |> Enum.group_by(& &1.value, & &1.member)
     |> Enum.into([])
     |> Enum.sort(&(&1 > &2))
     |> Enum.map(fn {value, list} -> {value, list |> Enum.map(&UserCache.get!(&1).username)} end)

@@ -1,6 +1,9 @@
 defmodule Curie.Help do
   use GenServer
 
+  alias Curie.Data.Help
+  alias Curie.Data
+
   @owner Curie.owner()
   @self __MODULE__
 
@@ -19,13 +22,11 @@ defmodule Curie.Help do
   def parse(content) when is_binary(content),
     do: String.replace(content, "<prefix>", Curie.prefix())
 
-  def parse([command, description, short]),
+  def parse(%{command: command, description: description, short: short} = _entry),
     do: {command, %{description: parse(description), short: short}}
 
   def get_commands do
-    query = "SELECT command, description, short FROM help"
-
-    case Postgrex.query!(Postgrex, query, []).rows do
+    case Data.all(Help) do
       [] ->
         %{commands: [], full: %{}}
 
@@ -108,8 +109,8 @@ defmodule Curie.Help do
   end
 
   def command({call, message, words}) do
-    registered = ["curie", "currency", "help"]
-    with {:ok, match} <- Curie.check_typo(call, registered), do: command({match, message, words})
+    with {:ok, match} <- Curie.check_typo(call, ["curie", "currency", "help"]),
+         do: command({match, message, words})
   end
 
   def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())

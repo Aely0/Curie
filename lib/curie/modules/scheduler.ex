@@ -2,6 +2,9 @@ defmodule Curie.Scheduler do
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Api
 
+  alias Curie.Data.{Balance, Overwatch, Status}
+  alias Curie.Data
+
   import Nostrum.Struct.Embed
 
   @shadowmere 90_579_372_049_723_392
@@ -45,18 +48,15 @@ defmodule Curie.Scheduler do
       |> Enum.into([])
       |> List.flatten()
 
-    me = Nostrum.Cache.Me.get().id
-
-    Postgrex.query!(Postgrex, "SELECT member, value FROM balance", []).rows
-    |> Enum.each(fn [member, value] ->
-      if member != me, do: apply_gain(presences, member, value)
-    end)
+    Balance
+    |> Data.all()
+    |> Enum.filter(&(&1.member != Nostrum.Cache.Me.get().id))
+    |> Enum.each(&apply_gain(presences, &1.member, &1.value))
   end
 
   def curie_balance_change(action) do
     me = Nostrum.Cache.Me.get().id
-
-    [[value]] = Postgrex.query!(Postgrex, "SELECT value FROM balance WHERE member=$1", [me]).rows
+    value = Data.get(Balance, me).value
 
     case action do
       :gain ->
@@ -86,12 +86,12 @@ defmodule Curie.Scheduler do
   end
 
   def set_status do
-    case Postgrex.query!(Postgrex, "SELECT message FROM status", []).rows do
+    case Data.all(Status) do
       [] ->
         nil
 
       entries ->
-        Api.update_status(:online, Enum.random(entries) |> hd())
+        Api.update_status(:online, Enum.random(entries).message)
     end
   end
 
@@ -109,15 +109,15 @@ defmodule Curie.Scheduler do
       [date] = Regex.run(~r/\w+ \d{1,2}, \d{4}/, name)
 
       stored =
-        case Postgrex.query!(Postgrex, "SELECT date FROM overwatch", []).rows do
-          [] ->
-            nil
+        case Data.one(Overwatch) do
+          nil ->
+            %Overwatch{date: nil}
 
-          [[date]] ->
-            date
+          stored ->
+            stored
         end
 
-      if date != stored do
+      if date != stored.date do
         embed =
           %Nostrum.Struct.Embed{}
           |> put_author("New Overwatch patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
@@ -130,9 +130,9 @@ defmodule Curie.Scheduler do
           Curie.send!(channel.id, embed: embed)
         end
 
-        if is_nil(stored),
-          do: Postgrex.query!(Postgrex, "INSERT INTO overwatch (date) VALUES ($1)", [date]),
-          else: Postgrex.query!(Postgrex, "UPDATE overwatch SET date=$1", [date])
+        stored
+        |> Overwatch.changeset(%{date: date})
+        |> Data.insert_or_update()
       end
     end
   end

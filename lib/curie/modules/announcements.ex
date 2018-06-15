@@ -2,6 +2,9 @@ defmodule Curie.Announcements do
   alias Nostrum.Cache.{ChannelCache, UserCache}
   alias Nostrum.Api
 
+  alias Curie.Data.Streams
+  alias Curie.Data
+
   import Nostrum.Struct.Embed
 
   @notify 141_160_537_672_122_368
@@ -48,29 +51,25 @@ defmodule Curie.Announcements do
   end
 
   def has_cooldown?(member) do
-    query = "SELECT time FROM streams WHERE member=$1"
-
-    case Postgrex.query!(Postgrex, query, [member]).rows do
-      [] ->
-        false
-
-      [[time]] ->
+    case Data.get(Streams, member) do
+      %{time: time} ->
         (Timex.local() |> Timex.to_unix()) - time <= 21600
+
+      nil ->
+        false
     end
   end
 
   def set_cooldown(member) do
-    query = "SELECT time FROM streams WHERE member=$1"
+    case Data.get(Streams, member) do
+      nil ->
+        %Streams{member: member}
 
-    case Postgrex.query!(Postgrex, query, [member]).rows do
-      [] ->
-        query = "INSERT INTO streams (member, time) VALUES ($1, $2)"
-        Postgrex.query!(Postgrex, query, [member, Timex.local() |> Timex.to_unix()])
-
-      _entry ->
-        query = "UPDATE streams SET time=$1 WHERE member=$2"
-        Postgrex.query!(Postgrex, query, [Timex.local() |> Timex.to_unix(), member])
+      cooldown ->
+        cooldown
     end
+    |> Streams.changeset(%{time: Timex.local() |> Timex.to_unix()})
+    |> Data.insert_or_update()
   end
 
   def stream(presence) do
