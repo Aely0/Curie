@@ -55,33 +55,34 @@ defmodule Curie.Scheduler do
   end
 
   def curie_balance_change(action) do
-    me = Nostrum.Cache.Me.get().id
-    value = Data.get(Balance, me).value
+    id = Nostrum.Cache.Me.get().id
+    balance = Data.get(Balance, id).value
+    curie_balance_change(action, id, balance)
+  end
 
-    case action do
-      :gain ->
-        cond do
-          value + 10 <= 200 ->
-            Curie.Currency.change_balance(:add, me, 10)
+  def curie_balance_change(:gain, id, balance) do
+    cond do
+      balance + 10 <= 200 ->
+        Curie.Currency.change_balance(:add, id, 10)
 
-          value in 191..199 ->
-            Curie.Currency.change_balance(:replace, me, 200)
+      balance in 191..199 ->
+        Curie.Currency.change_balance(:replace, id, 200)
 
-          true ->
-            nil
-        end
+      true ->
+        nil
+    end
+  end
 
-      :decay ->
-        cond do
-          value - 10 >= 1000 ->
-            Curie.Currency.change_balance(:deduct, me, 10)
+  def curie_balance_change(:decay, id, balance) do
+    cond do
+      balance - 10 >= 1000 ->
+        Curie.Currency.change_balance(:deduct, id, 10)
 
-          value in 1001..1009 ->
-            Curie.Currency.change_balance(:replace, me, 1000)
+      balance in 1001..1009 ->
+        Curie.Currency.change_balance(:replace, id, 1000)
 
-          true ->
-            nil
-        end
+      true ->
+        nil
     end
   end
 
