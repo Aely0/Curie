@@ -9,6 +9,7 @@ defmodule Curie.Consumer do
       &Curie.Storage.handler/1,
       &Curie.Currency.handler/1,
       &Curie.Colors.handler/1,
+      &Curie.Weather.handler/1,
       &Curie.Pot.handler/1,
       &Curie.TwentyOne.handler/1,
       &Curie.Leaderboard.handler/1
