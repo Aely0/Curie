@@ -18,5 +18,4 @@ defmodule Curie.ActivitySupervisor do
 
     Supervisor.init(children, strategy: :one_for_one)
   end
-
 end

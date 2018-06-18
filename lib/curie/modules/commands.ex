@@ -47,6 +47,7 @@ defmodule Curie.Commands do
         |> (&"data:image/#{&1};base64,").()
         |> (&(&1 <> Base.encode64(file))).()
         |> (&Api.modify_current_user!(avatar: &1)).()
+
         Curie.embed(message, "Avatar changed.", "green")
 
       {:error, reason} ->

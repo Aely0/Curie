@@ -53,8 +53,7 @@ defmodule Curie.Images do
   end
 
   def subcommand({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "reload"),
-         do: subcommand({match, message, words})
+    with {:ok, match} <- Curie.check_typo(call, "reload"), do: subcommand({match, message, words})
   end
 
   def handler(message) do
