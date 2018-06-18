@@ -3,9 +3,10 @@ defmodule Curie.Weather do
 
   import Nostrum.Struct.Embed
 
-  def google_url do
-    "https://maps.googleapis.com/maps/api/geocode/json?key=" <>
-      Application.get_env(:curie, :googlemaps) <> "&address="
+  def google_url(location) do
+    if(Enum.empty?(location), do: "Rīga", else: Enum.join(location, "+"))
+    |> (&("https://maps.googleapis.com/maps/api/geocode/json?key=" <>
+            Application.get_env(:curie, :googlemaps) <> "&address=" <> &1)).()
   end
 
   def darkskies_url(%{"lat" => lat, "lng" => lng}) do
@@ -14,15 +15,10 @@ defmodule Curie.Weather do
       "/#{lat},#{lng}?units=si&exclude=minutely,hourly,daily,alerts,flags"
   end
 
-  def format_location_parameter(location),
-    do: if(Enum.empty?(location), do: "Rīga", else: Enum.join(location, "+"))
-
   def get_location(response, channel) when is_map(response) do
     case response do
-      %{"status" => "OK", "results" => entries} ->
-        entries
-        |> List.first()
-        |> (&{&1["geometry"]["location"], &1["formatted_address"]}).()
+      %{"status" => "OK", "results" => [first | _rest]} ->
+        {first["geometry"]["location"], first["formatted_address"]}
 
       %{"status" => "ZERO_RESULTS"} ->
         Curie.embed!(channel, "Location not found.", "red")
@@ -30,7 +26,7 @@ defmodule Curie.Weather do
   end
 
   def get_location(location, channel) when is_list(location) do
-    case Curie.get(google_url() <> format_location_parameter(location)) do
+    case Curie.get(google_url(location)) do
       {200, response} ->
         response.body |> Poison.decode!() |> get_location(channel)
 
@@ -65,9 +61,7 @@ defmodule Curie.Weather do
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do
       {200, response} ->
-        response.body
-        |> Poison.decode!()
-        |> format_forecast(address)
+        response.body |> Poison.decode!() |> format_forecast(address)
 
       {:failed, reason} ->
         Curie.embed!(channel, "Unable to retrieve forecast. (#{reason})", "red")
