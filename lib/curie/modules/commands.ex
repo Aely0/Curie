@@ -176,15 +176,24 @@ defmodule Curie.Commands do
   def command({"overwatch", message, _words}) do
     Api.start_typing(message.channel_id)
 
-    case Curie.get("https://us.forums.blizzard.com/en/overwatch/c/announcements") do
+    case Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
       {200, response} ->
         patches =
-          Floki.find(response.body, "[itemprop=itemListElement] a")
-          |> Enum.filter(&String.contains?(Floki.text(&1), "Overwatch Patch Notes"))
+          response.body
+          |> Floki.find(".PatchNotesSideNav-listItem")
           |> Enum.take(5)
-          |> Enum.map(&{Floki.text(&1), Floki.attribute(&1, "href") |> hd()})
-          |> Enum.map(fn {name, link} ->
-            "[#{name}](#{"https://us.forums.blizzard.com" <> link})"
+          |> Enum.map(fn patch ->
+            build = patch |> Floki.find("h3") |> Floki.text()
+            id = patch |> Floki.find("a") |> Floki.attribute("href") |> hd()
+
+            date =
+              patch
+              |> Floki.find("p")
+              |> Floki.text()
+              |> Timex.parse!("{M}/{D}/{YYYY}")
+              |> Timex.format!("%B %d, %Y", :strftime)
+
+            "[#{build} - #{date}](#{response.request_url <> id})"
           end)
           |> Enum.join("\n")
 

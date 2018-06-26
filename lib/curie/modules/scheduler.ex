@@ -97,32 +97,38 @@ defmodule Curie.Scheduler do
   end
 
   def new_overwatch_patch do
-    forums = "https://us.forums.blizzard.com/en/overwatch/c/announcements"
-
-    with {200, response} <- Curie.get(forums) do
-      {name, link} =
-        Floki.find(response.body, "[itemprop=itemListElement] a")
-        |> Enum.filter(&String.contains?(Floki.text(&1), "Overwatch Patch Notes"))
+    with {200, response} <- Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
+      {build, id, date} =
+        response.body
+        |> Floki.find(".PatchNotesSideNav-listItem")
         |> (fn [latest | _rest] ->
-              {Floki.text(latest), Floki.attribute(latest, "href") |> hd()}
-            end).()
+              build = latest |> Floki.find("h3") |> Floki.text()
+              id = latest |> Floki.find("a") |> Floki.attribute("href") |> hd()
 
-      [date] = Regex.run(~r/\w+ \d{1,2}, \d{4}/, name)
+              date =
+                latest
+                |> Floki.find("p")
+                |> Floki.text()
+                |> Timex.parse!("{M}/{D}/{YYYY}")
+                |> Timex.format!("%B %d, %Y", :strftime)
+
+              {build, id, date}
+            end).()
 
       stored =
         case Data.one(Overwatch) do
           nil ->
-            %Overwatch{date: nil}
+            %Overwatch{build: nil}
 
           stored ->
             stored
         end
 
-      if date != stored.date do
+      if build != stored.build do
         embed =
           %Nostrum.Struct.Embed{}
-          |> put_author("New Overwatch patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
-          |> put_description("[#{name}](#{"https://us.forums.blizzard.com" <> link})")
+          |> put_author("New patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
+          |> put_description("[#{build} - #{date}](#{response.request_url <> id})")
           |> put_color(Curie.color("white"))
 
         Curie.send!(@overwatch, embed: embed)
@@ -132,7 +138,7 @@ defmodule Curie.Scheduler do
         end
 
         stored
-        |> Overwatch.changeset(%{date: date})
+        |> Overwatch.changeset(%{build: build})
         |> Data.insert_or_update()
       end
     end
