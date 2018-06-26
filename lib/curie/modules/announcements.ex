@@ -91,7 +91,7 @@ defmodule Curie.Announcements do
           |> put_field("Playing:", details["game"], true)
           |> put_field("Channel:", "Twitch.tv/" <> details["display_name"], true)
           |> put_thumbnail(details["logo"])
-          |> (&Curie.send(141_160_537_672_122_368, embed: &1)).()
+          |> (&Curie.send(99_304_946_280_701_952, embed: &1)).()
 
           set_cooldown(member.id)
 
