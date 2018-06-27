@@ -27,8 +27,8 @@ defmodule Curie.Weather do
 
   def get_location(location, channel) when is_list(location) do
     case Curie.get(google_url(location)) do
-      {200, response} ->
-        response.body |> Poison.decode!() |> get_location(channel)
+      {200, %{body: body}} ->
+        body |> Poison.decode!() |> get_location(channel)
 
       {:failed, reason} ->
         Curie.embed!(channel, "Unable to retrieve location. (#{reason})", "red")
@@ -60,8 +60,8 @@ defmodule Curie.Weather do
 
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do
-      {200, response} ->
-        response.body |> Poison.decode!() |> format_forecast(address)
+      {200, %{body: body}} ->
+        body |> Poison.decode!() |> format_forecast(address)
 
       {:failed, reason} ->
         Curie.embed!(channel, "Unable to retrieve forecast. (#{reason})", "red")

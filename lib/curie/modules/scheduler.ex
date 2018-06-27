@@ -97,9 +97,10 @@ defmodule Curie.Scheduler do
   end
 
   def new_overwatch_patch do
-    with {200, response} <- Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
+    with {200, %{body: body, request_url: url}} <-
+           Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
       {build, id, date} =
-        response.body
+        body
         |> Floki.find(".PatchNotesSideNav-listItem")
         |> (fn [latest | _rest] ->
               build = latest |> Floki.find("h3") |> Floki.text()
@@ -128,7 +129,7 @@ defmodule Curie.Scheduler do
         embed =
           %Nostrum.Struct.Embed{}
           |> put_author("New patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
-          |> put_description("[#{build} - #{date}](#{response.request_url <> id})")
+          |> put_description("[#{build} - #{date}](#{url <> id})")
           |> put_color(Curie.color("white"))
 
         Curie.send!(@overwatch, embed: embed)

@@ -79,8 +79,8 @@ defmodule Curie.Announcements do
       url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
 
       case Curie.get(url) do
-        {200, response} ->
-          details = response.body |> Poison.decode!()
+        {200, %{body: body}} ->
+          details = Poison.decode!(body)
           member = UserCache.get!(presence.user.id)
           content = "#{member.username} started streaming!"
 
