@@ -25,9 +25,9 @@ defmodule Curie.Commands do
       String.split_at(result, 1984)
       |> elem(0)
       |> (&"```elixir\n#{&1}...```").()
-      |> (&Curie.send(message.channel_id, content: &1)).()
+      |> (&Curie.send(message, content: &1)).()
     else
-      Curie.send(message.channel_id, content: "```elixir\n#{result}```")
+      Curie.send(message, content: "```elixir\n#{result}```")
     end
   end
 
@@ -157,7 +157,7 @@ defmodule Curie.Commands do
     case Curie.get("http://thecatapi.com/api/images/get") do
       {200, %{headers: headers, body: body}} ->
         {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0)
-        Curie.send(message.channel_id, file: %{name: "cat." <> type, body: body})
+        Curie.send(message, file: %{name: "cat." <> type, body: body})
 
       {:failed, reason} ->
         "Oh no, I was unable to get your kitteh... (#{reason})"
@@ -193,7 +193,7 @@ defmodule Curie.Commands do
         |> put_author("Latest patches:", nil, "https://i.imgur.com/6NBYBSS.png")
         |> put_description(patches)
         |> put_color(Curie.color("white"))
-        |> (&Curie.send(message.channel_id, embed: &1)).()
+        |> (&Curie.send(message, embed: &1)).()
 
       {:failed, reason} ->
         "Unable to retrieve patch notes. (#{reason})"
@@ -207,14 +207,14 @@ defmodule Curie.Commands do
     %Nostrum.Struct.Embed{}
     |> put_author(text, nil, Curie.avatar_url(message.author))
     |> put_color(Curie.color("lblue"))
-    |> (&Curie.send(message.channel_id, embed: &1)).()
+    |> (&Curie.send(message, embed: &1)).()
   end
 
   def command({"ping", message, _words}) do
     {send, _} = message.heartbeat.send.microsecond
     {ack, _} = message.heartbeat.ack.microsecond
     ping = Integer.to_string(ack - send) |> String.trim_trailing("0")
-    Curie.send(message.channel_id, content: ping <> "ms")
+    Curie.send(message, content: ping <> "ms")
   end
 
   def command({call, message, words}) do

@@ -57,7 +57,7 @@ defmodule Curie.Leaderboard do
   end
 
   def parse_entries(entries) when is_list(entries), do: Enum.join(entries, "<&&>")
-  
+
   def parse_entries(entries) when is_binary(entries), do: String.split(entries, "<&&>")
 
   def recover_state do
@@ -147,7 +147,7 @@ defmodule Curie.Leaderboard do
   def command({"lead", message, _words}) do
     state = GenServer.call(@self, :get)
     if state.message_id, do: Api.delete_all_reactions(state.channel_id, state.message_id)
-    {:ok, message} = Curie.send(message.channel_id, embed: format_output(:new))
+    {:ok, message} = Curie.send(message, embed: format_output(:new))
     GenServer.cast(@self, {:update, %{channel_id: message.channel_id, message_id: message.id}})
     GenServer.cast(@self, :save)
 

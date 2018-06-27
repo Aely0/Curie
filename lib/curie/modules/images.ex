@@ -29,7 +29,7 @@ defmodule Curie.Images do
 
     if index do
       Enum.at(images.files, index)
-      |> (&Curie.send(message.channel_id, file: @path <> "/" <> &1)).()
+      |> (&Curie.send(message, file: @path <> "/" <> &1)).()
     end
   end
 
