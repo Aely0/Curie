@@ -155,17 +155,9 @@ defmodule Curie.Commands do
     Api.start_typing(message.channel_id)
 
     case Curie.get("http://thecatapi.com/api/images/get") do
-      {200, response} ->
-        file =
-          List.keyfind(response.headers, "Content-Type", 0)
-          |> elem(1)
-          |> String.split("/")
-          |> (&"#{:os.system_time(:millisecond)}.#{Enum.at(&1, 1)}").()
-          |> (&("resources/temporary/" <> &1)).()
-
-        File.write!(file, response.body)
-        Curie.send(message.channel_id, file: file)
-        File.rm(file)
+      {200, %{headers: headers, body: body}} ->
+        {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0)
+        Curie.send(message.channel_id, file: %{name: "cat." <> type, body: body})
 
       {:failed, reason} ->
         "Oh no, I was unable to get your kitteh... (#{reason})"
@@ -177,9 +169,9 @@ defmodule Curie.Commands do
     Api.start_typing(message.channel_id)
 
     case Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
-      {200, response} ->
+      {200, %{body: body, request_url: url}} ->
         patches =
-          response.body
+          body
           |> Floki.find(".PatchNotesSideNav-listItem")
           |> Enum.take(5)
           |> Enum.map(fn patch ->
@@ -193,12 +185,12 @@ defmodule Curie.Commands do
               |> Timex.parse!("{M}/{D}/{YYYY}")
               |> Timex.format!("%B %d, %Y", :strftime)
 
-            "[#{build} - #{date}](#{response.request_url <> id})"
+            "[#{build} - #{date}](#{url <> id})"
           end)
           |> Enum.join("\n")
 
         %Nostrum.Struct.Embed{}
-        |> put_author("Latest Overwatch patches:", nil, "https://i.imgur.com/6NBYBSS.png")
+        |> put_author("Latest patches:", nil, "https://i.imgur.com/6NBYBSS.png")
         |> put_description(patches)
         |> put_color(Curie.color("white"))
         |> (&Curie.send(message.channel_id, embed: &1)).()
