@@ -145,7 +145,10 @@ defmodule Curie.Scheduler do
     end
   end
 
-  def prune, do: Api.begin_guild_prune(@shadowmere, 30)
+  def prune do
+    {:ok, %{pruned: count}} = Api.get_guild_prune_count(@shadowmere, 30)
+    if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+  end
 
   def scheduler do
     now = Timex.local()
