@@ -34,14 +34,13 @@ defmodule Curie.Images do
   end
 
   def command({"images", message, words}) when length(words) == 1 do
-    images = GenServer.call(@self, :get)
-    names = Enum.join(images.names, ", ") <> "."
-    Curie.embed(message, names, "green")
+    GenServer.call(@self, :get)
+    |> (&(Enum.join(&1.names, ", ") <> ".")).()
+    |> (&Curie.embed(message, &1, "green")).()
   end
 
-  def command({"images", message, words}) when length(words) >= 2 do
-    subcommand({Enum.at(words, 1), message, words})
-  end
+  def command({"images", message, words}) when length(words) >= 2,
+    do: subcommand({Enum.at(words, 1), message, words})
 
   def command({call, message, words}) do
     with {:ok, match} <- Curie.check_typo(call, "images"), do: command({match, message, words})

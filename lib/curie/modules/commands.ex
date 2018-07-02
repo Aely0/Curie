@@ -213,8 +213,11 @@ defmodule Curie.Commands do
   def command({"ping", message, _words}) do
     {send, _} = message.heartbeat.send.microsecond
     {ack, _} = message.heartbeat.ack.microsecond
-    ping = Integer.to_string(ack - send) |> String.trim_trailing("0")
-    Curie.send(message, content: ping <> "ms")
+
+    (ack - send)
+    |> Integer.to_string()
+    |> String.trim_trailing("0")
+    |> (&Curie.send(message, content: &1 <> "ms")).()
   end
 
   def command({call, message, words}) do

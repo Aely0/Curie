@@ -1,5 +1,6 @@
 defmodule Curie.Data.Help do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:command, :string, []}
   schema "help" do

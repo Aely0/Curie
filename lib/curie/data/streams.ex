@@ -1,5 +1,6 @@
 defmodule Curie.Data.Streams do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:member, :integer, []}
   schema "streams" do

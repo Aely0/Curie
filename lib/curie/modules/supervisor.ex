@@ -1,12 +1,14 @@
 defmodule Curie.ActivitySupervisor do
   use Supervisor
 
+  @self __MODULE__
+
   def child_spec(_opts) do
-    %{id: __MODULE__, type: :supervisor, start: {__MODULE__, :start_link, []}}
+    %{id: @self, type: :supervisor, start: {@self, :start_link, []}}
   end
 
   def start_link do
-    Supervisor.start_link(__MODULE__, [], name: __MODULE__)
+    Supervisor.start_link(@self, [], name: @self)
   end
 
   def init(_args) do

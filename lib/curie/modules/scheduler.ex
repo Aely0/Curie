@@ -22,35 +22,23 @@ defmodule Curie.Scheduler do
   end
 
   def apply_gain(presences, member, value) do
-    case Enum.find(presences, &(&1.user.id == member)) do
-      %{game: _, status: status, user: _} ->
-        cond do
-          status == :online and value < 300 ->
-            Curie.Currency.change_balance(:add, member, 1)
-
-          status in [:idle, :dnd] and value < 300 ->
-            if Enum.random(1..10) == 10 do
-              Curie.Currency.change_balance(:add, member, 1)
-            end
-
-          true ->
-            nil
-        end
-
-      nil ->
-        nil
+    with %{status: status} <- Enum.find(presences, &(&1.user.id == member)) do
+      if (status == :online and value < 300) or
+           (status in [:idle, :dnd] and value < 300 and Enum.random(1..10) == 10),
+         do: Curie.Currency.change_balance(:add, member, 1)
     end
   end
 
   def member_balance_gain do
+    me = Nostrum.Cache.Me.get().id
+
     presences =
       GuildCache.select_all(& &1.presences)
-      |> Enum.into([])
-      |> List.flatten()
+      |> Enum.flat_map(& &1)
 
     Balance
     |> Data.all()
-    |> Enum.filter(&(&1.member != Nostrum.Cache.Me.get().id))
+    |> Enum.filter(&(&1.member != me))
     |> Enum.each(&apply_gain(presences, &1.member, &1.value))
   end
 

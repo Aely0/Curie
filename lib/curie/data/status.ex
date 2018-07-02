@@ -1,5 +1,6 @@
 defmodule Curie.Data.Status do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:message, :string, []}
   schema "status" do

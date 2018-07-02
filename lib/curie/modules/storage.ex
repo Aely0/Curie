@@ -72,38 +72,40 @@ defmodule Curie.Storage do
     end
   end
 
+  def change_member_standing("whitelist", id, name, message) do
+    if Data.get(Balance, id) |> is_nil() do
+      %Balance{member: id, value: 0}
+      |> Data.insert()
+
+      "#{name} added, wooo! :tada:"
+      |> (&Curie.embed(message, &1, "green")).()
+    else
+      "Member already whitelisted."
+      |> (&Curie.embed(message, &1, "red")).()
+    end
+  end
+
+  def change_member_standing("remove", id, name, message) do
+    case Data.get(Balance, id) do
+      nil ->
+        "Already does not exist. Job's done... I guess?"
+        |> (&Curie.embed(message, &1, "red")).()
+
+      member ->
+        Data.delete(member)
+
+        "#{name} removed, never liked that one anyway."
+        |> (&Curie.embed(message, &1, "green")).()
+    end
+  end
+
   def command({action, @owner = message, _words}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
       nil ->
         Curie.embed(message, "Member not found.", "red")
 
-      %{user: user} ->
-        case action do
-          "whitelist" ->
-            if Data.get(Balance, user.id) |> is_nil() do
-              %Balance{member: user.id, value: 0}
-              |> Data.insert()
-
-              "#{user.username} added, wooo! :tada:"
-              |> (&Curie.embed(message, &1, "green")).()
-            else
-              "Member already whitelisted."
-              |> (&Curie.embed(message, &1, "red")).()
-            end
-
-          "remove" ->
-            case Data.get(Balance, user.id) do
-              nil ->
-                "Already does not exist. Job's done... I guess?"
-                |> (&Curie.embed(message, &1, "red")).()
-
-              member ->
-                Data.delete(member)
-
-                "#{user.username} removed, never liked that one anyway."
-                |> (&Curie.embed(message, &1, "green")).()
-            end
-        end
+      %{user: %{id: id, username: username}} ->
+        change_member_standing(action, id, username, message)
     end
   end
 

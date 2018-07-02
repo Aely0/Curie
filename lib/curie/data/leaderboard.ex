@@ -1,5 +1,6 @@
 defmodule Curie.Data.Leaderboard do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   schema "leaderboard" do
     field(:channel_id, :integer)

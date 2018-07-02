@@ -1,5 +1,6 @@
 defmodule Curie.Data.Overwatch do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:build, :string, []}
   schema "overwatch", do: nil

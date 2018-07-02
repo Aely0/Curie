@@ -11,48 +11,67 @@ defmodule Curie.Colors do
     |> (&if(&1 in Map.keys(@colors), do: &1, else: nil)).()
   end
 
+  def fallback("command", message, words) do
+    with {:ok, match} <- Curie.check_typo(Enum.at(words, 1), Map.keys(@colors)) do
+      List.replace_at(words, 1, match)
+      |> (&command({"color", message, &1})).()
+    else
+      _no_match ->
+        subcommand({Enum.at(words, 1), message, words})
+    end
+  end
+
+  def fallback("subcommand", message, words) do
+    with {:ok, match} <- Curie.check_typo(Enum.at(words, 2), Map.keys(@colors)) do
+      List.replace_at(words, 2, match)
+      |> (&subcommand({"preview", message, &1})).()
+    else
+      _no_match ->
+        Curie.embed(message, "Color not recognized.", "red")
+    end
+  end
+
+  def color_preview(color, %{guild_id: guild_id} = message) do
+    me = Nostrum.Cache.Me.get().id
+
+    color_role =
+      Api.get_guild_roles!(guild_id)
+      |> Enum.find(&(&1.id == @colors[color]))
+
+    Api.add_guild_member_role(guild_id, me, @colors[color])
+    Curie.embed(message, color, color_role.color)
+    Api.remove_guild_member_role(guild_id, me, @colors[color])
+  end
+
+  def confirm_transaction(color, member, %{guild_id: guild_id} = message) do
+    member_roles = Api.get_guild_member!(guild_id, member).roles
+    color_roles = Map.values(@colors)
+
+    for role <- member_roles do
+      if role in color_roles, do: Api.remove_guild_member_role(guild_id, member, role)
+    end
+
+    if @special_snowflake not in member_roles,
+      do: Api.add_guild_member_role(guild_id, member, @special_snowflake)
+
+    Api.add_guild_member_role(guild_id, member, @colors[color])
+    Curie.Currency.change_balance(:deduct, member, 500)
+
+    color_role =
+      Api.get_guild_roles!(guild_id)
+      |> Enum.find(&(&1.id == @colors[color]))
+
+    "#{message.author.username} acquired #{color}!"
+    |> (&Curie.embed(message, &1, color_role.color)).()
+  end
+
   def command({"color", %{author: %{id: member}} = message, words}) when length(words) >= 2 do
     case words |> Enum.at(1) |> get_color() do
       nil ->
-        with {:ok, match} <- Curie.check_typo(Enum.at(words, 1), Map.keys(@colors)) do
-          List.replace_at(words, 1, match)
-          |> (&command({"color", message, &1})).()
-        else
-          _no_match ->
-            subcommand({Enum.at(words, 1), message, words})
-        end
+        fallback("command", message, words)
 
       color ->
-        cond do
-          !Curie.Currency.whitelisted?(message) ->
-            nil
-
-          Curie.Currency.get_balance(member) < 500 ->
-            Curie.embed(message, "Insufficient balance.", "red")
-
-          true ->
-            member_roles = Api.get_guild_member!(message.guild_id, member).roles
-            color_roles = Map.values(@colors)
-
-            for role <- member_roles do
-              if role in color_roles,
-                do: Api.remove_guild_member_role(message.guild_id, member, role)
-            end
-
-            if @special_snowflake not in member_roles,
-              do: Api.add_guild_member_role(message.guild_id, member, @special_snowflake)
-
-            Api.add_guild_member_role(message.guild_id, member, @colors[color])
-
-            Curie.Currency.change_balance(:deduct, member, 500)
-
-            color_role =
-              Api.get_guild_roles!(message.guild_id)
-              |> Enum.find(&(&1.id == @colors[color]))
-
-            "#{message.author.username} acquired #{color}!"
-            |> (&Curie.embed(message, &1, color_role.color)).()
-        end
+        confirm_transaction(color, member, message)
     end
   end
 
@@ -77,26 +96,10 @@ defmodule Curie.Colors do
   def subcommand({"preview", message, words}) when length(words) >= 3 do
     case words |> Enum.at(2) |> get_color() do
       nil ->
-        with {:ok, match} <- Curie.check_typo(Enum.at(words, 2), Map.keys(@colors)) do
-          List.replace_at(words, 2, match)
-          |> (&subcommand({"preview", message, &1})).()
-        else
-          _no_match ->
-            Curie.embed(message, "Color not recognized.", "red")
-        end
+        fallback("subcommand", message, words)
 
       color ->
-        me = Nostrum.Cache.Me.get().id
-
-        color_role =
-          Api.get_guild_roles!(message.guild_id)
-          |> Enum.find(&(&1.id == @colors[color]))
-
-        Api.add_guild_member_role(message.guild_id, me, @colors[color])
-
-        Curie.embed(message, color, color_role.color)
-
-        Api.remove_guild_member_role(message.guild_id, me, @colors[color])
+        color_preview(color, message)
     end
   end
 

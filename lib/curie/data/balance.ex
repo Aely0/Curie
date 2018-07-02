@@ -1,5 +1,6 @@
 defmodule Curie.Data.Balance do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:member, :integer, []}
   schema "balance" do

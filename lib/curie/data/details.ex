@@ -1,5 +1,6 @@
 defmodule Curie.Data.Details do
-  use Curie.Data.Schema
+  use Ecto.Schema
+  import Ecto.Changeset
 
   @primary_key {:member, :integer, []}
   schema "details" do

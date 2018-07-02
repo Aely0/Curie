@@ -133,7 +133,7 @@ defmodule Curie do
 
     [{"d", days}, {"h", hours}, {"m", minutes}, {"s", seconds}]
     |> Enum.filter(fn {_key, value} -> value != 0 end)
-    |> Enum.map_join(", ", fn {key, value} -> "#{value}" <> key end)
+    |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
   end
 
   def get_member(%{guild_id: guild} = message, position) do
