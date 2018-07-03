@@ -167,10 +167,8 @@ defmodule Curie.TwentyOne do
 
       GenServer.cast(@self, :reset)
       not_enough_players(message)
-      false
-    else
-      true
     end
+    |> (&if(&1, do: true, else: false)).()
   end
 
   def join_phase(message) do

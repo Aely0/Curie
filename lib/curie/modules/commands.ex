@@ -97,8 +97,7 @@ defmodule Curie.Commands do
 
         status =
           GuildCache.select_all(& &1.presences)
-          |> Enum.into([])
-          |> List.flatten()
+          |> Enum.flat_map(& &1)
           |> Enum.find(&(&1.user.id == member.user.id))
           |> (&if(!is_nil(&1), do: Atom.to_string(&1.status), else: "offline")).()
 
