@@ -139,19 +139,19 @@ defmodule Curie.Scheduler do
   end
 
   def scheduler do
-    now = Timex.local()
+    %{hour: hour, minute: minute, second: second} = Timex.local()
 
-    if now.second == 0 do
+    if second == 0 do
       Task.start(&new_overwatch_patch/0)
     end
 
-    if now.minute == 0 and now.second == 0 do
+    if minute == 0 and second == 0 do
       Task.start(fn -> curie_balance_change(:decay) end)
       Task.start(&member_balance_gain/0)
       Task.start(&set_status/0)
     end
 
-    if now.hour == 0 and now.minute == 0 and now.second == 0 do
+    if hour == 0 and minute == 0 and second == 0 do
       Task.start(fn -> curie_balance_change(:gain) end)
       Task.start(&prune/0)
     end
