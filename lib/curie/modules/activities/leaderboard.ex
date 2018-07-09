@@ -80,20 +80,22 @@ defmodule Curie.Leaderboard do
   end
 
   def create_entries do
-    overflow = fn list -> if length(list) > 3, do: ", + #{length(list) - 3}", else: "" end
-    format = fn list -> Enum.slice(list, 0..2) |> Enum.join(", ") end
-
     Balance
     |> Data.all()
     |> Enum.group_by(& &1.value, & &1.member)
     |> Enum.into([])
     |> Enum.sort(&(&1 > &2))
-    |> Enum.map(fn {value, list} -> {value, list |> Enum.map(&UserCache.get!(&1).username)} end)
-    |> Enum.map(fn {value, list} ->
-      "**#{format.(list)}#{overflow.(list)}** with **#{value}**#{Curie.tempest()}"
-    end)
+    |> Enum.map(fn {value, list} -> {value, Enum.map(list, &UserCache.get!(&1).username)} end)
+    |> Enum.map(&format_entry/1)
     |> Enum.with_index(1)
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
+  end
+
+  def format_entry({value, list}) do
+    {first, rest} = Enum.split(list, 3)
+    members = Enum.join(first, ", ")
+    overflow = if rest != [], do: ", + #{Enum.count(rest)}", else: ""
+    "**#{members <> overflow}** with **#{value}**#{Curie.tempest()}"
   end
 
   def format_output(action) do
