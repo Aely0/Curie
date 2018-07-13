@@ -7,17 +7,19 @@ defmodule Curie.Scheduler do
 
   import Nostrum.Struct.Embed
 
+  @self __MODULE__
+
   @shadowmere 90_579_372_049_723_392
   @overwatch 169_835_616_110_903_307
   @proko 197_436_404_886_667_264
 
   def child_spec(_opts) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, []}}
+    %{id: @self, start: {@self, :start_link, []}}
   end
 
   def start_link do
     {:ok, pid} = Task.start_link(fn -> scheduler() end)
-    Process.register(pid, __MODULE__)
+    Process.register(pid, @self)
     {:ok, pid}
   end
 

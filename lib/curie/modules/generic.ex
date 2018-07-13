@@ -1,4 +1,5 @@
-defmodule Curie.Commands do
+defmodule Curie.Generic do
+  use Curie.Commands
   use Bitwise
 
   alias Nostrum.Cache.GuildCache
@@ -6,10 +7,11 @@ defmodule Curie.Commands do
 
   import Nostrum.Struct.Embed
 
+  @check_typo ["felweed", "rally", "details", "cat", "overwatch", "roll", "ping"]
   @roles Application.get_env(:curie, :roles)
-  @owner Curie.owner()
+  @owner_id @owner.author.id
 
-  def command({"eval", @owner = message, [_ | code]}) do
+  def command({"eval", @owner = message, code}) do
     result =
       try do
         code
@@ -31,15 +33,15 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({"purge", @owner = message, [_, count]}) do
+  def command({"purge", %{author: %{id: @owner_id}, channel_id: channel} = _message, [count]}) do
     count
     |> String.to_integer()
-    |> (&Api.get_channel_messages!(message.channel_id, &1 + 1, {})).()
+    |> (&Api.get_channel_messages!(channel, &1 + 1, {})).()
     |> Enum.map(& &1.id)
-    |> (&Api.bulk_delete_messages!(message.channel_id, &1)).()
+    |> (&Api.bulk_delete_messages!(channel, &1)).()
   end
 
-  def command({"avatar", @owner = message, [_, path]}) do
+  def command({"avatar", @owner = message, [path]}) do
     case File.read(path) do
       {:ok, file} ->
         %{".jpg" => "jpeg", ".png" => "png", ".gif" => "gif"}
@@ -58,38 +60,39 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({role, message, words}) when role in ["felweed", "rally"] and length(words) >= 2 do
-    if message.author.id in @roles[role].mods do
+  def command({role, %{author: %{id: author}, guild_id: guild} = message, args})
+      when role in ["felweed", "rally"] and args != [] do
+    if author in @roles[role].mods do
       case Curie.get_member(message, 1) do
         nil ->
-          "Member '#{words |> tl() |> Enum.join(" ")}' not found."
+          "Member '#{Enum.join(args, " ")}' not found."
           |> (&Curie.embed(message, &1, "red")).()
 
-        member ->
-          if member.user.id in @roles[role].mods do
+        %{roles: roles, user: %{id: member, username: name}} ->
+          if member in @roles[role].mods do
             "Cannot be used on yourself or other moderators."
             |> (&Curie.embed(message, &1, "red")).()
           else
             action =
-              if @roles[role].id in member.roles do
-                Api.remove_guild_member_role(message.guild_id, member.user.id, @roles[role].id)
+              if @roles[role].id in roles do
+                Api.remove_guild_member_role(guild, member, @roles[role].id)
                 "removed from"
               else
-                Api.add_guild_member_role(message.guild_id, member.user.id, @roles[role].id)
+                Api.add_guild_member_role(guild, member, @roles[role].id)
                 "added to"
               end
 
-            "Role #{String.capitalize(role)} #{action} #{member.user.username}."
+            "Role #{String.capitalize(role)} #{action} #{name}."
             |> (&Curie.embed(message, &1, "dblue")).()
           end
       end
     end
   end
 
-  def command({"details", message, words}) when length(words) >= 2 do
+  def command({"details", %{guild_id: guild} = message, args}) when args != [] do
     case Curie.get_member(message, 1) do
       nil ->
-        "Member '#{words |> tl() |> Enum.join(" ")}' not found."
+        "Member '#{Enum.join(args, " ")}' not found."
         |> (&Curie.embed(message, &1, "red")).()
 
       member ->
@@ -99,7 +102,7 @@ defmodule Curie.Commands do
           GuildCache.select_all(& &1.presences)
           |> Enum.flat_map(& &1)
           |> Enum.find(&(&1.user.id == member.user.id))
-          |> (&if(!is_nil(&1), do: Atom.to_string(&1.status), else: "offline")).()
+          |> (&if(&1 != nil, do: Atom.to_string(&1.status), else: "offline")).()
 
         status =
           case status do
@@ -121,7 +124,7 @@ defmodule Curie.Commands do
             else: details.spoke
 
         roles =
-          GuildCache.get!(message.guild_id).roles
+          GuildCache.get!(guild).roles
           |> Enum.filter(&(&1.id in member.roles))
           |> Enum.map_join(", ", & &1.name)
           |> (&if(&1 == "", do: "None", else: &1)).()
@@ -150,8 +153,8 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({"cat", message, _words}) do
-    Api.start_typing(message.channel_id)
+  def command({"cat", %{channel_id: channel} = message, _args}) do
+    Api.start_typing(channel)
 
     case Curie.get("http://thecatapi.com/api/images/get") do
       {200, %{headers: headers, body: body}} ->
@@ -164,8 +167,8 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({"overwatch", message, _words}) do
-    Api.start_typing(message.channel_id)
+  def command({"overwatch", %{channel_id: channel} = message, _args}) do
+    Api.start_typing(channel)
 
     case Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
       {200, %{body: body, request_url: url}} ->
@@ -200,29 +203,21 @@ defmodule Curie.Commands do
     end
   end
 
-  def command({"roll", message, _words}) do
-    text = "#{message.author.username} rolls: #{Enum.random(1..100)}"
+  def command({"roll", %{author: member} = message, _args}) do
+    text = "#{member.username} rolls: #{Enum.random(1..100)}"
 
     %Nostrum.Struct.Embed{}
-    |> put_author(text, nil, Curie.avatar_url(message.author))
+    |> put_author(text, nil, Curie.avatar_url(member))
     |> put_color(Curie.color("lblue"))
     |> (&Curie.send(message, embed: &1)).()
   end
 
-  def command({"ping", message, _words}) do
-    {send, _} = message.heartbeat.send.microsecond
-    {ack, _} = message.heartbeat.ack.microsecond
-
+  def command({"ping", %{heartbeat: %{send: send, ack: ack}} = message, _args}) do
     (ack - send)
     |> Integer.to_string()
     |> String.trim_trailing("0")
     |> (&Curie.send(message, content: &1 <> "ms")).()
   end
 
-  def command({call, message, words}) do
-    registered = ["felweed", "rally", "details", "cat", "overwatch", "roll", "ping"]
-    with {:ok, match} <- Curie.check_typo(call, registered), do: command({match, message, words})
-  end
-
-  def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 end

@@ -13,13 +13,13 @@ defmodule Curie.Announcements do
 
   def join_log(guild_id, member) do
     with {:ok, invites} <- Api.get_guild_invites(guild_id),
-         true <- !Enum.empty?(invites) do
+         true <- invites != [] do
       latest =
         invites
         |> Enum.filter(&(&1.uses > 0))
         |> Enum.max_by(&(&1.created_at |> iso_to_unix()), fn -> nil end)
 
-      if !is_nil(latest) do
+      if latest != nil do
         ("#{latest.inviter.username} invited #{member.user.username} " <>
            "to the server. (#{length(invites)}) #{Curie.time_now()}")
         |> (&Curie.embed(@notify, &1, "dblue")).()
@@ -72,21 +72,21 @@ defmodule Curie.Announcements do
     |> Data.insert_or_update()
   end
 
-  def stream(presence) do
-    if !is_nil(presence.game) and presence.game.type == 1 and !has_cooldown?(presence.user.id) do
+  def stream(%{game: game, user: %{id: member}} = _presence) do
+    if game != nil and game.type == 1 and !has_cooldown?(member) do
       twitch_id = Application.get_env(:curie, :twitch)
-      channel_name = presence.game.url |> String.split("/") |> List.last()
+      channel_name = game.url |> String.split("/") |> List.last()
       url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
 
       case Curie.get(url) do
         {200, %{body: body}} ->
           details = Poison.decode!(body)
-          member = UserCache.get!(presence.user.id)
+          member = UserCache.get!(member)
           content = "#{member.username} started streaming!"
 
           %Nostrum.Struct.Embed{}
           |> put_author(content, nil, Curie.avatar_url(member))
-          |> put_description("[#{presence.game.name}](#{presence.game.url})")
+          |> put_description("[#{game.name}](#{game.url})")
           |> put_color(Curie.color("purple"))
           |> put_field("Playing:", details["game"], true)
           |> put_field("Channel:", "Twitch.tv/" <> details["display_name"], true)

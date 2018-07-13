@@ -1,10 +1,14 @@
 defmodule Curie.Weather do
+  use Curie.Commands
+
   alias Nostrum.Api
 
   import Nostrum.Struct.Embed
 
+  @check_typo ["weather"]
+
   def google_url(location) do
-    if(Enum.empty?(location), do: "Rīga", else: Enum.join(location, "+"))
+    if(location == [], do: "Rīga", else: Enum.join(location, "+"))
     |> (&("https://maps.googleapis.com/maps/api/geocode/json?key=" <>
             Application.get_env(:curie, :googlemaps) <> "&address=" <> &1)).()
   end
@@ -68,17 +72,13 @@ defmodule Curie.Weather do
     end
   end
 
-  def command({"weather", %{channel_id: channel} = message, [_call | location]}) do
-    Api.start_typing(message.channel_id)
+  def command({"weather", %{channel_id: channel} = _message, location}) do
+    Api.start_typing(channel)
 
     with location when is_tuple(location) <- get_location(location, channel),
          forecast when is_binary(forecast) <- get_forecast(location, channel),
          do: Curie.send(channel, embed: create_embed(forecast))
   end
 
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "weather"), do: command({match, message, words})
-  end
-
-  def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 end

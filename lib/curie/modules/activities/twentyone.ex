@@ -1,4 +1,5 @@
 defmodule Curie.TwentyOne do
+  use Curie.Commands
   use GenServer
 
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
@@ -7,6 +8,7 @@ defmodule Curie.TwentyOne do
 
   import Curie.Pot, only: [not_enough_players: 1]
 
+  @check_typo ["21", "ace", "hit", "stand", "deck"]
   @self __MODULE__
 
   def start_link(_args) do
@@ -136,13 +138,12 @@ defmodule Curie.TwentyOne do
 
     if state.phase == :joining and Enum.count(state.players) < 5 and
          Curie.Currency.get_balance(me) >= state.set_value,
-       do: Curie.send(channel, content: Curie.prefix() <> "21")
+       do: Curie.send(channel, content: @prefix <> "21")
   end
 
   def announce_start(%{author: %{username: member}} = message, value) do
     ("#{member} started a game of 21! " <>
-       "Join value is **#{value}**#{Curie.tempest()}\n" <>
-       "Use **!21** to join! Join phase ends in 20s!")
+       "Join value is **#{value}**#{@tempest}\n" <> "Use **!21** to join! Join phase ends in 20s!")
     |> (&Curie.embed(message, &1, "dblue")).()
   end
 
@@ -171,9 +172,9 @@ defmodule Curie.TwentyOne do
     |> (&if(&1, do: false, else: true)).()
   end
 
-  def join_phase(message) do
+  def join_phase(%{channel_id: channel} = message) do
     for remaining <- 20..1 do
-      if remaining == 5, do: curie_join(message.channel_id)
+      if remaining == 5, do: curie_join(channel)
       Process.sleep(1000)
     end
 
@@ -203,13 +204,15 @@ defmodule Curie.TwentyOne do
     players = List.delete(players, me)
 
     unreachable =
-      Enum.map(players, &send_cards(&1, state.players[&1].cards))
-      |> Enum.filter(&(!is_nil(&1)))
+      players
+      |> Enum.map(&send_cards(&1, state.players[&1].cards))
+      |> Enum.filter(&(&1 != nil))
 
-    if !Enum.empty?(unreachable) do
+    if unreachable != [] do
       Enum.each(unreachable, fn {player, _} -> GenServer.cast(@self, {:remove_player, player}) end)
 
-      Enum.map(unreachable, fn {_, name} -> name end)
+      unreachable
+      |> Enum.map(fn {_, name} -> name end)
       |> Enum.join(", ")
       |> (&"#{&1} removed - Unreachable.").()
       |> (&Curie.embed(message, &1, "red")).()
@@ -221,7 +224,7 @@ defmodule Curie.TwentyOne do
   def ready_check(state, list) do
     Map.keys(state.players)
     |> Enum.map(&if &1 not in list and state.players[&1].status != :playing, do: &1)
-    |> Enum.filter(&(!is_nil(&1)))
+    |> Enum.filter(&(&1 != nil))
     |> (&(list ++ &1)).()
   end
 
@@ -283,7 +286,8 @@ defmodule Curie.TwentyOne do
     state = GenServer.call(@self, :get)
 
     win_value =
-      Enum.map(players, &state.players[&1].card_value)
+      players
+      |> Enum.map(&state.players[&1].card_value)
       |> Enum.filter(&(&1 <= 21))
       |> Enum.max(fn -> 0 end)
 
@@ -319,7 +323,7 @@ defmodule Curie.TwentyOne do
 
         content =
           "**#{name}** [#{cards}], **#{status}** " <>
-            "with **#{card_value}**, **#{balance}**#{Curie.tempest()}"
+            "with **#{card_value}**, **#{balance}**#{@tempest}"
 
         {content, change}
       end
@@ -356,8 +360,8 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  def start(message, member, value) do
-    channel = "#" <> ChannelCache.get!(message.channel_id).name
+  def start(%{channel_id: channel} = message, member, value) do
+    channel = "#" <> ChannelCache.get!(channel).name
     me = Me.get().id
 
     new_state = %{phase: :joining, channel: channel, set_value: value, total_value: value}
@@ -390,30 +394,30 @@ defmodule Curie.TwentyOne do
   def can_continue?(%{author: %{id: id}} = _message, state),
     do: Map.has_key?(state.players, id) and state.players[id].status == :playing
 
-  def command({"ace", %{guild_id: guild, author: %{id: id}} = message, words})
-      when is_nil(guild) and length(words) >= 2 do
+  def command({"ace", %{guild_id: guild, author: %{id: member}} = message, [value | _rest]})
+      when guild == nil do
     state = GenServer.call(@self, :get)
 
     if can_continue?(message, state) do
       cond do
-        state.players[id].aces <= 0 ->
+        state.players[member].aces <= 0 ->
           Curie.embed(message, "No Aces to convert.", "red")
 
-        Enum.at(words, 1) not in ["1", "11"] ->
+        value not in ["1", "11"] ->
           Curie.embed(message, "Ace can be converted to 1 or 11.", "red")
 
         true ->
-          type = Enum.at(words, 1) |> String.to_integer()
-          {card_value, status} = GenServer.call(@self, {:ace_convert, id, type})
-          content = "Ace converted to **#{type}**.\nHand value is now **#{card_value}**."
+          card_type = String.to_integer(value)
+          {card_value, status} = GenServer.call(@self, {:ace_convert, member, card_type})
+          content = "Ace converted to **#{card_type}**.\nHand value is now **#{card_value}**."
           Curie.embed(message, content, "lblue")
           if status == :busted, do: Curie.embed(message, "Really...? \**sighs* \*", "red")
       end
     end
   end
 
-  def command({"hit", %{guild_id: guild, author: %{id: id}} = message, _words})
-      when is_nil(guild) do
+  def command({"hit", %{guild_id: guild, author: %{id: id}} = message, _args})
+      when guild == nil do
     state = GenServer.call(@self, :get)
 
     if can_continue?(message, state) and !has_aces?(message, state) do
@@ -424,8 +428,8 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  def command({"stand", %{guild_id: guild, author: %{id: id}} = message, _words})
-      when is_nil(guild) do
+  def command({"stand", %{guild_id: guild, author: %{id: id}} = message, _args})
+      when guild == nil do
     state = GenServer.call(@self, :get)
 
     if can_continue?(message, state) and !has_aces?(message, state) do
@@ -436,10 +440,10 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  def command({"21", %{author: %{id: member}} = message, words}) do
+  def command({"21", %{guild_id: guild_id, author: %{id: member}} = message, args}) do
     state = GenServer.call(@self, :get)
     balance = Curie.Currency.get_balance(member)
-    value = words |> Enum.at(1) |> Curie.Currency.value_parse(balance)
+    value = args |> List.first() |> Curie.Currency.value_parse(balance)
 
     cond do
       !Curie.Currency.whitelisted?(message) ->
@@ -448,10 +452,10 @@ defmodule Curie.TwentyOne do
       state.phase == :playing ->
         Curie.embed(message, "Game in progress: #{state.channel}", "red")
 
-      is_nil(message.guild_id) ->
+      guild_id == nil ->
         Curie.embed(message, "Uhuh... that's a no.", "red")
 
-      state.phase == :idle and is_nil(value) ->
+      state.phase == :idle and value == nil ->
         Curie.embed(message, "Invalid amount.", "red")
 
       true ->
@@ -465,7 +469,7 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  def command({"deck", message, _words}) do
+  def command({"deck", message, _args}) do
     %{last_deck: last_deck} = GenServer.call(@self, :get)
 
     content =
@@ -476,10 +480,5 @@ defmodule Curie.TwentyOne do
     Curie.embed(message, content, "green")
   end
 
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, ["21", "ace", "hit", "stand", "deck"]),
-         do: command({match, message, words})
-  end
-
-  def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 end

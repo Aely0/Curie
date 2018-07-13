@@ -1,11 +1,15 @@
 defmodule Curie.Currency do
+  use Curie.Commands
+
   alias Nostrum.Cache.{GuildCache, UserCache}
   alias Curie.Data.Balance
   alias Curie.Data
 
+  @check_typo %{command: ["balance", "gift"], subcommand: ["curie"]}
+
   def value_parse(value, balance) do
     cond do
-      is_nil(value) or is_nil(balance) ->
+      value == nil or balance == nil ->
         nil
 
       Curie.check_typo(value, "all") ->
@@ -49,51 +53,50 @@ defmodule Curie.Currency do
 
   def whitelisted?(%{user: %{id: id}} = _member), do: id |> get_balance() |> is_integer()
 
-  def whitelist_message(message) do
-    with {:ok, guild} <- GuildCache.get(message.guild_id),
-         {:ok, owner} <- UserCache.get(guild.owner_id) do
-      "Whitelisting required, ask #{owner.username}."
+  def whitelist_message(%{guild_id: guild_id} = message) do
+    with {:ok, %{owner_id: owner_id} = _guild} <- GuildCache.get(guild_id),
+         {:ok, %{username: name} = _owner} <- UserCache.get(owner_id) do
+      "Whitelisting required, ask #{name}."
       |> (&Curie.embed(message, &1, "red")).()
     end
   end
 
   def validate_recipient(message) do
     Curie.get_member(message, 2)
-    |> (&if(!is_nil(&1) and whitelisted?(&1), do: &1)).()
+    |> (&if(&1 != nil and whitelisted?(&1), do: &1)).()
   end
 
-  def command({"balance", message, words}) when length(words) == 1 do
+  def command({"balance", %{author: %{id: member, username: name}} = message, args})
+      when args == [] do
     if whitelisted?(message) do
-      message.author.id
+      member
       |> get_balance()
-      |> (&"#{message.author.username} has #{&1}#{Curie.tempest()}.").()
+      |> (&"#{name} has #{&1}#{@tempest}.").()
       |> (&Curie.embed(message, &1, "lblue")).()
     else
       whitelist_message(message)
     end
   end
 
-  def command({"balance", message, words}) when length(words) >= 2 do
-    subcommand({Enum.at(words, 1), message, words})
-  end
+  def command({"balance", message, [call | _rest] = args}), do: subcommand({call, message, args})
 
-  def command({"gift", message, words}) when length(words) >= 3 do
+  def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _] = args})
+      when length(args) >= 2 do
     if whitelisted?(message) do
       case validate_recipient(message) do
         nil ->
           Curie.embed(message, "Invalid recipient.", "red")
 
-        recipient ->
-          case value_parse(Enum.at(words, 1), get_balance(message.author.id)) do
+        %{user: %{id: target, username: giftee}} ->
+          case value_parse(value, get_balance(author)) do
             nil ->
               Curie.embed(message, "Invalid amount.", "red")
 
             amount ->
-              change_balance(:add, recipient.user.id, amount)
-              change_balance(:deduct, message.author.id, amount)
+              change_balance(:deduct, author, amount)
+              change_balance(:add, target, amount)
 
-              ("#{message.author.username} gifted " <>
-                 "#{amount}#{Curie.tempest()} to #{recipient.user.username}.")
+              "#{gifter} gifted #{amount}#{@tempest} to #{giftee}."
               |> (&Curie.embed(message, &1, "lblue")).()
           end
       end
@@ -102,21 +105,14 @@ defmodule Curie.Currency do
     end
   end
 
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, ["balance", "gift"]),
-         do: command({match, message, words})
-  end
+  def command(call), do: check_typo(call, @check_typo.command, &command/1)
 
-  def subcommand({"curie", message, _words}) do
+  def subcommand({"curie", message, _args}) do
     Nostrum.Cache.Me.get().id
     |> get_balance()
-    |> (&"My balance is #{&1}#{Curie.tempest()}.").()
+    |> (&"My balance is #{&1}#{@tempest}.").()
     |> (&Curie.embed(message, &1, "lblue")).()
   end
 
-  def subcommand({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "curie"), do: subcommand({match, message, words})
-  end
-
-  def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
+  def subcommand(call), do: check_typo(call, @check_typo.subcommand, &subcommand/1)
 end

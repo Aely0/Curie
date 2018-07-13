@@ -1,10 +1,11 @@
 defmodule Curie.Help do
+  use Curie.Commands
   use GenServer
 
   alias Curie.Data.Help
   alias Curie.Data
 
-  @owner Curie.owner()
+  @check_typo ["curie", "currency", "help"]
   @self __MODULE__
 
   def start_link(_args) do
@@ -19,8 +20,7 @@ defmodule Curie.Help do
 
   def handle_cast(:reload, _state), do: {:noreply, get_commands()}
 
-  def parse(content) when is_binary(content),
-    do: String.replace(content, "<prefix>", Curie.prefix())
+  def parse(content) when is_binary(content), do: String.replace(content, "<prefix>", @prefix)
 
   def parse(%{command: command, description: description, short: short} = _entry),
     do: {command, %{description: parse(description), short: short}}
@@ -37,7 +37,7 @@ defmodule Curie.Help do
     end
   end
 
-  def command({"curie", message, _words}) do
+  def command({"curie", message, _args}) do
     ("Heya, my name is Curie! I am a Discord bot written in Elixir.\n" <>
        "My purpose here is to accompany members of Shadowmere, \n" <>
        "offering relevant information and playful distractions.\n" <>
@@ -46,17 +46,17 @@ defmodule Curie.Help do
        "I also help managing this guild with things like role management,\n" <>
        "tracking changes and mundane maintanace tasks.\n" <>
        "If you want to find out about all the things I can help you with,\n" <>
-       "you can use one of my commands called **#{Curie.prefix()}help**.\n" <>
+       "you can use one of my commands called **#{@prefix}help**.\n" <>
        "If you want to look at my source code, you can find it here:\n" <>
        "https://github.com/Andris0/CurieEx")
     |> (&Curie.embed(message, &1, 0x620589)).()
   end
 
-  def command({"currency", message, _words}) do
+  def command({"currency", message, _args}) do
     ("One of the things I manage here is the Currency System.\n" <>
        "It works like this, you can ask the server owner to\n" <>
        "whitelist your account and when approved, you will\n" <>
-       "have a balance tied to your account in form of Tempests #{Curie.tempest()}.\n" <>
+       "have a balance tied to your account in form of Tempests #{@tempest}.\n" <>
        "You can use these tempests to partake in my mini-games,\n" <>
        "collect rewards and have your name on the leaderboard.\n" <>
        "Current currency related mini-games are Pots and 21,\n" <>
@@ -73,30 +73,30 @@ defmodule Curie.Help do
     |> (&Curie.embed(message, &1, 0xFFD700)).()
   end
 
-  def command({"help", @owner = message, [_, word]}) when word == "r" do
-    Curie.embed(message, "Help module state reloaded.", "green")
+  def command({"help", @owner = message, [call]}) when call == "r" do
     GenServer.cast(@self, :reload)
+    Curie.embed(message, "Help module state reloaded.", "green")
   end
 
-  def command({"help", message, words}) when length(words) == 1 do
+  def command({"help", message, args}) when args == [] do
     state = GenServer.call(@self, :get)
 
     commands =
-      Enum.filter(state.commands, &(!is_nil(state.full[&1].short)))
-      |> Enum.map(&"**#{Curie.prefix() <> &1}** - #{state.full[&1].short}")
+      state.commands
+      |> Enum.filter(&(state.full[&1].short != nil))
+      |> Enum.map(&"**#{@prefix <> &1}** - #{state.full[&1].short}")
       |> Enum.join("\n")
 
-    content = "\n\nUse **#{Curie.prefix()}help command** for more info.\n"
+    content = "\n\nUse **#{@prefix}help command** for more info.\n"
 
     Curie.embed(message, "=> Curie's commands\n\n" <> commands <> content, "green")
   end
 
-  def command({"help", message, words}) when length(words) >= 2 do
+  def command({"help", message, [command | _rest]}) do
     state = GenServer.call(@self, :get)
-    info = words |> tl() |> Enum.join(" ")
 
-    with {:ok, match} <- Curie.check_typo(info, state.commands) do
-      ("Command → **#{Curie.prefix() <> match}**\n\n" <> state.full[match].description)
+    with match when match != nil <- Curie.check_typo(command, state.commands) do
+      ("Command → **#{@prefix <> match}**\n\n" <> state.full[match].description)
       |> (&Curie.embed(message, &1, "green")).()
     else
       _no_match ->
@@ -104,10 +104,5 @@ defmodule Curie.Help do
     end
   end
 
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, ["curie", "currency", "help"]),
-         do: command({match, message, words})
-  end
-
-  def handler(message), do: if(Curie.command?(message), do: message |> Curie.parse() |> command())
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 end

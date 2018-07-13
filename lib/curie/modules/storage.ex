@@ -1,10 +1,10 @@
 defmodule Curie.Storage do
+  use Curie.Commands
+
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
 
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
-
-  @owner Curie.owner()
 
   def remove(member) do
     for table <- [Balance, Details],
@@ -55,25 +55,25 @@ defmodule Curie.Storage do
 
       details ->
         details
-        |> (&if(is_nil(&1.online), do: %{&1 | online: "Never seen online"}, else: &1)).()
-        |> (&if(is_nil(&1.spoke), do: %{&1 | spoke: "Never"}, else: &1)).()
-        |> (&if(is_nil(&1.channel), do: %{&1 | channel: "None"}, else: &1)).()
+        |> (&if(&1.online == nil, do: %{&1 | online: "Never seen online"}, else: &1)).()
+        |> (&if(&1.spoke == nil, do: %{&1 | spoke: "Never"}, else: &1)).()
+        |> (&if(&1.channel == nil, do: %{&1 | channel: "None"}, else: &1)).()
     end
   end
 
-  def status_gather(presence) do
-    if !is_nil(presence.game) and presence.game.type == 0 do
-      if Data.get(Status, presence.game.name) |> is_nil() do
-        member = UserCache.get!(presence.user.id).username
+  def status_gather(%{game: game, user: user} = _presence) do
+    if game != nil and game.type == 0 do
+      if Status |> Data.get(game.name) |> is_nil() do
+        member = UserCache.get!(user.id).username
 
-        %Status{message: presence.game.name, member: member}
+        %Status{message: game.name, member: member}
         |> Data.insert()
       end
     end
   end
 
   def change_member_standing("whitelist", id, name, message) do
-    if Data.get(Balance, id) |> is_nil() do
+    if Balance |> Data.get(id) |> is_nil() do
       %Balance{member: id, value: 0}
       |> Data.insert()
 
@@ -99,7 +99,7 @@ defmodule Curie.Storage do
     end
   end
 
-  def command({action, @owner = message, _words}) when action in ["whitelist", "remove"] do
+  def command({action, @owner = message, _args}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
       nil ->
         Curie.embed(message, "Member not found.", "red")
@@ -109,10 +109,10 @@ defmodule Curie.Storage do
     end
   end
 
-  def command(_unknown_command), do: nil
+  def command(_call), do: nil
 
-  def handler(message) do
-    if Me.get().id != message.author.id, do: store_details(message)
-    if Curie.command?(message), do: message |> Curie.parse() |> command()
+  def handler(%{author: %{id: id}} = message) do
+    if Me.get().id != id, do: store_details(message)
+    super(message)
   end
 end

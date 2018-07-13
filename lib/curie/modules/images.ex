@@ -1,8 +1,9 @@
 defmodule Curie.Images do
+  use Curie.Commands
   use GenServer
 
   @path "resources/images"
-  @owner Curie.owner()
+  @check_typo ["images"]
   @self __MODULE__
 
   def start_link(_args) do
@@ -23,9 +24,9 @@ defmodule Curie.Images do
     %{names: names, files: files}
   end
 
-  def send_match(message) do
+  def send_match(%{content: content} = message) do
     images = GenServer.call(@self, :get)
-    index = Enum.find_index(images.names, &(message.content == &1))
+    index = Enum.find_index(images.names, &(content == &1))
 
     if index do
       Enum.at(images.files, index)
@@ -33,30 +34,21 @@ defmodule Curie.Images do
     end
   end
 
-  def command({"images", message, words}) when length(words) == 1 do
+  def command({"images", @owner = message, [call]}) when call == "r" do
+    GenServer.cast(@self, :reload)
+    Curie.embed(message, "Image directory refreshed.", "green")
+  end
+
+  def command({"images", message, args}) when args == [] do
     GenServer.call(@self, :get)
     |> (&(Enum.join(&1.names, ", ") <> ".")).()
     |> (&Curie.embed(message, &1, "green")).()
   end
 
-  def command({"images", message, words}) when length(words) >= 2,
-    do: subcommand({Enum.at(words, 1), message, words})
-
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "images"), do: command({match, message, words})
-  end
-
-  def subcommand({"reload", @owner = message, _words}) do
-    GenServer.cast(@self, :reload)
-    Curie.embed(message, "Images reloaded.", "green")
-  end
-
-  def subcommand({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "reload"), do: subcommand({match, message, words})
-  end
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 
   def handler(message) do
-    if(Curie.command?(message), do: message |> Curie.parse() |> command())
     send_match(message)
+    super(message)
   end
 end

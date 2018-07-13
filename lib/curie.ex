@@ -4,56 +4,35 @@ defmodule Curie do
   alias Nostrum.Cache.GuildCache
 
   import Nostrum.Api, only: [bangify: 1]
-  import Nostrum.Struct.Snowflake, only: [is_snowflake: 1]
   import Nostrum.Struct.Embed
 
-  @owner Application.get_env(:curie, :owner)
-  @tempest Application.get_env(:curie, :tempest)
   @colors Application.get_env(:curie, :colors)
-  @prefix Application.get_env(:curie, :prefix)
 
-  def prefix, do: @prefix
-
-  def tempest, do: @tempest
-
-  def owner, do: %{author: %{id: @owner}}
-
-  def owner?(id) when is_snowflake(id), do: id == @owner
-
-  def command?(message), do: String.starts_with?(message.content, @prefix)
+  def color(name), do: Map.get(@colors, name)
 
   def time_now, do: Timex.local() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
 
   def avatar_url(user),
     do: "https://cdn.discordapp.com/avatars/#{user.id}/#{user.avatar}.webp?size=1024"
 
-  def parse(%{content: content} = message) do
-    content
-    |> String.split()
-    |> (&{Enum.at(&1, 0) |> String.trim_leading(@prefix) |> String.downcase(), message, &1}).()
-  end
-
   def check_typo(call, commands) do
-    similarity =
+    {match, similarity} =
       if(is_binary(commands), do: List.wrap(commands), else: commands)
       |> Enum.map(&{&1, call |> String.downcase() |> String.jaro_distance(&1)})
       |> Enum.max_by(fn {_call, similarity} -> similarity end)
 
-    if elem(similarity, 1) >= 0.75, do: {:ok, elem(similarity, 0)}
+    if similarity >= 0.75, do: match
   end
-
-  def color(name) when is_integer(name), do: name
-
-  def color(name) when is_binary(name), do: @colors |> Map.get(name)
 
   def embed!(channel, description, color), do: embed(channel, description, color) |> bangify()
 
   def embed(channel, description, color) do
     channel = if is_map(channel), do: channel.channel_id, else: channel
+    color = unless is_integer(color), do: color(color), else: color
 
     %Nostrum.Struct.Embed{}
+    |> put_color(color)
     |> put_description(description)
-    |> put_color(Curie.color(color))
     |> (&Curie.send(channel, embed: &1)).()
   end
 
@@ -63,15 +42,15 @@ defmodule Curie do
     channel = if is_map(channel), do: channel.channel_id, else: channel
 
     case Nostrum.Api.create_message(channel, options) do
-      {:ok, message} ->
-        {:ok, message}
+      {:ok, _message} = result ->
+        result
 
-      {:error, %{message: response, status_code: code}} ->
+      {:error, %{status_code: code, message: _response}} = error ->
         if code >= 500 and retries <= 10 do
           Process.sleep(250)
           Curie.send(channel, options, retries + 1)
         else
-          {:error, %{message: response, status_code: code}}
+          error
         end
     end
   end
@@ -86,15 +65,15 @@ defmodule Curie do
 
   def edit(channel_id, message_id, options, retries \\ 0) do
     case Nostrum.Api.edit_message(channel_id, message_id, options) do
-      {:ok, message} ->
-        {:ok, message}
+      {:ok, _message} = result ->
+        result
 
-      {:error, %{message: response, status_code: code}} ->
+      {:error, %{status_code: code, message: _response}} = error ->
         if code >= 500 and retries <= 10 do
           Process.sleep(250)
           edit(channel_id, message_id, options, retries + 1)
         else
-          {:error, %{message: response, status_code: code}}
+          error
         end
     end
   end
@@ -136,17 +115,17 @@ defmodule Curie do
     |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
   end
 
-  def get_member(%{guild_id: guild} = message, position) do
+  def get_member(%{guild_id: guild, content: content, mentions: mentions} = _message, position) do
     full_name =
-      message.content
+      content
       |> String.split()
       |> (&Enum.slice(&1, position..length(&1))).()
       |> Enum.join(" ")
 
     if guild do
       cond do
-        !Enum.empty?(message.mentions) ->
-          id = message.mentions |> hd() |> (& &1.id).()
+        mentions != [] ->
+          id = mentions |> hd() |> (& &1.id).()
 
           GuildCache.get!(guild).members
           |> Enum.find(&(&1.user.id == id))

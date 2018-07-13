@@ -1,4 +1,5 @@
 defmodule Curie.Leaderboard do
+  use Curie.Commands
   use GenServer
 
   alias Nostrum.Cache.UserCache
@@ -11,6 +12,7 @@ defmodule Curie.Leaderboard do
 
   @actions %{"◀" => :backward, "▶" => :forward, "🔄" => :refresh}
   @buttons ["◀", "▶", "🔄"]
+  @check_typo ["lead"]
   @self __MODULE__
   @page_length 5
 
@@ -95,7 +97,7 @@ defmodule Curie.Leaderboard do
     {first, rest} = Enum.split(list, 3)
     members = Enum.join(first, ", ")
     overflow = if rest != [], do: ", + #{Enum.count(rest)}", else: ""
-    "**#{members <> overflow}** with **#{value}**#{Curie.tempest()}"
+    "**#{members <> overflow}** with **#{value}**#{@tempest}"
   end
 
   def format_output(action) do
@@ -146,26 +148,25 @@ defmodule Curie.Leaderboard do
     GenServer.cast(@self, :save)
   end
 
-  def command({"lead", message, _words}) do
+  def command({"lead", message, _args}) do
     state = GenServer.call(@self, :get)
     if state.message_id, do: Api.delete_all_reactions(state.channel_id, state.message_id)
-    {:ok, message} = Curie.send(message, embed: format_output(:new))
-    GenServer.cast(@self, {:update, %{channel_id: message.channel_id, message_id: message.id}})
+
+    {:ok, %{id: message_id, channel_id: channel_id} = _message} =
+      Curie.send(message, embed: format_output(:new))
+
+    GenServer.cast(@self, {:update, %{channel_id: channel_id, message_id: message_id}})
     GenServer.cast(@self, :save)
 
     for button <- @buttons do
-      Api.create_reaction!(message.channel_id, message.id, button)
+      Api.create_reaction!(channel_id, message_id, button)
       Process.sleep(300)
     end
   end
 
-  def command({call, message, words}) do
-    with {:ok, match} <- Curie.check_typo(call, "lead"), do: command({match, message, words})
-  end
+  def command(call), do: check_typo(call, @check_typo, &command/1)
 
-  def handler(%{heartbeat: _heartbeat} = message) do
-    if(Curie.command?(message), do: message |> Curie.parse() |> command())
-  end
+  def handler(%{heartbeat: _heartbeat} = message), do: super(message)
 
   def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
     me = Nostrum.Cache.Me.get()
