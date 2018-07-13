@@ -3,11 +3,13 @@ defmodule Curie.Data.Overwatch do
   import Ecto.Changeset
 
   @primary_key {:build, :string, []}
-  schema "overwatch", do: nil
+  schema "overwatch" do
+    field(:tweet, :string)
+  end
 
   def changeset(struct, params) do
     struct
-    |> cast(params, [:build])
+    |> cast(params, [:build, :tweet])
     |> validate_required([:build])
   end
 end

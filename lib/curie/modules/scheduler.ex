@@ -86,7 +86,12 @@ defmodule Curie.Scheduler do
     end
   end
 
-  def new_overwatch_patch do
+  def prune do
+    {:ok, %{pruned: count}} = Api.get_guild_prune_count(@shadowmere, 30)
+    if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+  end
+
+  def overwatch_patch do
     with {200, %{body: body, request_url: url}} <-
            Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
       {build, id, date} =
@@ -106,14 +111,7 @@ defmodule Curie.Scheduler do
               {build, id, date}
             end).()
 
-      stored =
-        case Data.one(Overwatch) do
-          nil ->
-            %Overwatch{build: nil}
-
-          stored ->
-            stored
-        end
+      stored = Data.one(Overwatch)
 
       if build != stored.build do
         embed =
@@ -130,21 +128,63 @@ defmodule Curie.Scheduler do
 
         stored
         |> Overwatch.changeset(%{build: build})
-        |> Data.insert_or_update()
+        |> Data.update()
       end
     end
   end
 
-  def prune do
-    {:ok, %{pruned: count}} = Api.get_guild_prune_count(@shadowmere, 30)
-    if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+  def overwatch_twitter do
+    auth = [{"Authorization", "Bearer " <> Application.get_env(:curie, :twitter)}]
+    base = "https://api.twitter.com/1.1/statuses/user_timeline.json"
+    params = "?screen_name=PlayOverwatch&count=50&include_rts=false&exclude_replies=true"
+
+    with {200, %{body: body}} <- Curie.get(base <> params, auth) do
+      %{
+        "id_str" => tweet,
+        "text" => text,
+        "user" => %{
+          "name" => name,
+          "screen_name" => screen_name,
+          "profile_image_url" => profile_image
+        },
+        "entities" => %{"urls" => [%{"expanded_url" => tweet_url}]}
+      } = body |> Poison.decode!() |> Enum.take(1) |> hd()
+
+      stored = Data.one(Overwatch)
+
+      with true <- tweet != stored.tweet,
+           {200, %{body: body}} <- Curie.get(tweet_url) do
+        [{_, [_, {_, media}], _}] =
+          body
+          |> Floki.find("meta")
+          |> Enum.filter(&(inspect(&1) =~ ~r/"og:image"/))
+
+        put_correct_image_type =
+          if media =~ ~r/profile_images/,
+            do: &put_thumbnail(&1, media),
+            else: &put_image(&1, media)
+
+        %Nostrum.Struct.Embed{}
+        |> put_author("#{name} (@#{screen_name})", tweet_url, profile_image)
+        |> put_description(text)
+        |> put_color(0x1DA1F3)
+        |> put_footer("Twitter", "https://i.imgur.com/mQ0fwiR.png")
+        |> put_correct_image_type.()
+        |> (&Curie.send!(@overwatch, embed: &1)).()
+
+        stored
+        |> Overwatch.changeset(%{tweet: tweet})
+        |> Data.update()
+      end
+    end
   end
 
   def scheduler do
     %{hour: hour, minute: minute, second: second} = Timex.local()
 
     if second == 0 do
-      Task.start(&new_overwatch_patch/0)
+      Task.start(&overwatch_patch/0)
+      Task.start(&overwatch_twitter/0)
     end
 
     if minute == 0 and second == 0 do
