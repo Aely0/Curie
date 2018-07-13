@@ -154,10 +154,10 @@ defmodule Curie.Scheduler do
 
       with true <- tweet != stored.tweet,
            {200, %{body: body}} <- Curie.get(tweet_url) do
-        [{_, [_, {_, media}], _}] =
+        {_, [_, {_, media}], _} =
           body
           |> Floki.find("meta")
-          |> Enum.filter(&(inspect(&1) =~ ~r/"og:image"/))
+          |> Enum.find(&(inspect(&1) =~ ~r/"og:image"/))
 
         put_correct_image_type =
           if media =~ ~r/profile_images/,
