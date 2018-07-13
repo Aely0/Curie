@@ -78,8 +78,12 @@ defmodule Curie do
     end
   end
 
-  def get(url, retries \\ 0) do
-    case HTTPoison.get(url, [{"Connection", "close"}], follow_redirect: true) do
+  def get(url), do: get(url, [], 0)
+
+  def get(url, headers) when is_list(headers), do: get(url, headers, 0)
+
+  def get(url, headers, retries) do
+    case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
       {:ok, response} ->
         case response.status_code do
           200 ->
@@ -88,7 +92,7 @@ defmodule Curie do
           code ->
             if code >= 500 and retries < 5 do
               Process.sleep(2000)
-              get(url, retries + 1)
+              get(url, headers, retries + 1)
             else
               {:failed, Integer.to_string(code)}
             end
@@ -97,7 +101,7 @@ defmodule Curie do
       {:error, error} ->
         if retries < 5 do
           Process.sleep(2000)
-          get(url, retries + 1)
+          get(url, headers, retries + 1)
         else
           {:failed, inspect(error.reason)}
         end
