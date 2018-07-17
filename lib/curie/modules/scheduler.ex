@@ -140,29 +140,25 @@ defmodule Curie.Scheduler do
 
     with {200, %{body: body}} <- Curie.get(base <> params, auth) do
       %{
-        "id_str" => tweet,
+        "id_str" => latest,
         "text" => text,
         "user" => %{
           "name" => name,
           "screen_name" => screen_name,
           "profile_image_url" => profile_image
-        },
-        "entities" => %{"urls" => [%{"expanded_url" => tweet_url}]}
-      } = body |> Poison.decode!() |> Enum.take(1) |> hd()
+        }
+      } = tweet = body |> Poison.decode!() |> Enum.take(1) |> hd()
 
       stored = Data.one(Overwatch)
 
-      with true <- tweet != stored.tweet,
-           {200, %{body: body}} <- Curie.get(tweet_url) do
-        {_, [_, {_, media}], _} =
-          body
-          |> Floki.find("meta")
-          |> Enum.find(&(inspect(&1) =~ ~r/"og:image"/))
+      if latest != stored.tweet do
+        media = tweet["entities"]["media"] |> (&if(&1 != [], do: List.first(&1)["media_url"])).()
+        tweet_url = "https://twitter.com/#{screen_name}/status/#{latest}"
 
         put_correct_image_type =
-          if media =~ ~r/profile_images/,
-            do: &put_thumbnail(&1, media),
-            else: &put_image(&1, media)
+          if media,
+            do: &put_image(&1, media),
+            else: &put_thumbnail(&1, profile_image)
 
         %Nostrum.Struct.Embed{}
         |> put_author("#{name} (@#{screen_name})", tweet_url, profile_image)
@@ -173,7 +169,7 @@ defmodule Curie.Scheduler do
         |> (&Curie.send!(@overwatch, embed: &1)).()
 
         stored
-        |> Overwatch.changeset(%{tweet: tweet})
+        |> Overwatch.changeset(%{tweet: latest})
         |> Data.update()
       end
     end
