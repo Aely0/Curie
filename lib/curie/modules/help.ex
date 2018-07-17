@@ -31,7 +31,7 @@ defmodule Curie.Help do
         %{commands: [], full: %{}}
 
       entries ->
-        Enum.map(entries, &parse(&1))
+        Enum.map(entries, &parse/1)
         |> Enum.into(%{})
         |> (&%{commands: Map.keys(&1), full: &1}).()
     end

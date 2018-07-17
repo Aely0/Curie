@@ -8,7 +8,7 @@ defmodule Curie do
 
   @colors Application.get_env(:curie, :colors)
 
-  def color(name), do: Map.get(@colors, name)
+  def color(name), do: @colors[name]
 
   def time_now, do: Timex.local() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
 

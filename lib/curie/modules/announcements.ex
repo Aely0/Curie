@@ -78,25 +78,21 @@ defmodule Curie.Announcements do
       channel_name = game.url |> String.split("/") |> List.last()
       url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
 
-      case Curie.get(url) do
-        {200, %{body: body}} ->
-          details = Poison.decode!(body)
-          member = UserCache.get!(member)
-          content = "#{member.username} started streaming!"
+      with {200, %{body: body}} <- Curie.get(url) do
+        details = Poison.decode!(body)
+        member = UserCache.get!(member)
+        content = "#{member.username} started streaming!"
 
-          %Nostrum.Struct.Embed{}
-          |> put_author(content, nil, Curie.avatar_url(member))
-          |> put_description("[#{game.name}](#{game.url})")
-          |> put_color(Curie.color("purple"))
-          |> put_field("Playing:", details["game"], true)
-          |> put_field("Channel:", "Twitch.tv/" <> details["display_name"], true)
-          |> put_thumbnail(details["logo"])
-          |> (&Curie.send(99_304_946_280_701_952, embed: &1)).()
+        %Nostrum.Struct.Embed{}
+        |> put_author(content, nil, Curie.avatar_url(member))
+        |> put_description("[#{game.name}](#{game.url})")
+        |> put_color(Curie.color("purple"))
+        |> put_field("Playing:", details["game"], true)
+        |> put_field("Channel:", "Twitch.tv/" <> details["display_name"], true)
+        |> put_thumbnail(details["logo"])
+        |> (&Curie.send(99_304_946_280_701_952, embed: &1)).()
 
-          set_cooldown(member.id)
-
-        {:failed, _reason} ->
-          nil
+        set_cooldown(member.id)
       end
     end
   end
