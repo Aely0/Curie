@@ -78,11 +78,7 @@ defmodule Curie do
     end
   end
 
-  def get(url), do: get(url, [], 0)
-
-  def get(url, headers) when is_list(headers), do: get(url, headers, 0)
-
-  def get(url, headers, retries) do
+  def get(url, headers \\ [], retries \\ 0) when is_list(headers) do
     case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
       {:ok, response} ->
         case response.status_code do

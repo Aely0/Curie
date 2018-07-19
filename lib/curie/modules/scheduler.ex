@@ -87,8 +87,9 @@ defmodule Curie.Scheduler do
   end
 
   def prune do
-    {:ok, %{pruned: count}} = Api.get_guild_prune_count(@shadowmere, 30)
-    if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+    with {:ok, %{pruned: count}} <- Api.get_guild_prune_count(@shadowmere, 30) do
+      if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+    end
   end
 
   def overwatch_patch do
@@ -139,37 +140,34 @@ defmodule Curie.Scheduler do
     params = "?screen_name=PlayOverwatch&count=50&include_rts=false&exclude_replies=true"
 
     with {200, %{body: body}} <- Curie.get(base <> params, auth) do
-      %{
-        "id_str" => latest,
-        "text" => text,
-        "user" => %{
-          "name" => name,
-          "screen_name" => screen_name,
-          "profile_image_url" => profile_image
-        }
-      } = tweet = body |> Poison.decode!() |> Enum.take(1) |> hd()
-
+      %{"id_str" => tweet} = body |> Poison.decode!() |> Enum.take(1) |> hd()
+      tweet_url = "https://twitter.com/PlayOverwatch/status/" <> tweet
       stored = Data.one(Overwatch)
 
-      if latest != stored.tweet do
-        media = tweet["entities"]["media"] |> (&if(&1 != [], do: List.first(&1)["media_url"])).()
-        tweet_url = "https://twitter.com/#{screen_name}/status/#{latest}"
+      with true <- tweet != stored.tweet,
+           {200, %{body: body}} <- Curie.get(tweet_url) do
+        %{"og:image" => image, "og:description" => description} =
+          Floki.find(body, "meta")
+          |> Enum.filter(&match?({_, [{"property", _}, {"content", _}], _}, &1))
+          |> Enum.reduce(%{}, fn {_, [{_, key}, {_, value}], _}, acc ->
+            Map.put(acc, key, value)
+          end)
 
         put_correct_image_type =
-          if media,
-            do: &put_image(&1, media),
-            else: &put_thumbnail(&1, profile_image)
+          if image =~ ~r/profile_images/,
+            do: &put_thumbnail(&1, image),
+            else: &put_image(&1, image)
 
         %Nostrum.Struct.Embed{}
-        |> put_author("#{name} (@#{screen_name})", tweet_url, profile_image)
-        |> put_description(text)
+        |> put_author("Overwatch (@PlayOverwatch)", tweet_url, "https://i.imgur.com/F6buGLg.jpg")
+        |> put_description(description |> String.trim_leading("“") |> String.trim_trailing("”"))
         |> put_color(0x1DA1F3)
         |> put_footer("Twitter", "https://i.imgur.com/mQ0fwiR.png")
         |> put_correct_image_type.()
         |> (&Curie.send!(@overwatch, embed: &1)).()
 
         stored
-        |> Overwatch.changeset(%{tweet: latest})
+        |> Overwatch.changeset(%{tweet: tweet})
         |> Data.update()
       end
     end
