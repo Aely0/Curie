@@ -2,14 +2,17 @@ defmodule Curie.Currency do
   use Curie.Commands
 
   alias Nostrum.Cache.{GuildCache, UserCache}
+  alias Nostrum.Struct.{Message, User}
+  alias Nostrum.Struct.Guild.Member
   alias Curie.Data.Balance
   alias Curie.Data
 
   @check_typo %{command: ["balance", "gift"], subcommand: ["curie"]}
 
+  @spec value_parse(String.t(), non_neg_integer | nil) :: pos_integer | nil
   def value_parse(value, balance) do
     cond do
-      value == nil or balance == nil ->
+      balance == nil ->
         nil
 
       Curie.check_typo(value, "all") ->
@@ -30,8 +33,10 @@ defmodule Curie.Currency do
     |> (&if(&1 in 1..balance, do: &1)).()
   end
 
+  @spec get_balance(User.id()) :: integer | nil
   def get_balance(member), do: with(%{value: value} <- Data.get(Balance, member), do: value)
 
+  @spec change_balance(:add | :deduct | :replace, User.id(), integer) :: no_return
   def change_balance(action, member, value) do
     member = Data.get(Balance, member)
 
@@ -49,10 +54,13 @@ defmodule Curie.Currency do
     |> Data.update()
   end
 
+  @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean
   def whitelisted?(%{author: %{id: id}} = _message), do: id |> get_balance() |> is_integer()
 
+  @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean
   def whitelisted?(%{user: %{id: id}} = _member), do: id |> get_balance() |> is_integer()
 
+  @spec whitelist_message(Message.t()) :: Message.t() | no_return
   def whitelist_message(%{guild_id: guild_id} = message) do
     with {:ok, %{owner_id: owner_id} = _guild} <- GuildCache.get(guild_id),
          {:ok, %{username: name} = _owner} <- UserCache.get(owner_id) do
@@ -61,13 +69,14 @@ defmodule Curie.Currency do
     end
   end
 
+  @spec validate_recipient(Message.t()) :: Member.t() | nil
   def validate_recipient(message) do
     Curie.get_member(message, 2)
     |> (&if(&1 != nil and whitelisted?(&1), do: &1)).()
   end
 
-  def command({"balance", %{author: %{id: member, username: name}} = message, args})
-      when args == [] do
+  @impl true
+  def command({"balance", %{author: %{id: member, username: name}} = message, []}) do
     if whitelisted?(message) do
       member
       |> get_balance()
@@ -78,14 +87,18 @@ defmodule Curie.Currency do
     end
   end
 
+  @impl true
   def command({"balance", message, [call | _rest] = args}), do: subcommand({call, message, args})
 
-  def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _] = args})
-      when length(args) >= 2 do
+  @impl true
+  def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _]}) do
     if whitelisted?(message) do
       case validate_recipient(message) do
         nil ->
           Curie.embed(message, "Invalid recipient.", "red")
+
+        %{user: %{id: target}} when target == author ->
+          Curie.embed(message, "Really...?", "red")
 
         %{user: %{id: target, username: giftee}} ->
           case value_parse(value, get_balance(author)) do
@@ -105,8 +118,10 @@ defmodule Curie.Currency do
     end
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo.command, &command/1)
 
+  @impl true
   def subcommand({"curie", message, _args}) do
     Nostrum.Cache.Me.get().id
     |> get_balance()
@@ -114,5 +129,6 @@ defmodule Curie.Currency do
     |> (&Curie.embed(message, &1, "lblue")).()
   end
 
+  @impl true
   def subcommand(call), do: check_typo(call, @check_typo.subcommand, &subcommand/1)
 end

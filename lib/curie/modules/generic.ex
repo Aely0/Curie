@@ -11,6 +11,7 @@ defmodule Curie.Generic do
   @roles Application.get_env(:curie, :roles)
   @owner_id @owner.author.id
 
+  @impl true
   def command({"eval", @owner = message, code}) do
     result =
       try do
@@ -33,6 +34,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({"purge", %{author: %{id: @owner_id}, channel_id: channel} = _message, [count]}) do
     count
     |> String.to_integer()
@@ -41,6 +43,7 @@ defmodule Curie.Generic do
     |> (&Api.bulk_delete_messages!(channel, &1)).()
   end
 
+  @impl true
   def command({"avatar", @owner = message, [path]}) do
     case File.read(path) do
       {:ok, file} ->
@@ -60,6 +63,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({role, %{author: %{id: author}, guild_id: guild} = message, args})
       when role in ["felweed", "rally"] and args != [] do
     if author in @roles[role].mods do
@@ -89,6 +93,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({"details", %{guild_id: guild} = message, args}) when args != [] do
     case Curie.get_member(message, 1) do
       nil ->
@@ -153,6 +158,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({"cat", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
@@ -167,6 +173,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({"overwatch", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
@@ -203,6 +210,7 @@ defmodule Curie.Generic do
     end
   end
 
+  @impl true
   def command({"roll", %{author: member} = message, _args}) do
     text = "#{member.username} rolls: #{Enum.random(1..100)}"
 
@@ -212,6 +220,7 @@ defmodule Curie.Generic do
     |> (&Curie.send(message, embed: &1)).()
   end
 
+  @impl true
   def command({"ping", %{heartbeat: %{send: send, ack: ack}} = message, _args}) do
     (ack - send)
     |> Integer.to_string()
@@ -219,5 +228,6 @@ defmodule Curie.Generic do
     |> (&Curie.send(message, content: &1 <> "ms")).()
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 end

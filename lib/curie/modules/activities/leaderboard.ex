@@ -2,6 +2,7 @@ defmodule Curie.Leaderboard do
   use Curie.Commands
   use GenServer
 
+  alias Nostrum.Struct.{Embed, Message, User}
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
 
@@ -16,10 +17,14 @@ defmodule Curie.Leaderboard do
   @self __MODULE__
   @page_length 5
 
+  @type action :: :forward | :backward | :refresh | :new
+
+  @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
+  @impl true
   def init(_args) do
     state = recover_state()
 
@@ -32,15 +37,19 @@ defmodule Curie.Leaderboard do
     end
   end
 
+  @impl true
   def handle_call(:get, _from, state), do: {:reply, state, state}
 
+  @impl true
   def handle_call({:update_and_get, new}, _from, state) do
     new_state = Map.merge(state, new)
     {:reply, new_state, new_state}
   end
 
+  @impl true
   def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
 
+  @impl true
   def handle_cast(:save, state) do
     parameters = %{
       channel_id: state.channel_id,
@@ -58,16 +67,20 @@ defmodule Curie.Leaderboard do
     {:noreply, state}
   end
 
+  @spec parse_entries([String.t()]) :: String.t()
   def parse_entries(entries) when is_list(entries), do: Enum.join(entries, "<&&>")
 
+  @spec parse_entries(String.t()) :: [String.t()]
   def parse_entries(entries) when is_binary(entries), do: String.split(entries, "<&&>")
 
+  @spec recover_state() :: Leaderboard.t()
   def recover_state do
     Leaderboard
     |> Data.one()
     |> (&%{&1 | entries: parse_entries(&1.entries)}).()
   end
 
+  @spec create_new() :: map
   def create_new do
     entries = create_entries()
 
@@ -81,6 +94,7 @@ defmodule Curie.Leaderboard do
     GenServer.call(@self, {:update_and_get, state})
   end
 
+  @spec create_entries() :: [String.t()]
   def create_entries do
     Balance
     |> Data.all()
@@ -93,6 +107,7 @@ defmodule Curie.Leaderboard do
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
   end
 
+  @spec format_entry({non_neg_integer, [String.t()]}) :: String.t()
   def format_entry({value, list}) do
     {first, rest} = Enum.split(list, 3)
     members = Enum.join(first, ", ")
@@ -100,6 +115,7 @@ defmodule Curie.Leaderboard do
     "**#{members <> overflow}** with **#{value}**#{@tempest}"
   end
 
+  @spec format_output(action) :: Embed.t()
   def format_output(action) do
     state =
       if action in [:new, :refresh],
@@ -122,6 +138,7 @@ defmodule Curie.Leaderboard do
     |> put_timestamp(state.last_refresh)
   end
 
+  @spec interaction(action) :: no_return
   def interaction(:backward) do
     state = GenServer.call(@self, :get)
 
@@ -148,6 +165,7 @@ defmodule Curie.Leaderboard do
     GenServer.cast(@self, :save)
   end
 
+  @impl true
   def command({"lead", message, _args}) do
     state = GenServer.call(@self, :get)
     if state.message_id, do: Api.delete_all_reactions(state.channel_id, state.message_id)
@@ -164,10 +182,13 @@ defmodule Curie.Leaderboard do
     end
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 
+  @spec handler(Message.t()) :: term
   def handler(%{heartbeat: _heartbeat} = message), do: super(message)
 
+  @spec handler(%{emoji: map, message_id: Message.id(), user_id: User.id()}) :: no_return
   def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
     me = Nostrum.Cache.Me.get()
     lead_id = GenServer.call(@self, :get).message_id

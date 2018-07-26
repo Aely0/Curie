@@ -8,23 +8,34 @@ defmodule Curie.Help do
   @check_typo ["curie", "currency", "help"]
   @self __MODULE__
 
+  @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
+  @impl true
   def init(_args) do
     {:ok, get_commands()}
   end
 
+  @impl true
   def handle_call(:get, _from, state), do: {:reply, state, state}
 
+  @impl true
   def handle_cast(:reload, _state), do: {:noreply, get_commands()}
 
+  @spec parse(String.t()) :: String.t()
   def parse(content) when is_binary(content), do: String.replace(content, "<prefix>", @prefix)
 
+  @spec parse(%{command: String.t(), description: String.t(), short: String.t()}) ::
+          {String.t(), %{description: String.t(), short: String.t()}}
   def parse(%{command: command, description: description, short: short} = _entry),
     do: {command, %{description: parse(description), short: short}}
 
+  @spec get_commands() :: %{
+          commands: [String.t()],
+          full: %{String.t() => %{description: String.t(), short: String.t() | nil}}
+        }
   def get_commands do
     case Data.all(Help) do
       [] ->
@@ -37,6 +48,7 @@ defmodule Curie.Help do
     end
   end
 
+  @impl true
   def command({"curie", message, _args}) do
     ("Heya, my name is Curie! I am a Discord bot written in Elixir.\n" <>
        "My purpose here is to accompany members of Shadowmere, \n" <>
@@ -52,6 +64,7 @@ defmodule Curie.Help do
     |> (&Curie.embed(message, &1, 0x620589)).()
   end
 
+  @impl true
   def command({"currency", message, _args}) do
     ("One of the things I manage here is the Currency System.\n" <>
        "It works like this, you can ask the server owner to\n" <>
@@ -73,12 +86,14 @@ defmodule Curie.Help do
     |> (&Curie.embed(message, &1, 0xFFD700)).()
   end
 
+  @impl true
   def command({"help", @owner = message, [call]}) when call == "r" do
     GenServer.cast(@self, :reload)
     Curie.embed(message, "Help module state reloaded.", "green")
   end
 
-  def command({"help", message, args}) when args == [] do
+  @impl true
+  def command({"help", message, []}) do
     state = GenServer.call(@self, :get)
 
     commands =
@@ -92,6 +107,7 @@ defmodule Curie.Help do
     Curie.embed(message, "=> Curie's commands\n\n" <> commands <> content, "green")
   end
 
+  @impl true
   def command({"help", message, [command | _rest]}) do
     state = GenServer.call(@self, :get)
 
@@ -104,5 +120,6 @@ defmodule Curie.Help do
     end
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 end

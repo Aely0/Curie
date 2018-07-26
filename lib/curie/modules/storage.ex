@@ -2,15 +2,19 @@ defmodule Curie.Storage do
   use Curie.Commands
 
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
+  alias Nostrum.Struct.{Channel, Message, User}
 
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
 
+  @spec remove(User.id()) :: no_return
   def remove(member) do
     for table <- [Balance, Details],
         do: Data.get(table, member) |> (&if(&1, do: Data.delete(&1))).()
   end
 
+  @spec store_details(%{author: %{id: User.id()}, channel_id: Channel.id(), type: Message.type()}) ::
+          no_return
   def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
     channel = ChannelCache.get!(channel_id)
 
@@ -30,6 +34,7 @@ defmodule Curie.Storage do
     end
   end
 
+  @spec store_details(%{user: %{id: User.id()}, status: atom}) :: no_return
   def store_details(%{user: %{id: id}, status: status}) do
     if status == :offline do
       now = Timex.local() |> Timex.to_unix()
@@ -46,8 +51,11 @@ defmodule Curie.Storage do
     end
   end
 
+  @spec store_details(term) :: nil
   def store_details(_unusable), do: nil
 
+  @spec fetch_details(User.id()) ::
+          %{online: String.t(), spoke: String.t(), channel: String.t()} | Details.t()
   def fetch_details(member) do
     case Data.get(Details, member) do
       nil ->
@@ -61,6 +69,7 @@ defmodule Curie.Storage do
     end
   end
 
+  @spec status_gather(%{game: String.t(), user: User.t()}) :: no_return
   def status_gather(%{game: game, user: user} = _presence) do
     if game != nil and game.type == 0 do
       if Status |> Data.get(game.name) |> is_nil() do
@@ -72,6 +81,7 @@ defmodule Curie.Storage do
     end
   end
 
+  @spec change_member_standing(String.t(), User.id(), User.username(), Message.t()) :: Message.t()
   def change_member_standing("whitelist", id, name, message) do
     if Balance |> Data.get(id) |> is_nil() do
       %Balance{member: id, value: 0}
@@ -99,6 +109,7 @@ defmodule Curie.Storage do
     end
   end
 
+  @impl true
   def command({action, @owner = message, _args}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
       nil ->
@@ -109,8 +120,10 @@ defmodule Curie.Storage do
     end
   end
 
+  @impl true
   def command(_call), do: nil
 
+  @spec handler(Message.t()) :: term
   def handler(%{author: %{id: id}} = message) do
     if Me.get().id != id, do: store_details(message)
     super(message)

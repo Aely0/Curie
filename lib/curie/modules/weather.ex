@@ -1,24 +1,28 @@
 defmodule Curie.Weather do
   use Curie.Commands
 
+  alias Nostrum.Struct.{Channel, Embed, Message}
   alias Nostrum.Api
 
   import Nostrum.Struct.Embed
 
   @check_typo ["weather"]
 
+  @spec google_url([String.t()]) :: String.t()
   def google_url(location) do
     if(location == [], do: "Rīga", else: Enum.join(location, "+"))
     |> (&("https://maps.googleapis.com/maps/api/geocode/json?key=" <>
             Application.get_env(:curie, :googlemaps) <> "&address=" <> &1)).()
   end
 
+  @spec darkskies_url(%{String.t() => float, String.t() => float}) :: String.t()
   def darkskies_url(%{"lat" => lat, "lng" => lng}) do
     "https://api.darksky.net/forecast/" <>
       Application.get_env(:curie, :darkskies) <>
       "/#{lat},#{lng}?units=si&exclude=minutely,hourly,daily,alerts,flags"
   end
 
+  @spec get_location(map, Channel.id()) :: {map, String.t()} | Message.t()
   def get_location(response, channel) when is_map(response) do
     case response do
       %{"status" => "OK", "results" => [first | _rest]} ->
@@ -29,6 +33,7 @@ defmodule Curie.Weather do
     end
   end
 
+  @spec get_location([String.t()], Channel.id()) :: {map, String.t()} | Message.t()
   def get_location(location, channel) when is_list(location) do
     case Curie.get(google_url(location)) do
       {200, %{body: body}} ->
@@ -39,9 +44,11 @@ defmodule Curie.Weather do
     end
   end
 
+  @spec get_local_time(String.t()) :: String.t()
   def get_local_time(timezone),
     do: timezone |> Timex.now() |> Timex.format!("%H:%M, %B %d", :strftime)
 
+  @spec format_forecast(%{String.t() => map, String.t() => String.t()}, String.t()) :: String.t()
   def format_forecast(%{"currently" => weather, "timezone" => timezone}, address) do
     "Location: #{address}\n" <>
       "Local time: #{get_local_time(timezone)}\n" <>
@@ -54,6 +61,7 @@ defmodule Curie.Weather do
       "Cloud coverage: #{trunc(weather["cloudCover"] * 100)}%"
   end
 
+  @spec create_embed(String.t()) :: Embed.t()
   def create_embed(description) do
     %Nostrum.Struct.Embed{}
     |> put_author("Current weather", nil, "https://i.imgur.com/dykOoMW.png")
@@ -62,6 +70,7 @@ defmodule Curie.Weather do
     |> put_description(description)
   end
 
+  @spec get_forecast({map, String.t()}, Channel.id()) :: String.t() | Message.t()
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do
       {200, %{body: body}} ->
@@ -72,6 +81,7 @@ defmodule Curie.Weather do
     end
   end
 
+  @impl true
   def command({"weather", %{channel_id: channel} = _message, location}) do
     Api.start_typing(channel)
 
@@ -80,5 +90,6 @@ defmodule Curie.Weather do
          do: Curie.send(channel, embed: create_embed(forecast))
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 end

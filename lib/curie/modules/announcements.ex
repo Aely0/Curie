@@ -1,5 +1,7 @@
 defmodule Curie.Announcements do
   alias Nostrum.Cache.{ChannelCache, UserCache}
+  alias Nostrum.Struct.{Guild, Message, User}
+  alias Nostrum.Struct.Guild.Member
   alias Nostrum.Api
 
   alias Curie.Data.Streams
@@ -9,8 +11,10 @@ defmodule Curie.Announcements do
 
   @notify 141_160_537_672_122_368
 
+  @spec iso_to_unix(String.t()) :: non_neg_integer
   def iso_to_unix(iso), do: iso |> Timex.parse!("{ISO:Extended}") |> Timex.to_unix()
 
+  @spec join_log(Guild.id(), Member.t()) :: Message.t() | no_return
   def join_log(guild_id, member) do
     with {:ok, invites} <- Api.get_guild_invites(guild_id),
          true <- invites != [] do
@@ -31,6 +35,7 @@ defmodule Curie.Announcements do
     end
   end
 
+  @spec delete_log(%{channel_id: Message.channel_id()}) :: Message.t() | no_return
   def delete_log(%{channel_id: channel_id}) do
     if channel_id != @notify do
       channel =
@@ -41,6 +46,7 @@ defmodule Curie.Announcements do
     end
   end
 
+  @spec leave_log(Member.t()) :: Message.t()
   def leave_log(member) do
     content =
       if Timex.local() |> Timex.format!("%H%M", :strftime) == "0000",
@@ -50,6 +56,7 @@ defmodule Curie.Announcements do
     Curie.embed(@notify, content, "dblue")
   end
 
+  @spec has_cooldown?(User.id()) :: boolean
   def has_cooldown?(member) do
     case Data.get(Streams, member) do
       %{time: time} ->
@@ -60,6 +67,7 @@ defmodule Curie.Announcements do
     end
   end
 
+  @spec set_cooldown(User.id()) :: no_return
   def set_cooldown(member) do
     case Data.get(Streams, member) do
       nil ->
@@ -72,6 +80,7 @@ defmodule Curie.Announcements do
     |> Data.insert_or_update()
   end
 
+  @spec stream(%{game: String.t(), user: %{id: User.id()}}) :: no_return
   def stream(%{game: game, user: %{id: member}} = _presence) do
     if game != nil and game.type == 1 and !has_cooldown?(member) do
       twitch_id = Application.get_env(:curie, :twitch)

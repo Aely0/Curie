@@ -3,32 +3,42 @@ defmodule Curie.Pot do
   use GenServer
 
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
+  alias Nostrum.Struct.{Channel, Message, User}
+  alias Curie.Data.Balance
   alias Curie.Currency
 
   @check_typo ["pot", "add"]
   @self __MODULE__
 
+  @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
+  @spec defaults() :: map
   def defaults do
     %{status: 0, allow_add: false, value: 0, channel: nil, participants: [], limit: nil}
   end
 
+  @impl true
   def init(_args) do
     {:ok, defaults()}
   end
 
+  @impl true
   def handle_call(:get, _from, state), do: {:reply, state, state}
 
+  @impl true
   def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
 
+  @impl true
   def handle_cast({:participant, participant}, state),
     do: {:noreply, Map.put(state, :participants, state.participants ++ [participant])}
 
+  @impl true
   def handle_cast(:reset, _state), do: {:noreply, defaults()}
 
+  @spec announce_start(Message.t(), pos_integer, pos_integer | nil) :: Message.t()
   def announce_start(%{author: %{username: name}} = message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
 
@@ -39,6 +49,7 @@ defmodule Curie.Pot do
     |> (&Curie.embed(message, &1, "dblue")).()
   end
 
+  @spec announce_winner(Message.t(), User.id(), pos_integer, number) :: Message.t()
   def announce_winner(message, winner, value, chance) do
     winner = UserCache.get!(winner)
 
@@ -47,6 +58,7 @@ defmodule Curie.Pot do
     |> (&Curie.embed(message, &1, "yellow")).()
   end
 
+  @spec not_enough_players(Message.t()) :: Message.t()
   def not_enough_players(message) do
     [
       "Hey guys! Want to... no...? Ok, I'm used to it... \:(",
@@ -62,6 +74,14 @@ defmodule Curie.Pot do
     |> (&Curie.embed(message, &1 <> "\nNot enough participants, value refunded.", "green")).()
   end
 
+  @spec curie_decision(
+          :limit | :regular,
+          Channel.id(),
+          Balance.value(),
+          value :: pos_integer,
+          limit :: pos_integer,
+          [{User.id(), pos_integer}]
+        ) :: Message.t() | nil
   def curie_decision(:limit, channel, balance, value, limit, participants) do
     cond do
       balance >= limit and trunc(limit / (limit + value) * 100) >= 50 ->
@@ -104,6 +124,7 @@ defmodule Curie.Pot do
     end
   end
 
+  @spec curie_join(Channel.id()) :: Message.t() | nil
   def curie_join(channel) do
     me = Me.get()
     balance = Currency.get_balance(me.id)
@@ -121,6 +142,7 @@ defmodule Curie.Pot do
     end
   end
 
+  @spec pot(Message.t(), User.id(), pos_integer, pos_integer | nil) :: no_return
   def pot(%{channel_id: channel_id} = message, member, value, limit \\ nil) do
     channel = "#" <> ChannelCache.get!(channel_id).name
 
@@ -181,11 +203,11 @@ defmodule Curie.Pot do
     GenServer.cast(@self, :reset)
   end
 
-  def command({"pot", %{author: %{id: member}, guild_id: guild_id} = message, args})
-      when args != [] do
+  @impl true
+  def command({"pot", %{author: %{id: member}, guild_id: guild_id} = message, [value | args]}) do
     state = GenServer.call(@self, :get)
     balance = Curie.Currency.get_balance(member)
-    value = args |> List.first() |> Curie.Currency.value_parse(balance)
+    value = Curie.Currency.value_parse(value, balance)
 
     cond do
       !Curie.Currency.whitelisted?(message) ->
@@ -201,17 +223,17 @@ defmodule Curie.Pot do
         Curie.embed(message, "Invalid amount.", "red")
 
       true ->
-        if length(args) >= 2 and args |> Enum.at(1) |> Curie.check_typo("limit"),
+        if args != [] and args |> List.first() |> Curie.check_typo("limit"),
           do: pot(message, member, value, value),
           else: pot(message, member, value)
     end
   end
 
-  def command({"add", %{author: %{id: member}, guild_id: guild_id} = message, args})
-      when args != [] do
+  @impl true
+  def command({"add", %{author: %{id: member}, guild_id: guild_id} = message, [value | _]}) do
     state = GenServer.call(@self, :get)
     balance = Curie.Currency.get_balance(member)
-    value = args |> List.first() |> Curie.Currency.value_parse(balance)
+    value = Curie.Currency.value_parse(value, balance)
 
     cond do
       !Curie.Currency.whitelisted?(message) ->
@@ -249,5 +271,6 @@ defmodule Curie.Pot do
     end
   end
 
+  @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 end
