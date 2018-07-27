@@ -15,7 +15,7 @@ defmodule Curie do
   @type destination :: Channel.id() | Message.t()
   @type options :: keyword | map
 
-  @spec color(String.t()) :: non_neg_integer
+  @spec color(String.t()) :: non_neg_integer | nil
   def color(name), do: @colors[name]
 
   @spec time_now() :: String.t()
@@ -137,6 +137,22 @@ defmodule Curie do
     |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
   end
 
+  @spec get_member(Guild.id(), atom, term, non_neg_integer) :: Member.t() | nil
+  def get_member(guild, key, value, retries \\ 0) do
+    case GuildCache.select(guild, & &1.members) do
+      {:ok, list} when key != :tag ->
+        Enum.find(list, &(Map.get(&1.user, key) == value))
+
+      {:ok, list} when key == :tag ->
+        [name, disc] = Regex.run(~r/^(.+)#(\d{4})$/, value, capture: :all_but_first)
+        Enum.find(list, &(&1.user.username == name and &1.user.discriminator == disc))
+
+      {:error, _reason} ->
+        Process.sleep(200)
+        if retries <= 5, do: get_member(guild, key, value, retries + 1)
+    end
+  end
+
   @spec get_member(
           %{guild_id: Guild.id(), content: Message.content(), mentions: [User.t()]},
           non_neg_integer
@@ -151,27 +167,20 @@ defmodule Curie do
     if guild != nil and full_name != "" do
       cond do
         mentions != [] ->
-          id = mentions |> hd() |> (& &1.id).()
+          mentions
+          |> List.first()
+          |> (&get_member(guild, :id, &1.id)).()
 
-          GuildCache.get!(guild).members
-          |> Enum.find(&(&1.user.id == id))
-
-        match?({_id, ""}, Integer.parse(full_name)) ->
-          {id, ""} = Integer.parse(full_name)
-
-          GuildCache.get!(guild).members
-          |> Enum.find(&(&1.user.id == id))
+        full_name =~ ~r/^\d+$/ ->
+          full_name
+          |> String.to_integer()
+          |> (&get_member(guild, :id, &1)).()
 
         full_name =~ ~r/#\d{4}$/ ->
-          name = Regex.replace(~r/#\d{4}$/, full_name, "")
-          [disc] = Regex.run(~r/\d{4}$/, full_name)
-
-          GuildCache.get!(guild).members
-          |> Enum.find(&(&1.user.username == name and &1.user.discriminator == disc))
+          get_member(guild, :tag, full_name)
 
         true ->
-          GuildCache.get!(guild).members
-          |> Enum.find(&(&1.user.username == full_name))
+          get_member(guild, :username, full_name)
       end
     end
   end
