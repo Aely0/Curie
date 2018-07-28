@@ -96,15 +96,16 @@ defmodule Curie.Help do
   def command({"help", message, []}) do
     state = GenServer.call(@self, :get)
 
-    commands =
-      state.commands
-      |> Enum.filter(&(state.full[&1].short != nil))
-      |> Enum.map(&"**#{@prefix <> &1}** - #{state.full[&1].short}")
-      |> Enum.join("\n")
-
-    content = "\n\nUse **#{@prefix}help command** for more info.\n"
-
-    Curie.embed(message, "=> Curie's commands\n\n" <> commands <> content, "green")
+    state.commands
+    |> Enum.filter(&(state.full[&1].short != nil))
+    |> Enum.map(&"**#{@prefix <> &1}** - #{state.full[&1].short}")
+    |> Enum.join("\n")
+    |> (&("=> Curie's commands\n\n#{&1}\n\n" <>
+            "[+] indicates the need of additional\n" <>
+            "values for a command to run.\n\n" <>
+            "Use **#{@prefix}help command** to see additional information,\n" <>
+            "passable values, examples and subcommands\nfor a specific command.")).()
+    |> (&Curie.embed(message, &1, "green")).()
   end
 
   @impl true
@@ -116,7 +117,7 @@ defmodule Curie.Help do
       |> (&Curie.embed(message, &1, "green")).()
     else
       _no_match ->
-        Curie.embed(message, "Command unrecognized.", "red")
+        Curie.embed(message, "Command not recognized.", "red")
     end
   end
 
