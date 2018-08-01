@@ -33,7 +33,7 @@ defmodule Curie.Leaderboard do
         {:ok, state}
 
       {:error, _reason} ->
-        {:ok, %{channel_id: nil, message_id: nil}}
+        {:ok, %{id: state.id, channel_id: nil, message_id: nil}}
     end
   end
 

@@ -1,5 +1,5 @@
 defmodule Curie.Scheduler do
-  alias Nostrum.Cache.GuildCache
+  alias Nostrum.Cache.PresenceCache
   alias Nostrum.Struct.User
   alias Nostrum.Api
 
@@ -26,15 +26,11 @@ defmodule Curie.Scheduler do
     {:ok, pid}
   end
 
-  @spec apply_gain(
-          [%{game: String.t() | nil, status: atom, user: User.t()}],
-          User.id(),
-          Balance.value()
-        ) :: no_return
-  def apply_gain(presences, member, value) do
-    with %{status: status} <- Enum.find(presences, &(&1.user.id == member)) do
-      if (status == :online and value < 300) or
-           (status in [:idle, :dnd] and value < 300 and Enum.random(1..10) == 10),
+  @spec apply_gain(Balance.t()) :: no_return
+  def apply_gain(%{member: member, value: balance, guild: guild}) do
+    with {:ok, %{status: status}} <- PresenceCache.get(member, guild) do
+      if (status == :online and balance < 300) or
+           (status in [:idle, :dnd] and balance < 300 and Enum.random(1..10) == 10),
          do: Curie.Currency.change_balance(:add, member, 1)
     end
   end
@@ -43,14 +39,10 @@ defmodule Curie.Scheduler do
   def member_balance_gain do
     me = Nostrum.Cache.Me.get().id
 
-    presences =
-      GuildCache.select_all(& &1.presences)
-      |> Enum.flat_map(& &1)
-
     Balance
     |> Data.all()
     |> Enum.filter(&(&1.member != me))
-    |> Enum.each(&apply_gain(presences, &1.member, &1.value))
+    |> Enum.each(&apply_gain/1)
   end
 
   @spec curie_balance_change(:gain | :decay) :: no_return

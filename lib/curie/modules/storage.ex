@@ -82,9 +82,9 @@ defmodule Curie.Storage do
   end
 
   @spec change_member_standing(String.t(), User.id(), User.username(), Message.t()) :: Message.t()
-  def change_member_standing("whitelist", id, name, message) do
+  def change_member_standing("whitelist", id, name, %{guild_id: guild} = message) do
     if Balance |> Data.get(id) |> is_nil() do
-      %Balance{member: id, value: 0}
+      %Balance{member: id, value: 0, guild: guild}
       |> Data.insert()
 
       "#{name} added, wooo! :tada:"

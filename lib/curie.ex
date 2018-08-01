@@ -140,12 +140,15 @@ defmodule Curie do
   @spec get_member(Guild.id(), atom, term, non_neg_integer) :: Member.t() | nil
   def get_member(guild, key, value, retries \\ 0) do
     case GuildCache.select(guild, & &1.members) do
-      {:ok, list} when key != :tag ->
-        Enum.find(list, &(Map.get(&1.user, key) == value))
+      {:ok, map} when key == :id ->
+        map[value]
 
-      {:ok, list} when key == :tag ->
+      {:ok, map} when key == :tag ->
         [name, disc] = Regex.run(~r/^(.+)#(\d{4})$/, value, capture: :all_but_first)
-        Enum.find(list, &(&1.user.username == name and &1.user.discriminator == disc))
+        Enum.find(Map.values(map), &(&1.user.username == name and &1.user.discriminator == disc))
+
+      {:ok, map} ->
+        Enum.find(Map.values(map), &(Map.get(&1.user, key) == value))
 
       {:error, _reason} ->
         Process.sleep(200)

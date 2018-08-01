@@ -2,7 +2,7 @@ defmodule Curie.Generic do
   use Curie.Commands
   use Bitwise
 
-  alias Nostrum.Cache.GuildCache
+  alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Api
 
   import Nostrum.Struct.Embed
@@ -100,27 +100,31 @@ defmodule Curie.Generic do
         "Member '#{Enum.join(args, " ")}' not found."
         |> (&Curie.embed(message, &1, "red")).()
 
-      member ->
-        details = Curie.Storage.fetch_details(member.user.id)
+      %{
+        nick: nick,
+        roles: roles,
+        joined_at: joined_at,
+        user: %{id: id, username: name, discriminator: disc}
+      } ->
+        details = Curie.Storage.fetch_details(id)
 
         status =
-          GuildCache.select_all(& &1.presences)
-          |> Enum.flat_map(& &1)
-          |> Enum.find(&(&1.user.id == member.user.id))
-          |> (&if(&1 != nil, do: Atom.to_string(&1.status), else: "offline")).()
-
-        status =
-          case status do
-            "offline" ->
+          with {:ok, %{status: status}} <- PresenceCache.get(id, guild) do
+            status
+          else
+            _presence_not_found -> :offline
+          end
+          |> case do
+            :offline ->
               if is_integer(details.online),
                 do: "Offline for " <> Curie.unix_to_amount(details.online),
                 else: details.online
 
-            "dnd" ->
+            :dnd ->
               "Do Not Disturb"
 
             status ->
-              String.capitalize(status)
+              status |> Atom.to_string() |> String.capitalize()
           end
 
         spoke =
@@ -130,27 +134,28 @@ defmodule Curie.Generic do
 
         roles =
           GuildCache.get!(guild).roles
-          |> Enum.filter(&(&1.id in member.roles))
+          |> Map.values()
+          |> Enum.filter(&(&1.id in roles))
           |> Enum.map_join(", ", & &1.name)
           |> (&if(&1 == "", do: "None", else: &1)).()
 
         account_created =
-          ((member.user.id >>> 22) + 1_420_070_400_000)
+          ((id >>> 22) + 1_420_070_400_000)
           |> Timex.from_unix(:milliseconds)
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         guild_joined =
-          member.joined_at
+          joined_at
           |> Timex.parse!("{ISO:Extended}")
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         description =
-          "Display Name: #{if member.nick, do: member.nick, else: member.user.username}\n" <>
-            "Member: #{member.user.username}##{member.user.discriminator}\n" <>
+          "Display Name: #{if nick, do: nick, else: name}\n" <>
+            "Member: #{name}##{disc}\n" <>
             "Status: #{status}\n" <>
             "Last spoke: #{spoke}\n" <>
             "In channel: #{details.channel}\n" <>
-            "ID: #{member.user.id}\n" <>
+            "ID: #{id}\n" <>
             "Roles: #{roles}\n" <>
             "Guild joined: #{guild_joined}\n" <> "Account created: #{account_created}"
 
