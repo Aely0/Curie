@@ -145,7 +145,7 @@ defmodule Curie.Generic do
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         guild_joined =
-          joined_at
+          if(joined_at, do: joined_at, else: Api.get_guild_member!(guild, id).joined_at)
           |> Timex.parse!("{ISO:Extended}")
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
