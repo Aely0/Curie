@@ -167,14 +167,21 @@ defmodule Curie.Generic do
   def command({"cat", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
-    case Curie.get("http://thecatapi.com/api/images/get") do
+    case Curie.get("http://thecatapi.com/api/images/get", [], 5) do
       {200, %{headers: headers, body: body}} ->
         {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0)
         Curie.send(message, file: %{name: "cat." <> type, body: body})
 
       {:failed, reason} ->
-        "Oh no, I was unable to get your kitteh... (#{reason})"
-        |> (&Curie.embed(message, &1, "red")).()
+        with {200, %{body: body}} <- Curie.get("http://aws.random.cat/meow", [], 5),
+             {:ok, %{"file" => link}} <- Poison.decode(body),
+             {200, %{body: body}} <- Curie.get(link, [], 5) do
+          Curie.send(message, file: %{name: "cat" <> Path.extname(link), body: body})
+        else
+          failed ->
+            "Oh no, I was unable to get your kitteh... (#{reason}, #{inspect(failed)})"
+            |> (&Curie.embed(message, &1, "red")).()
+        end
     end
   end
 

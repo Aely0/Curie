@@ -12,7 +12,6 @@ defmodule Curie.Scheduler do
 
   @shadowmere 90_579_372_049_723_392
   @overwatch 169_835_616_110_903_307
-  @proko 197_436_404_886_667_264
 
   @spec child_spec(term) :: Supervisor.child_spec()
   def child_spec(_opts) do
@@ -122,17 +121,11 @@ defmodule Curie.Scheduler do
       stored = Data.one(Overwatch)
 
       if build != stored.build do
-        embed =
-          %Nostrum.Struct.Embed{}
-          |> put_author("New patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
-          |> put_description("[#{build} - #{date}](#{url <> id})")
-          |> put_color(Curie.color("white"))
-
-        Curie.send!(@overwatch, embed: embed)
-
-        with {:ok, channel} <- Api.create_dm(@proko) do
-          Curie.send!(channel.id, embed: embed)
-        end
+        %Nostrum.Struct.Embed{}
+        |> put_author("New patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
+        |> put_description("[#{build} - #{date}](#{url <> id})")
+        |> put_color(Curie.color("white"))
+        |> (&Curie.send!(@overwatch, embed: &1)).()
 
         stored
         |> Overwatch.changeset(%{build: build})
