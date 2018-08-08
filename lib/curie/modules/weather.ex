@@ -36,10 +36,10 @@ defmodule Curie.Weather do
   @spec get_location([String.t()], Channel.id()) :: {map, String.t()} | Message.t()
   def get_location(location, channel) when is_list(location) do
     case Curie.get(google_url(location)) do
-      {200, %{body: body}} ->
+      {:ok, %{body: body}} ->
         body |> Poison.decode!() |> get_location(channel)
 
-      {:failed, reason} ->
+      {:error, reason} ->
         Curie.embed!(channel, "Unable to retrieve location. (#{reason})", "red")
     end
   end
@@ -73,10 +73,10 @@ defmodule Curie.Weather do
   @spec get_forecast({map, String.t()}, Channel.id()) :: String.t() | Message.t()
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do
-      {200, %{body: body}} ->
+      {:ok, %{body: body}} ->
         body |> Poison.decode!() |> format_forecast(address)
 
-      {:failed, reason} ->
+      {:error, reason} ->
         Curie.embed!(channel, "Unable to retrieve forecast. (#{reason})", "red")
     end
   end

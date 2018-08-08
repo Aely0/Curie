@@ -99,7 +99,7 @@ defmodule Curie.Scheduler do
 
   @spec overwatch_patch() :: no_return
   def overwatch_patch do
-    with {200, %{body: body, request_url: url}} <-
+    with {:ok, %{body: body, request_url: url}} <-
            Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
       {build, id, date} =
         body
@@ -140,13 +140,13 @@ defmodule Curie.Scheduler do
     base = "https://api.twitter.com/1.1/statuses/user_timeline.json"
     params = "?screen_name=PlayOverwatch&count=50&include_rts=false&exclude_replies=true"
 
-    with {200, %{body: body}} <- Curie.get(base <> params, auth) do
+    with {:ok, %{body: body}} <- Curie.get(base <> params, auth) do
       %{"id_str" => tweet} = body |> Poison.decode!() |> Enum.take(1) |> hd()
       tweet_url = "https://twitter.com/PlayOverwatch/status/" <> tweet
       stored = Data.one(Overwatch)
 
       with true <- tweet != stored.tweet,
-           {200, %{body: body}} <- Curie.get(tweet_url) do
+           {:ok, %{body: body}} <- Curie.get(tweet_url) do
         %{"og:image" => image, "og:description" => description} =
           Floki.find(body, "meta")
           |> Enum.filter(&match?({_, [{"property", _}, {"content", _}], _}, &1))

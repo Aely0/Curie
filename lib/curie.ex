@@ -98,20 +98,20 @@ defmodule Curie do
   end
 
   @spec get(String.t(), [{String.t(), String.t()}], non_neg_integer) ::
-          {200, HTTPoison.Respose.t()} | {:failed, String.t()}
+          {:ok, HTTPoison.Respose.t()} | {:error, String.t()}
   def get(url, headers \\ [], retries \\ 0) when is_list(headers) do
     case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
       {:ok, response} ->
         case response.status_code do
           200 ->
-            {200, response}
+            {:ok, response}
 
           code ->
             if code >= 500 and retries < 5 do
               Process.sleep(2000)
               get(url, headers, retries + 1)
             else
-              {:failed, Integer.to_string(code)}
+              {:error, Integer.to_string(code)}
             end
         end
 
@@ -120,7 +120,7 @@ defmodule Curie do
           Process.sleep(2000)
           get(url, headers, retries + 1)
         else
-          {:failed, inspect(error.reason)}
+          {:error, inspect(error.reason)}
         end
     end
   end

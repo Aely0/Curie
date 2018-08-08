@@ -167,19 +167,19 @@ defmodule Curie.Generic do
   def command({"cat", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
-    case Curie.get("http://thecatapi.com/api/images/get", [], 5) do
-      {200, %{headers: headers, body: body}} ->
+    case Curie.get("http://thecatapi.com/api/images/get") do
+      {:ok, %{headers: headers, body: body}} ->
         {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0)
         Curie.send(message, file: %{name: "cat." <> type, body: body})
 
-      {:failed, reason} ->
-        with {200, %{body: body}} <- Curie.get("http://aws.random.cat/meow", [], 5),
+      {:error, reason_one} ->
+        with {:ok, %{body: body}} <- Curie.get("http://aws.random.cat/meow"),
              {:ok, %{"file" => link}} <- Poison.decode(body),
-             {200, %{body: body}} <- Curie.get(link, [], 5) do
+             {:ok, %{body: body}} <- Curie.get(link) do
           Curie.send(message, file: %{name: "cat" <> Path.extname(link), body: body})
         else
-          failed ->
-            "Oh no, I was unable to get your kitteh... (#{reason}, #{inspect(failed)})"
+          reason_two ->
+            "Oh no, I was unable to get your kitteh... (#{reason_one}, #{inspect(reason_two)})"
             |> (&Curie.embed(message, &1, "red")).()
         end
     end
@@ -190,7 +190,7 @@ defmodule Curie.Generic do
     Api.start_typing(channel)
 
     case Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
-      {200, %{body: body, request_url: url}} ->
+      {:ok, %{body: body, request_url: url}} ->
         patches =
           body
           |> Floki.find(".PatchNotesSideNav-listItem")
@@ -216,7 +216,7 @@ defmodule Curie.Generic do
         |> put_color(Curie.color("white"))
         |> (&Curie.send(message, embed: &1)).()
 
-      {:failed, reason} ->
+      {:error, reason} ->
         "Unable to retrieve patch notes. (#{reason})"
         |> (&Curie.embed(message, &1, "red")).()
     end

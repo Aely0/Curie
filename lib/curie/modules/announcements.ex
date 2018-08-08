@@ -87,7 +87,7 @@ defmodule Curie.Announcements do
       channel_name = game.url |> String.split("/") |> List.last()
       url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
 
-      with {200, %{body: body}} <- Curie.get(url) do
+      with {:ok, %{body: body}} <- Curie.get(url) do
         details = Poison.decode!(body)
         member = UserCache.get!(member)
         content = "#{member.username} started streaming!"
