@@ -5,7 +5,7 @@ defmodule Curie.Help do
   alias Curie.Data.Help
   alias Curie.Data
 
-  @check_typo ["curie", "currency", "help"]
+  @check_typo ~w/curie currency help/
   @self __MODULE__
 
   @spec start_link(term) :: GenServer.on_start()

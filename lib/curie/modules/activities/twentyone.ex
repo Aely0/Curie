@@ -9,7 +9,7 @@ defmodule Curie.TwentyOne do
 
   import Curie.Pot, only: [not_enough_players: 1]
 
-  @check_typo ["21", "ace", "hit", "stand", "deck"]
+  @check_typo ~w/21 ace hit stand deck/
   @self __MODULE__
 
   @spec start_link(term) :: GenServer.on_start()
@@ -95,7 +95,7 @@ defmodule Curie.TwentyOne do
   def handle_cast(:create_deck, state) do
     deck =
       Enum.flat_map(1..9, &List.duplicate(&1, 4))
-      |> (&(List.duplicate(10, 16) ++ &1)).()
+      |> Kernel.++(List.duplicate(10, 16))
       |> Enum.shuffle()
 
     {:noreply, %{state | deck: deck, private_deck: deck}}
@@ -247,7 +247,7 @@ defmodule Curie.TwentyOne do
     Map.keys(state.players)
     |> Enum.map(&if &1 not in list and state.players[&1].status != :playing, do: &1)
     |> Enum.filter(&(&1 != nil))
-    |> (&(list ++ &1)).()
+    |> Kernel.++(list)
   end
 
   @spec countdown(Message.t(), User.id(), 0..120, [User.id()]) :: no_return

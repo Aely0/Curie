@@ -4,7 +4,7 @@ defmodule Curie.Colors do
   alias Nostrum.Struct.{Message, User}
   alias Nostrum.Api
 
-  @check_typo %{command: ["color"], subcommand: ["remove", "preview"]}
+  @check_typo %{command: ~w/color/, subcommand: ~w/remove preview/}
   @color_roles Application.get_env(:curie, :color_roles)
   @special_snowflake 371_732_667_080_638_466
 

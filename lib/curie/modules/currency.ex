@@ -7,7 +7,7 @@ defmodule Curie.Currency do
   alias Curie.Data.Balance
   alias Curie.Data
 
-  @check_typo %{command: ["balance", "gift"], subcommand: ["curie"]}
+  @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
   @spec value_parse(String.t(), non_neg_integer | nil) :: pos_integer | nil
   def value_parse(value, balance) do

@@ -7,7 +7,7 @@ defmodule Curie.Generic do
 
   import Nostrum.Struct.Embed
 
-  @check_typo ["felweed", "rally", "details", "cat", "overwatch", "roll", "ping"]
+  @check_typo ~w/felweed rally details cat overwatch roll ping/
   @roles Application.get_env(:curie, :roles)
   @owner_id @owner.author.id
 
@@ -50,7 +50,7 @@ defmodule Curie.Generic do
         %{".jpg" => "jpeg", ".png" => "png", ".gif" => "gif"}
         |> (& &1[Path.extname(path)]).()
         |> (&"data:image/#{&1};base64,").()
-        |> (&(&1 <> Base.encode64(file))).()
+        |> Kernel.<>(Base.encode64(file))
         |> (&Api.modify_current_user!(avatar: &1)).()
 
         Curie.embed(message, "Avatar changed.", "green")

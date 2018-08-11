@@ -5,7 +5,7 @@ defmodule Curie.Images do
   alias Nostrum.Struct.Message
 
   @path "resources/images"
-  @check_typo ["images"]
+  @check_typo ~w/images/
   @self __MODULE__
 
   @spec start_link(term) :: GenServer.on_start()

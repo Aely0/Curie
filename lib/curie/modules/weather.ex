@@ -6,7 +6,7 @@ defmodule Curie.Weather do
 
   import Nostrum.Struct.Embed
 
-  @check_typo ["weather"]
+  @check_typo ~w/weather/
 
   @spec google_url([String.t()]) :: String.t()
   def google_url(location) do

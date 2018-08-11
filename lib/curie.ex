@@ -78,7 +78,7 @@ defmodule Curie do
     do: edit(channel_id, message_id, options) |> bangify()
 
   @spec edit(Message.t(), options) :: message_or_error
-  def edit(%{channel_id: channel_id, message_id: message_id} = _message, options),
+  def edit(%{channel_id: channel_id, id: message_id} = _message, options),
     do: edit(channel_id, message_id, options)
 
   @spec edit(Channel.id(), Message.id(), options, non_neg_integer) :: message_or_error
