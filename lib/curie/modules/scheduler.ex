@@ -120,7 +120,7 @@ defmodule Curie.Scheduler do
 
       stored = Data.one(Overwatch)
 
-      if build != stored.build do
+      if build != stored.build and !(build =~ ~r/\D\.\D/) do
         %Nostrum.Struct.Embed{}
         |> put_author("New patch released!", nil, "https://i.imgur.com/6NBYBSS.png")
         |> put_description("[#{build} - #{date}](#{url <> id})")
