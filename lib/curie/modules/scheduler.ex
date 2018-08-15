@@ -13,7 +13,7 @@ defmodule Curie.Scheduler do
   @shadowmere 90_579_372_049_723_392
   @overwatch 169_835_616_110_903_307
 
-  @spec child_spec(term) :: Supervisor.child_spec()
+  @spec child_spec(term()) :: Supervisor.child_spec()
   def child_spec(_opts) do
     %{id: @self, start: {@self, :start_link, []}}
   end
@@ -25,7 +25,7 @@ defmodule Curie.Scheduler do
     {:ok, pid}
   end
 
-  @spec apply_gain(Balance.t()) :: no_return
+  @spec apply_gain(Balance.t()) :: no_return()
   def apply_gain(%{member: member, value: balance, guild: guild}) do
     with {:ok, %{status: status}} <- PresenceCache.get(member, guild) do
       if (status == :online and balance < 300) or
@@ -34,7 +34,7 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec member_balance_gain() :: no_return
+  @spec member_balance_gain() :: no_return()
   def member_balance_gain do
     me = Nostrum.Cache.Me.get().id
 
@@ -44,14 +44,14 @@ defmodule Curie.Scheduler do
     |> Enum.each(&apply_gain/1)
   end
 
-  @spec curie_balance_change(:gain | :decay) :: no_return
+  @spec curie_balance_change(:gain | :decay) :: no_return()
   def curie_balance_change(action) do
     id = Nostrum.Cache.Me.get().id
     balance = Data.get(Balance, id).value
     curie_balance_change(action, id, balance)
   end
 
-  @spec curie_balance_change(:gain, User.id(), Balance.value()) :: no_return
+  @spec curie_balance_change(:gain | :decay, User.id(), Balance.value()) :: no_return()
   def curie_balance_change(:gain, id, balance) do
     cond do
       balance + 10 <= 200 ->
@@ -65,7 +65,6 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec curie_balance_change(:decay, User.id(), Balance.value()) :: no_return
   def curie_balance_change(:decay, id, balance) do
     cond do
       balance - 10 >= 1000 ->
@@ -79,7 +78,7 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec set_status() :: no_return
+  @spec set_status() :: no_return()
   def set_status do
     case Data.all(Status) do
       [] ->
@@ -90,14 +89,14 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec prune() :: no_return
+  @spec prune() :: no_return()
   def prune do
     with {:ok, %{pruned: count}} <- Api.get_guild_prune_count(@shadowmere, 30) do
       if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
     end
   end
 
-  @spec overwatch_patch() :: no_return
+  @spec overwatch_patch() :: no_return()
   def overwatch_patch do
     with {:ok, %{body: body, request_url: url}} <-
            Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
@@ -134,7 +133,7 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec overwatch_twitter() :: no_return
+  @spec overwatch_twitter() :: no_return()
   def overwatch_twitter do
     auth = [{"Authorization", "Bearer " <> Application.get_env(:curie, :twitter)}]
     base = "https://api.twitter.com/1.1/statuses/user_timeline.json"
@@ -174,7 +173,7 @@ defmodule Curie.Scheduler do
     end
   end
 
-  @spec scheduler() :: no_return
+  @spec scheduler() :: no_return()
   def scheduler do
     %{hour: hour, minute: minute, second: second} = Timex.local()
 

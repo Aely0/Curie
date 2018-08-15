@@ -1,8 +1,8 @@
 defmodule Curie.Commands do
-  @type command_call :: {String.t(), Nostrum.Struct.Message.t(), [String.t()]}
+  @type command_call :: {String.t(), map(), [String.t()]}
 
-  @callback command(command_call) :: term
-  @callback subcommand(command_call) :: term
+  @callback command(command_call) :: no_return()
+  @callback subcommand(command_call) :: no_return()
   @optional_callbacks subcommand: 1
 
   defmacro __using__(_opts) do
@@ -13,10 +13,10 @@ defmodule Curie.Commands do
       @tempest Application.get_env(:curie, :tempest)
       @prefix Application.get_env(:curie, :prefix)
 
-      @spec command?(%{content: Nostrum.Struct.Message.content()}) :: boolean
+      @spec command?(%{content: String.t()}) :: boolean()
       def command?(%{content: content} = _message), do: String.starts_with?(content, @prefix)
 
-      @spec parse(Nostrum.Struct.Message.t()) :: unquote(__MODULE__).command_call
+      @spec parse(map()) :: unquote(__MODULE__).command_call()
       def parse(%{content: content} = message) do
         [@prefix <> call | args] = String.split(content)
         call = String.downcase(call)
@@ -24,16 +24,16 @@ defmodule Curie.Commands do
       end
 
       @spec check_typo(
-              unquote(__MODULE__).command_call,
+              unquote(__MODULE__).command_call(),
               String.t() | [String.t()],
-              function
-            ) :: term
+              function()
+            ) :: no_return()
       def check_typo({call, message, args}, check, caller) do
         with match when match != nil <- Curie.check_typo(call, check),
              do: if(call != match, do: caller.({match, message, args}))
       end
 
-      @spec handler(Nostrum.Struct.Message.t()) :: term
+      @spec handler(map()) :: no_return()
       def handler(message), do: if(command?(message), do: message |> parse() |> command())
 
       defoverridable handler: 1

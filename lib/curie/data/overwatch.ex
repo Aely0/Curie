@@ -7,6 +7,7 @@ defmodule Curie.Data.Overwatch do
     field(:tweet, :string)
   end
 
+  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:build, :tweet])

@@ -2,8 +2,6 @@ defmodule Curie.Images do
   use Curie.Commands
   use GenServer
 
-  alias Nostrum.Struct.Message
-
   @path "resources/images"
   @check_typo ~w/images/
   @self __MODULE__
@@ -31,7 +29,7 @@ defmodule Curie.Images do
     %{names: names, files: files}
   end
 
-  @spec send_match(Message.t()) :: Message.t() | nil
+  @spec send_match(map()) :: no_return()
   def send_match(%{content: content} = message) do
     images = GenServer.call(@self, :get)
     index = Enum.find_index(images.names, &(content == &1))
@@ -58,7 +56,7 @@ defmodule Curie.Images do
   @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 
-  @spec handler(Message.t()) :: term
+  @spec handler(map()) :: no_return()
   def handler(message) do
     send_match(message)
     super(message)

@@ -1,6 +1,4 @@
 defmodule Curie do
-  use Application
-
   alias Nostrum.Stuct.{Channel, Guild, Message, User}
   alias Nostrum.Stuct.Guild.Member
   alias Nostrum.Cache.GuildCache
@@ -13,9 +11,9 @@ defmodule Curie do
 
   @type message_or_error :: {:ok, Message.t()} | {:error, ApiError.t()}
   @type destination :: Channel.id() | Message.t()
-  @type options :: keyword | map
+  @type options :: keyword() | map()
 
-  @spec color(String.t()) :: non_neg_integer | nil
+  @spec color(String.t()) :: non_neg_integer() | nil
   def color(name), do: @colors[name]
 
   @spec time_now() :: String.t()
@@ -35,10 +33,11 @@ defmodule Curie do
     if similarity >= 0.75, do: match
   end
 
-  @spec embed!(destination, String.t(), String.t() | non_neg_integer) :: Message.t() | no_return
+  @spec embed!(destination(), String.t(), String.t() | non_neg_integer()) ::
+          Message.t() | no_return()
   def embed!(channel, description, color), do: embed(channel, description, color) |> bangify()
 
-  @spec embed(destination, String.t(), String.t() | non_neg_integer) :: message_or_error
+  @spec embed(destination(), String.t(), String.t() | non_neg_integer()) :: message_or_error()
   def embed(channel, description, color) do
     channel = if is_map(channel), do: channel.channel_id, else: channel
     color = unless is_integer(color), do: color(color), else: color
@@ -49,10 +48,10 @@ defmodule Curie do
     |> (&Curie.send(channel, embed: &1)).()
   end
 
-  @spec send!(destination, options) :: Message.t() | no_return
+  @spec send!(destination(), options()) :: Message.t() | no_return()
   def send!(channel, options), do: Curie.send(channel, options) |> bangify()
 
-  @spec send(destination, options, non_neg_integer) :: message_or_error
+  @spec send(destination(), options(), non_neg_integer()) :: message_or_error()
   def send(channel, options, retries \\ 0) do
     channel = if is_map(channel), do: channel.channel_id, else: channel
 
@@ -60,7 +59,7 @@ defmodule Curie do
       {:ok, _message} = result ->
         result
 
-      {:error, %{status_code: code, message: _response}} = error ->
+      {:error, %{status_code: code}} = error ->
         if code >= 500 and retries <= 10 do
           Process.sleep(2000)
           Curie.send(channel, options, retries + 1)
@@ -70,24 +69,24 @@ defmodule Curie do
     end
   end
 
-  @spec edit!(Message.t(), options) :: Message.t() | no_return
+  @spec edit!(Message.t(), options()) :: Message.t() | no_return()
   def edit!(message, options), do: edit(message, options) |> bangify()
 
-  @spec edit!(Channel.id(), Message.id(), options) :: Message.t() | no_return
+  @spec edit!(Channel.id(), Message.id(), options()) :: Message.t() | no_return()
   def edit!(channel_id, message_id, options),
     do: edit(channel_id, message_id, options) |> bangify()
 
-  @spec edit(Message.t(), options) :: message_or_error
+  @spec edit(Message.t(), options()) :: message_or_error()
   def edit(%{channel_id: channel_id, id: message_id} = _message, options),
     do: edit(channel_id, message_id, options)
 
-  @spec edit(Channel.id(), Message.id(), options, non_neg_integer) :: message_or_error
+  @spec edit(Channel.id(), Message.id(), options(), non_neg_integer()) :: message_or_error()
   def edit(channel_id, message_id, options, retries \\ 0) do
     case Nostrum.Api.edit_message(channel_id, message_id, options) do
       {:ok, _message} = result ->
         result
 
-      {:error, %{status_code: code, message: _response}} = error ->
+      {:error, %{status_code: code}} = error ->
         if code >= 500 and retries <= 10 do
           Process.sleep(250)
           edit(channel_id, message_id, options, retries + 1)
@@ -97,7 +96,7 @@ defmodule Curie do
     end
   end
 
-  @spec get(String.t(), [{String.t(), String.t()}], non_neg_integer) ::
+  @spec get(String.t(), [{String.t(), String.t()}], non_neg_integer()) ::
           {:ok, HTTPoison.Respose.t()} | {:error, String.t()}
   def get(url, headers \\ [], retries \\ 0) when is_list(headers) do
     case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
@@ -125,7 +124,7 @@ defmodule Curie do
     end
   end
 
-  @spec unix_to_amount(non_neg_integer) :: String.t()
+  @spec unix_to_amount(non_neg_integer()) :: String.t()
   def unix_to_amount(timestamp) do
     amount = (Timex.local() |> Timex.to_unix()) - timestamp
     {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
@@ -137,7 +136,7 @@ defmodule Curie do
     |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
   end
 
-  @spec get_member(Guild.id(), atom, term, non_neg_integer) :: Member.t() | nil
+  @spec get_member(Guild.id(), atom(), term(), non_neg_integer()) :: Member.t() | nil
   def get_member(guild, key, value, retries \\ 0) do
     case GuildCache.select(guild, & &1.members) do
       {:ok, map} when key == :id ->
@@ -157,8 +156,8 @@ defmodule Curie do
   end
 
   @spec get_member(
-          %{guild_id: Guild.id(), content: Message.content(), mentions: [User.t()]},
-          non_neg_integer
+          %{guild_id: Guild.id(), content: String.t(), mentions: [User.t()]},
+          non_neg_integer()
         ) :: Member.t() | nil
   def get_member(%{guild_id: guild, content: content, mentions: mentions} = _message, position) do
     full_name =
@@ -186,11 +185,5 @@ defmodule Curie do
           get_member(guild, :username, full_name)
       end
     end
-  end
-
-  @impl true
-  def start(_type, _args) do
-    IO.puts("  == Curie - Nostrum #{Application.spec(:nostrum, :vsn)} ==\n")
-    Curie.Supervisor.start_link()
   end
 end

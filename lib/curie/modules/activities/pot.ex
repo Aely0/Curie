@@ -15,7 +15,7 @@ defmodule Curie.Pot do
     GenServer.start_link(@self, [], name: @self)
   end
 
-  @spec defaults() :: map
+  @spec defaults() :: map()
   def defaults do
     %{status: 0, allow_add: false, value: 0, channel: nil, participants: [], limit: nil}
   end
@@ -38,7 +38,7 @@ defmodule Curie.Pot do
   @impl true
   def handle_cast(:reset, _state), do: {:noreply, defaults()}
 
-  @spec announce_start(Message.t(), pos_integer, pos_integer | nil) :: Message.t()
+  @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
   def announce_start(%{author: %{username: name}} = message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
 
@@ -49,7 +49,7 @@ defmodule Curie.Pot do
     |> (&Curie.embed(message, &1, "dblue")).()
   end
 
-  @spec announce_winner(Message.t(), User.id(), pos_integer, number) :: Message.t()
+  @spec announce_winner(map(), User.id(), pos_integer(), number()) :: no_return()
   def announce_winner(message, winner, value, chance) do
     winner = UserCache.get!(winner)
 
@@ -58,7 +58,7 @@ defmodule Curie.Pot do
     |> (&Curie.embed(message, &1, "yellow")).()
   end
 
-  @spec not_enough_players(Message.t()) :: Message.t()
+  @spec not_enough_players(map()) :: no_return()
   def not_enough_players(message) do
     [
       "Hey guys! Want to... no...? Ok, I'm used to it... \:(",
@@ -78,10 +78,10 @@ defmodule Curie.Pot do
           :limit | :regular,
           Channel.id(),
           Balance.value(),
-          value :: pos_integer,
-          limit :: pos_integer,
-          [{User.id(), pos_integer}]
-        ) :: Message.t() | nil
+          value :: pos_integer(),
+          limit :: pos_integer(),
+          [{User.id(), pos_integer()}]
+        ) :: no_return()
   def curie_decision(:limit, channel, balance, value, limit, participants) do
     cond do
       balance >= limit and trunc(limit / (limit + value) * 100) >= 50 ->
@@ -124,7 +124,7 @@ defmodule Curie.Pot do
     end
   end
 
-  @spec curie_join(Channel.id()) :: Message.t() | nil
+  @spec curie_join(Channel.id()) :: no_return()
   def curie_join(channel) do
     me = Me.get()
     balance = Currency.get_balance(me.id)
@@ -142,7 +142,7 @@ defmodule Curie.Pot do
     end
   end
 
-  @spec pot(Message.t(), User.id(), pos_integer, pos_integer | nil) :: no_return
+  @spec pot(Message.t(), User.id(), pos_integer(), pos_integer() | nil) :: no_return()
   def pot(%{channel_id: channel_id} = message, member, value, limit \\ nil) do
     channel = "#" <> ChannelCache.get!(channel_id).name
 

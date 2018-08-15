@@ -2,7 +2,7 @@ defmodule Curie.Leaderboard do
   use Curie.Commands
   use GenServer
 
-  alias Nostrum.Struct.{Embed, Message, User}
+  alias Nostrum.Struct.Embed
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
 
@@ -80,7 +80,7 @@ defmodule Curie.Leaderboard do
     |> (&%{&1 | entries: parse_entries(&1.entries)}).()
   end
 
-  @spec create_new() :: map
+  @spec create_new() :: map()
   def create_new do
     entries = create_entries()
 
@@ -107,7 +107,7 @@ defmodule Curie.Leaderboard do
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
   end
 
-  @spec format_entry({non_neg_integer, [String.t()]}) :: String.t()
+  @spec format_entry({non_neg_integer(), [String.t()]}) :: String.t()
   def format_entry({value, list}) do
     {first, rest} = Enum.split(list, 3)
     members = Enum.join(first, ", ")
@@ -115,7 +115,7 @@ defmodule Curie.Leaderboard do
     "**#{members <> overflow}** with **#{value}**#{@tempest}"
   end
 
-  @spec format_output(action) :: Embed.t()
+  @spec format_output(action()) :: Embed.t()
   def format_output(action) do
     state =
       if action in [:new, :refresh],
@@ -138,7 +138,7 @@ defmodule Curie.Leaderboard do
     |> put_timestamp(state.last_refresh)
   end
 
-  @spec interaction(action) :: no_return
+  @spec interaction(action()) :: no_return()
   def interaction(:backward) do
     state = GenServer.call(@self, :get)
 
@@ -185,10 +185,9 @@ defmodule Curie.Leaderboard do
   @impl true
   def command(call), do: check_typo(call, @check_typo, &command/1)
 
-  @spec handler(Message.t()) :: term
+  @spec handler(map()) :: no_return()
   def handler(%{heartbeat: _heartbeat} = message), do: super(message)
 
-  @spec handler(%{emoji: map, message_id: Message.id(), user_id: User.id()}) :: no_return
   def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
     me = Nostrum.Cache.Me.get()
     lead_id = GenServer.call(@self, :get).message_id

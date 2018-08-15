@@ -9,6 +9,7 @@ defmodule Curie.Data.Details do
     field(:channel, :string)
   end
 
+  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:member, :online, :spoke, :channel])

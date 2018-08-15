@@ -1,7 +1,7 @@
 defmodule Curie.Colors do
   use Curie.Commands
 
-  alias Nostrum.Struct.{Message, User}
+  alias Nostrum.Struct.User
   alias Nostrum.Api
 
   @check_typo %{command: ~w/color/, subcommand: ~w/remove preview/}
@@ -16,7 +16,7 @@ defmodule Curie.Colors do
     |> (&if(Map.has_key?(@color_roles, &1), do: &1)).()
   end
 
-  @spec fallback(String.t(), Message.t(), [String.t()]) :: Message.t() | no_return
+  @spec fallback(String.t(), map(), [String.t()]) :: no_return()
   def fallback("command", message, args) do
     with match when match != nil <- Curie.check_typo(List.first(args), Map.keys(@color_roles)) do
       List.replace_at(args, 0, match)
@@ -27,7 +27,6 @@ defmodule Curie.Colors do
     end
   end
 
-  @spec fallback(String.t(), Message.t(), [String.t()]) :: Message.t()
   def fallback("subcommand", message, args) do
     with match when match != nil <- Curie.check_typo(Enum.at(args, 1), Map.keys(@color_roles)) do
       List.replace_at(args, 1, match)
@@ -38,7 +37,7 @@ defmodule Curie.Colors do
     end
   end
 
-  @spec color_preview(String.t(), Message.t()) :: no_return
+  @spec color_preview(String.t(), map()) :: no_return()
   def color_preview(color, %{guild_id: guild_id} = message) do
     me = Nostrum.Cache.Me.get().id
 
@@ -51,7 +50,7 @@ defmodule Curie.Colors do
     Api.remove_guild_member_role(guild_id, me, @color_roles[color])
   end
 
-  @spec confirm_transaction(String.t(), User.id(), Message.t()) :: Message.t()
+  @spec confirm_transaction(String.t(), User.id(), map()) :: no_return()
   def confirm_transaction(color, member, %{guild_id: guild_id} = message) do
     member_roles = Api.get_guild_member!(guild_id, member).roles
     color_roles = Map.values(@color_roles)

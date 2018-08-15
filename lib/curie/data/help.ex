@@ -8,6 +8,7 @@ defmodule Curie.Data.Help do
     field(:short, :string)
   end
 
+  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:command, :description, :short])

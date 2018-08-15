@@ -1,7 +1,7 @@
 defmodule Curie.Weather do
   use Curie.Commands
 
-  alias Nostrum.Struct.{Channel, Embed, Message}
+  alias Nostrum.Struct.{Channel, Embed}
   alias Nostrum.Api
 
   import Nostrum.Struct.Embed
@@ -15,32 +15,35 @@ defmodule Curie.Weather do
             Application.get_env(:curie, :googlemaps) <> "&address=" <> &1)).()
   end
 
-  @spec darkskies_url(%{String.t() => float, String.t() => float}) :: String.t()
+  @spec darkskies_url(%{String.t() => float(), String.t() => float()}) :: String.t()
   def darkskies_url(%{"lat" => lat, "lng" => lng}) do
     "https://api.darksky.net/forecast/" <>
       Application.get_env(:curie, :darkskies) <>
       "/#{lat},#{lng}?units=si&exclude=minutely,hourly,daily,alerts,flags"
   end
 
-  @spec get_location(map, Channel.id()) :: {map, String.t()} | Message.t()
+  @spec get_location(map(), Channel.id()) :: {:ok, {map(), String.t()}} | {:error, String.t()}
   def get_location(response, channel) when is_map(response) do
     case response do
       %{"status" => "OK", "results" => [first | _rest]} ->
-        {first["geometry"]["location"], first["formatted_address"]}
+        {:ok, {first["geometry"]["location"], first["formatted_address"]}}
 
       %{"status" => "ZERO_RESULTS"} ->
         Curie.embed!(channel, "Location not found.", "red")
+        {:error, "Location not found."}
     end
   end
 
-  @spec get_location([String.t()], Channel.id()) :: {map, String.t()} | Message.t()
+  @spec get_location([String.t()], Channel.id()) ::
+          {:ok, {map(), String.t()}} | {:error, String.t()}
   def get_location(location, channel) when is_list(location) do
     case Curie.get(google_url(location)) do
       {:ok, %{body: body}} ->
         body |> Poison.decode!() |> get_location(channel)
 
-      {:error, reason} ->
+      {:error, reason} = error ->
         Curie.embed!(channel, "Unable to retrieve location. (#{reason})", "red")
+        error
     end
   end
 
@@ -48,7 +51,8 @@ defmodule Curie.Weather do
   def get_local_time(timezone),
     do: timezone |> Timex.now() |> Timex.format!("%H:%M, %B %d", :strftime)
 
-  @spec format_forecast(%{String.t() => map, String.t() => String.t()}, String.t()) :: String.t()
+  @spec format_forecast(%{String.t() => map(), String.t() => String.t()}, String.t()) ::
+          String.t()
   def format_forecast(%{"currently" => weather, "timezone" => timezone}, address) do
     "Location: #{address}\n" <>
       "Local time: #{get_local_time(timezone)}\n" <>
@@ -70,14 +74,17 @@ defmodule Curie.Weather do
     |> put_description(description)
   end
 
-  @spec get_forecast({map, String.t()}, Channel.id()) :: String.t() | Message.t()
+  @spec get_forecast({map(), String.t()}, Channel.id()) ::
+          {:ok, String.t()} | {:error, String.t()}
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do
       {:ok, %{body: body}} ->
-        body |> Poison.decode!() |> format_forecast(address)
+        forecast = body |> Poison.decode!() |> format_forecast(address)
+        {:ok, forecast}
 
-      {:error, reason} ->
+      {:error, reason} = error ->
         Curie.embed!(channel, "Unable to retrieve forecast. (#{reason})", "red")
+        error
     end
   end
 
@@ -85,8 +92,8 @@ defmodule Curie.Weather do
   def command({"weather", %{channel_id: channel} = _message, location}) do
     Api.start_typing(channel)
 
-    with location when is_tuple(location) <- get_location(location, channel),
-         forecast when is_binary(forecast) <- get_forecast(location, channel),
+    with {:ok, location} <- get_location(location, channel),
+         {:ok, forecast} <- get_forecast(location, channel),
          do: Curie.send(channel, embed: create_embed(forecast))
   end
 

@@ -7,14 +7,14 @@ defmodule Curie.Storage do
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
 
-  @spec remove(User.id()) :: no_return
+  @spec remove(User.id()) :: no_return()
   def remove(member) do
     for table <- [Balance, Details],
         do: Data.get(table, member) |> (&if(&1, do: Data.delete(&1))).()
   end
 
   @spec store_details(%{author: %{id: User.id()}, channel_id: Channel.id(), type: Message.type()}) ::
-          no_return
+          no_return()
   def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
     channel = ChannelCache.get!(channel_id)
 
@@ -34,7 +34,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec store_details(%{user: %{id: User.id()}, status: atom}) :: no_return
+  @spec store_details(%{user: %{id: User.id()}, status: atom()}) :: no_return()
   def store_details(%{user: %{id: id}, status: status}) do
     if status == :offline do
       now = Timex.local() |> Timex.to_unix()
@@ -51,7 +51,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec store_details(term) :: nil
+  @spec store_details(term()) :: nil
   def store_details(_unusable), do: nil
 
   @spec fetch_details(User.id()) ::
@@ -69,7 +69,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec status_gather(%{game: String.t(), user: User.t()}) :: no_return
+  @spec status_gather(%{game: String.t(), user: User.t()}) :: no_return()
   def status_gather(%{game: game, user: user} = _presence) do
     if game != nil and game.type == 0 do
       if Status |> Data.get(game.name) |> is_nil() do
@@ -123,7 +123,7 @@ defmodule Curie.Storage do
   @impl true
   def command(_call), do: nil
 
-  @spec handler(Message.t()) :: term
+  @spec handler(map()) :: no_return()
   def handler(%{author: %{id: id}} = message) do
     if Me.get().id != id, do: store_details(message)
     super(message)

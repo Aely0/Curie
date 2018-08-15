@@ -29,11 +29,11 @@ defmodule Curie.Consumer do
     Consumer.start_link(@self, name: @self)
   end
 
-  @spec call_handlers(Message.t() | map, [function]) :: no_return
+  @spec call_handlers(Message.t() | map(), [function()]) :: no_return()
   def call_handlers(payload, handlers),
     do: Task.start(fn -> for handler <- handlers, do: handler.(payload) end)
 
-  @spec add_heartbeat(Message.t(), WSState.t()) :: Message.t()
+  @spec add_heartbeat(Message.t(), WSState.t()) :: map()
   def add_heartbeat(message, ws) do
     {send, _} = ws.last_heartbeat_send.microsecond
     {ack, _} = ws.last_heartbeat_ack.microsecond

@@ -2,14 +2,14 @@ defmodule Curie.Currency do
   use Curie.Commands
 
   alias Nostrum.Cache.{GuildCache, UserCache}
-  alias Nostrum.Struct.{Message, User}
   alias Nostrum.Struct.Guild.Member
+  alias Nostrum.Struct.User
   alias Curie.Data.Balance
   alias Curie.Data
 
   @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
-  @spec value_parse(String.t(), non_neg_integer | nil) :: pos_integer | nil
+  @spec value_parse(String.t(), non_neg_integer() | nil) :: pos_integer() | nil
   def value_parse(value, balance) do
     cond do
       balance == nil ->
@@ -33,10 +33,10 @@ defmodule Curie.Currency do
     |> (&if(&1 in 1..balance, do: &1)).()
   end
 
-  @spec get_balance(User.id()) :: integer | nil
+  @spec get_balance(User.id()) :: integer() | nil
   def get_balance(member), do: with(%{value: value} <- Data.get(Balance, member), do: value)
 
-  @spec change_balance(:add | :deduct | :replace, User.id(), integer) :: no_return
+  @spec change_balance(:add | :deduct | :replace, User.id(), integer()) :: no_return()
   def change_balance(action, member, value) do
     member = Data.get(Balance, member)
 
@@ -54,13 +54,13 @@ defmodule Curie.Currency do
     |> Data.update()
   end
 
-  @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean
+  @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean()
   def whitelisted?(%{author: %{id: id}} = _message), do: id |> get_balance() |> is_integer()
 
-  @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean
+  @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean()
   def whitelisted?(%{user: %{id: id}} = _member), do: id |> get_balance() |> is_integer()
 
-  @spec whitelist_message(Message.t()) :: Message.t() | no_return
+  @spec whitelist_message(map()) :: no_return()
   def whitelist_message(%{guild_id: guild_id} = message) do
     with {:ok, %{owner_id: owner_id} = _guild} <- GuildCache.get(guild_id),
          {:ok, %{username: name} = _owner} <- UserCache.get(owner_id) do
@@ -69,7 +69,7 @@ defmodule Curie.Currency do
     end
   end
 
-  @spec validate_recipient(Message.t()) :: Member.t() | nil
+  @spec validate_recipient(map()) :: Member.t() | nil
   def validate_recipient(message) do
     Curie.get_member(message, 2)
     |> (&if(&1 != nil and whitelisted?(&1), do: &1)).()
