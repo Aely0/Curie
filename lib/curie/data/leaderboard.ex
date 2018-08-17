@@ -8,7 +8,7 @@ defmodule Curie.Data.Leaderboard do
     field(:last_refresh, :string)
     field(:page_count, :integer)
     field(:current_page, :integer)
-    field(:entries, :string)
+    field(:entries, {:array, :string})
   end
 
   @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()

@@ -57,7 +57,7 @@ defmodule Curie.Leaderboard do
       last_refresh: state.last_refresh,
       page_count: state.page_count,
       current_page: state.current_page,
-      entries: state.entries |> parse_entries()
+      entries: state.entries
     }
 
     %Leaderboard{id: state.id}
@@ -67,18 +67,8 @@ defmodule Curie.Leaderboard do
     {:noreply, state}
   end
 
-  @spec parse_entries([String.t()]) :: String.t()
-  def parse_entries(entries) when is_list(entries), do: Enum.join(entries, "<&&>")
-
-  @spec parse_entries(String.t()) :: [String.t()]
-  def parse_entries(entries) when is_binary(entries), do: String.split(entries, "<&&>")
-
   @spec recover_state() :: Leaderboard.t()
-  def recover_state do
-    Leaderboard
-    |> Data.one()
-    |> (&%{&1 | entries: parse_entries(&1.entries)}).()
-  end
+  def recover_state, do: Data.one(Leaderboard)
 
   @spec create_new() :: map()
   def create_new do
