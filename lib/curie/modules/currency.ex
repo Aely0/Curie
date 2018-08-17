@@ -9,28 +9,28 @@ defmodule Curie.Currency do
 
   @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
-  @spec value_parse(String.t(), non_neg_integer() | nil) :: pos_integer() | nil
+  @spec value_parse(String.t(), integer() | nil) :: pos_integer() | nil
+  def value_parse(_value, 0), do: nil
+  def value_parse(_value, nil), do: nil
+
   def value_parse(value, balance) do
     cond do
-      balance == nil ->
-        nil
-
       Curie.check_typo(value, "all") ->
         balance
 
-      balance > 0 and Curie.check_typo(value, "half") ->
+      Curie.check_typo(value, "half") && balance > 0 ->
         trunc(balance / 2)
 
-      String.ends_with?(value, "%") and match?({_v, _r}, Integer.parse(value)) ->
-        (balance / 100 * (Integer.parse(value) |> elem(0))) |> trunc()
+      value =~ ~r/^\d+%/ ->
+        (balance / 100 * (value |> Integer.parse() |> elem(0))) |> trunc()
 
-      match?({_v, _r}, Integer.parse(value)) ->
+      value =~ ~r/^\d+/ ->
         Integer.parse(value) |> elem(0)
 
       true ->
         nil
     end
-    |> (&if(&1 in 1..balance, do: &1)).()
+    |> (&if(&1 != nil and &1 in 1..balance, do: &1)).()
   end
 
   @spec get_balance(User.id()) :: integer() | nil
@@ -71,7 +71,8 @@ defmodule Curie.Currency do
 
   @spec validate_recipient(map()) :: Member.t() | nil
   def validate_recipient(message) do
-    Curie.get_member(message, 2)
+    message
+    |> Curie.get_member(2)
     |> (&if(&1 != nil and whitelisted?(&1), do: &1)).()
   end
 
