@@ -2,8 +2,8 @@ defmodule Curie.Data.Leaderboard do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @primary_key {:channel_id, :integer, []}
   schema "leaderboard" do
-    field(:channel_id, :integer)
     field(:message_id, :integer)
     field(:last_refresh, :string)
     field(:page_count, :integer)

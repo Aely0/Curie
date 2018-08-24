@@ -26,14 +26,11 @@ defmodule Curie.Leaderboard do
 
   @impl true
   def init(_args) do
-    state = recover_state()
-
-    case Api.get_channel_message(state.channel_id, state.message_id) do
-      {:ok, _message} ->
-        {:ok, state}
-
-      {:error, _reason} ->
-        {:ok, %{id: state.id, channel_id: nil, message_id: nil}}
+    with %Leaderboard{channel_id: channel_id, message_id: message_id} = state <- recover_state(),
+         {:ok, _message} <- Api.get_channel_message(channel_id, message_id) do
+      {:ok, state}
+    else
+      _no_recoverable_state -> {:ok, %{channel_id: nil, message_id: nil}}
     end
   end
 
@@ -60,9 +57,10 @@ defmodule Curie.Leaderboard do
       entries: state.entries
     }
 
-    %Leaderboard{id: state.id}
+    Leaderboard
+    |> Data.one()
     |> Leaderboard.changeset(parameters)
-    |> Data.update()
+    |> Data.insert_or_update()
 
     {:noreply, state}
   end

@@ -100,10 +100,10 @@ defmodule Curie do
           {:ok, HTTPoison.Respose.t()} | {:error, String.t()}
   def get(url, headers \\ [], retries \\ 0) when is_list(headers) do
     case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
-      {:ok, response} ->
+      {:ok, response} = result ->
         case response.status_code do
           200 ->
-            {:ok, response}
+            result
 
           code ->
             if code >= 500 and retries < 5 do
