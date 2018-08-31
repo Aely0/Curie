@@ -4,6 +4,7 @@ defmodule Curie.Pot do
 
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
   alias Nostrum.Struct.{Channel, Message, User}
+
   alias Curie.Data.Balance
   alias Curie.Currency
 
@@ -17,7 +18,7 @@ defmodule Curie.Pot do
 
   @spec defaults() :: map()
   def defaults do
-    %{status: 0, allow_add: false, value: 0, channel: nil, participants: [], limit: nil}
+    %{status: :idle, allow_add: false, value: 0, channel: nil, participants: [], limit: nil}
   end
 
   @impl true
@@ -150,7 +151,7 @@ defmodule Curie.Pot do
       @self,
       {:update,
        %{
-         status: 1,
+         status: :playing,
          limit: limit,
          value: value,
          channel: channel,
@@ -203,71 +204,59 @@ defmodule Curie.Pot do
     GenServer.cast(@self, :reset)
   end
 
-  @impl true
-  def command({"pot", %{author: %{id: member}, guild_id: guild_id} = message, [value | args]}) do
-    state = GenServer.call(@self, :get)
-    balance = Curie.Currency.get_balance(member)
-    value = Curie.Currency.value_parse(value, balance)
+  @spec handle_event({String.t(), map(), map(), list()}) :: no_return()
+  def handle_event({"pot", message, %{status: :playing, channel: channel}, _args}) do
+    Curie.embed(message, "Game in progress: " <> channel, "red")
+  end
 
-    cond do
-      !Curie.Currency.whitelisted?(message) ->
-        nil
+  def handle_event({"add", message, %{status: :idle}, _args}) do
+    Curie.embed(message, "No game in progress.", "red")
+  end
 
-      state.status == 1 ->
-        Curie.embed(message, "Game in progress: #{state.channel}", "red")
+  def handle_event({_event, %{guild_id: nil} = message, _state, _args}) do
+    Curie.embed(message, "Really...? No...", "red")
+  end
 
-      guild_id == nil ->
-        Curie.embed(message, "Really...? No...", "red")
+  def handle_event({_event, message, _state, {nil, _args}}) do
+    Curie.embed(message, "Invalid amount.", "red")
+  end
 
-      value == nil ->
-        Curie.embed(message, "Invalid amount.", "red")
+  def handle_event({"pot", %{author: %{id: member}} = message, _state, {value, args}}) do
+    if args != [] and args |> List.first() |> Curie.check_typo("limit"),
+      do: pot(message, member, value, value),
+      else: pot(message, member, value)
+  end
 
-      true ->
-        if args != [] and args |> List.first() |> Curie.check_typo("limit"),
-          do: pot(message, member, value, value),
-          else: pot(message, member, value)
+  def handle_event({"add", %{author: %{id: member}} = message, state, {value, _args}}) do
+    member_total =
+      state.participants
+      |> Enum.filter(fn {id, _value} -> id == member end)
+      |> Enum.reduce(0, fn {_id, value}, accumulator -> value + accumulator end)
+
+    value = if value > state.limit, do: state.limit, else: value
+
+    if member_total + value <= state.limit do
+      GenServer.cast(@self, {:participant, {member, value}})
+      Currency.change_balance(:deduct, member, value)
+      GenServer.cast(@self, {:update, %{value: state.value + value}})
+
+      ("**#{message.author.username}** added **#{value}#{@tempest}**. " <>
+         "Pot value is now **#{state.value + value}#{@tempest}**.")
+      |> (&Curie.embed(message, &1, "lblue")).()
+    else
+      ("Exceeding limit **#{state.limit}#{@tempest}**. " <>
+         "Current amount **(#{member_total}/#{state.limit})**.")
+      |> (&Curie.embed(message, &1, "red")).()
     end
   end
 
   @impl true
-  def command({"add", %{author: %{id: member}, guild_id: guild_id} = message, [value | _]}) do
-    state = GenServer.call(@self, :get)
-    balance = Curie.Currency.get_balance(member)
-    value = Curie.Currency.value_parse(value, balance)
-
-    cond do
-      !Curie.Currency.whitelisted?(message) ->
-        nil
-
-      state.status != 1 ->
-        Curie.embed(message, "No game in progress.", "red")
-
-      guild_id == nil ->
-        Curie.embed(message, "Really...? No...", "red")
-
-      value == nil ->
-        Curie.embed(message, "Invalid amount.", "red")
-
-      true ->
-        member_total =
-          Enum.filter(state.participants, fn {id, _value} -> id == member end)
-          |> Enum.reduce(0, fn {_id, value}, accumulator -> value + accumulator end)
-
-        value = if value > state.limit, do: state.limit, else: value
-
-        if member_total + value <= state.limit do
-          GenServer.cast(@self, {:participant, {member, value}})
-          Currency.change_balance(:deduct, member, value)
-          GenServer.cast(@self, {:update, %{value: state.value + value}})
-
-          ("**#{message.author.username}** added **#{value}#{@tempest}**. " <>
-             "Pot value is now **#{state.value + value}#{@tempest}**.")
-          |> (&Curie.embed(message, &1, "lblue")).()
-        else
-          ("Exceeding limit **#{state.limit}#{@tempest}**. " <>
-             "Current amount **(#{member_total}/#{state.limit})**.")
-          |> (&Curie.embed(message, &1, "red")).()
-        end
+  def command({event, %{author: %{id: member}} = message, [value | args]})
+      when event in ["pot", "add"] do
+    if Currency.whitelisted?(message) do
+      value = Currency.value_parse(member, value)
+      state = GenServer.call(@self, :get)
+      handle_event({event, message, state, {value, args}})
     end
   end
 

@@ -94,11 +94,11 @@ defmodule Curie.Help do
 
   @impl true
   def command({"help", message, []}) do
-    state = GenServer.call(@self, :get)
+    %{commands: commands, full: full} = GenServer.call(@self, :get)
 
-    state.commands
-    |> Enum.filter(&(state.full[&1].short != nil))
-    |> Enum.map(&"**#{@prefix <> &1}** - #{state.full[&1].short}")
+    commands
+    |> Enum.filter(&(full[&1].short != nil))
+    |> Enum.map(&"**#{@prefix <> &1}** - #{full[&1].short}")
     |> Enum.join("\n")
     |> (&("=> Curie's commands\n\n#{&1}\n\n" <>
             "[+] indicates the need of additional\n" <>
@@ -110,14 +110,15 @@ defmodule Curie.Help do
 
   @impl true
   def command({"help", message, [command | _rest]}) do
-    state = GenServer.call(@self, :get)
+    %{commands: commands, full: full} = GenServer.call(@self, :get)
 
-    with match when match != nil <- Curie.check_typo(command, state.commands) do
-      ("Command → **#{@prefix <> match}**\n\n" <> state.full[match].description)
-      |> (&Curie.embed(message, &1, "green")).()
-    else
-      _no_match ->
+    case Curie.check_typo(command, commands) do
+      nil ->
         Curie.embed(message, "Command not recognized.", "red")
+
+      match ->
+        "Command → **#{@prefix <> match}**\n\n#{full[match].description}"
+        |> (&Curie.embed(message, &1, "green")).()
     end
   end
 

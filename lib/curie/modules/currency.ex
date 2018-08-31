@@ -9,26 +9,23 @@ defmodule Curie.Currency do
 
   @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
+  @spec value_parse(User.id(), String.t()) :: pos_integer() | nil
+  def value_parse(member, value) when is_integer(member) and is_binary(value) do
+    value_parse(value, get_balance(member))
+  end
+
   @spec value_parse(String.t(), integer() | nil) :: pos_integer() | nil
   def value_parse(_value, 0), do: nil
+
   def value_parse(_value, nil), do: nil
 
-  def value_parse(value, balance) do
+  def value_parse(value, balance) when is_binary(value) and is_integer(balance) do
     cond do
-      Curie.check_typo(value, "all") ->
-        balance
-
-      Curie.check_typo(value, "half") && balance > 0 ->
-        trunc(balance / 2)
-
-      value =~ ~r/^\d+%/ ->
-        (balance / 100 * (value |> Integer.parse() |> elem(0))) |> trunc()
-
-      value =~ ~r/^\d+/ ->
-        Integer.parse(value) |> elem(0)
-
-      true ->
-        nil
+      Curie.check_typo(value, "all") -> balance
+      Curie.check_typo(value, "half") && balance > 0 -> trunc(balance / 2)
+      value =~ ~r/^\d+%/ -> (balance / 100 * (value |> Integer.parse() |> elem(0))) |> trunc()
+      value =~ ~r/^\d+/ -> Integer.parse(value) |> elem(0)
+      true -> nil
     end
     |> (&if(&1 != nil and &1 in 1..balance, do: &1)).()
   end
@@ -41,14 +38,9 @@ defmodule Curie.Currency do
     member = Data.get(Balance, member)
 
     case action do
-      :add ->
-        member.value + value
-
-      :deduct ->
-        member.value - value
-
-      :replace ->
-        value
+      :add -> member.value + value
+      :deduct -> member.value - value
+      :replace -> value
     end
     |> (&Balance.changeset(member, %{value: &1})).()
     |> Data.update()

@@ -9,27 +9,25 @@ defmodule Curie.Storage do
 
   @spec remove(User.id()) :: no_return()
   def remove(member) do
-    for table <- [Balance, Details],
-        do: Data.get(table, member) |> (&if(&1, do: Data.delete(&1))).()
+    for table <- [Balance, Details] do
+      table
+      |> Data.get(member)
+      |> (&if(&1, do: Data.delete(&1))).()
+    end
   end
 
   @spec store_details(%{author: %{id: User.id()}, channel_id: Channel.id(), type: Message.type()}) ::
           no_return()
   def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
-    channel = ChannelCache.get!(channel_id)
-
-    if type == 0 do
-      now = Timex.local() |> Timex.to_unix()
-      channel_name = if channel.name, do: "#" <> channel.name, else: "#DirectMessage"
-
+    with {:ok, %Channel{name: name}} when type == 0 <- ChannelCache.get(channel_id) do
       case Data.get(Details, id) do
-        nil ->
-          %Details{member: id}
-
-        entry ->
-          entry
+        nil -> %Details{member: id}
+        entry -> entry
       end
-      |> Details.changeset(%{spoke: now, channel: channel_name})
+      |> Details.changeset(%{
+        spoke: Timex.local() |> Timex.to_unix(),
+        channel: if(name, do: "##{name}", else: "#DirectMessage")
+      })
       |> Data.insert_or_update()
     end
   end
@@ -37,16 +35,11 @@ defmodule Curie.Storage do
   @spec store_details(%{user: %{id: User.id()}, status: atom()}) :: no_return()
   def store_details(%{user: %{id: id}, status: status}) do
     if status == :offline do
-      now = Timex.local() |> Timex.to_unix()
-
       case Data.get(Details, id) do
-        nil ->
-          %Details{member: id}
-
-        entry ->
-          entry
+        nil -> %Details{member: id}
+        entry -> entry
       end
-      |> Details.changeset(%{online: now})
+      |> Details.changeset(%{online: Timex.local() |> Timex.to_unix()})
       |> Data.insert_or_update()
     end
   end
@@ -70,14 +63,13 @@ defmodule Curie.Storage do
   end
 
   @spec status_gather(%{game: String.t(), user: User.t()}) :: no_return()
-  def status_gather(%{game: game, user: user} = _presence) do
-    if game != nil and game.type == 0 do
-      if Status |> Data.get(game.name) |> is_nil() do
-        member = UserCache.get!(user.id).username
-
-        %Status{message: game.name, member: member}
-        |> Data.insert()
-      end
+  def status_gather(%{game: game, user: %{id: user}} = _presence) do
+    if game != nil and game.type == 0 and Data.get(Status, game.name) == nil do
+      user
+      |> UserCache.get!()
+      |> Map.get(:username)
+      |> (&%Status{message: game.name, member: &1}).()
+      |> Data.insert()
     end
   end
 

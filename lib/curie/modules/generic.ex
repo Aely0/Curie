@@ -109,9 +109,8 @@ defmodule Curie.Generic do
         details = Curie.Storage.fetch_details(id)
 
         status =
-          with {:ok, %{status: status}} <- PresenceCache.get(id, guild) do
-            status
-          else
+          case PresenceCache.get(id, guild) do
+            {:ok, %{status: status}} -> status
             _presence_not_found -> :offline
           end
           |> case do

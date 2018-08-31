@@ -29,8 +29,9 @@ defmodule Curie.Commands do
               function()
             ) :: no_return()
       def check_typo({call, message, args}, check, caller) do
-        with match when match != nil <- Curie.check_typo(call, check),
-             do: if(call != match, do: caller.({match, message, args}))
+        with match when match not in [call, nil] <- Curie.check_typo(call, check) do
+          caller.({match, message, args})
+        end
       end
 
       @spec handler(map()) :: no_return()

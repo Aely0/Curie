@@ -3,6 +3,7 @@ defmodule Curie.Scheduler do
   alias Nostrum.Struct.User
   alias Nostrum.Api
 
+  alias Curie.Currency
   alias Curie.Data.{Balance, Overwatch, Status}
   alias Curie.Data
 
@@ -10,8 +11,8 @@ defmodule Curie.Scheduler do
 
   @self __MODULE__
 
+  @overwatch Application.get_env(:curie, :channels).overwatch
   @shadowmere 90_579_372_049_723_392
-  @overwatch 169_835_616_110_903_307
 
   @spec child_spec(term()) :: Supervisor.child_spec()
   def child_spec(_opts) do
@@ -30,7 +31,7 @@ defmodule Curie.Scheduler do
     with {:ok, %{status: status}} <- PresenceCache.get(member, guild) do
       if (status == :online and balance < 300) or
            (status in [:idle, :dnd] and balance < 300 and Enum.random(1..10) == 10),
-         do: Curie.Currency.change_balance(:add, member, 1)
+         do: Currency.change_balance(:add, member, 1)
     end
   end
 
@@ -54,45 +55,32 @@ defmodule Curie.Scheduler do
   @spec curie_balance_change(:gain | :decay, User.id(), Balance.value()) :: no_return()
   def curie_balance_change(:gain, id, balance) do
     cond do
-      balance + 10 <= 200 ->
-        Curie.Currency.change_balance(:add, id, 10)
-
-      balance in 191..199 ->
-        Curie.Currency.change_balance(:replace, id, 200)
-
-      true ->
-        nil
+      balance + 10 <= 200 -> Currency.change_balance(:add, id, 10)
+      balance in 191..199 -> Currency.change_balance(:replace, id, 200)
+      true -> nil
     end
   end
 
   def curie_balance_change(:decay, id, balance) do
     cond do
-      balance - 10 >= 1000 ->
-        Curie.Currency.change_balance(:deduct, id, 10)
-
-      balance in 1001..1009 ->
-        Curie.Currency.change_balance(:replace, id, 1000)
-
-      true ->
-        nil
+      balance - 10 >= 1000 -> Currency.change_balance(:deduct, id, 10)
+      balance in 1001..1009 -> Currency.change_balance(:replace, id, 1000)
+      true -> nil
     end
   end
 
   @spec set_status() :: no_return()
   def set_status do
     case Data.all(Status) do
-      [] ->
-        nil
-
-      entries ->
-        Api.update_status(:online, Enum.random(entries).message)
+      [] -> nil
+      entries -> Api.update_status(:online, Enum.random(entries).message)
     end
   end
 
   @spec prune() :: no_return()
   def prune do
-    with {:ok, %{pruned: count}} <- Api.get_guild_prune_count(@shadowmere, 30) do
-      if count > 0, do: Api.begin_guild_prune(@shadowmere, 30)
+    with {:ok, %{pruned: count}} when count > 0 <- Api.get_guild_prune_count(@shadowmere, 30) do
+      Api.begin_guild_prune(@shadowmere, 30)
     end
   end
 
