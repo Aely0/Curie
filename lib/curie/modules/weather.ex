@@ -1,10 +1,10 @@
 defmodule Curie.Weather do
   use Curie.Commands
 
+  import Nostrum.Struct.Embed
+
   alias Nostrum.Struct.{Channel, Embed}
   alias Nostrum.Api
-
-  import Nostrum.Struct.Embed
 
   @check_typo ~w/weather/
 
@@ -48,8 +48,9 @@ defmodule Curie.Weather do
   end
 
   @spec get_local_time(String.t()) :: String.t()
-  def get_local_time(timezone),
-    do: timezone |> Timex.now() |> Timex.format!("%H:%M, %B %d", :strftime)
+  def get_local_time(timezone) do
+    timezone |> Timex.now() |> Timex.format!("%H:%M, %B %d", :strftime)
+  end
 
   @spec format_forecast(%{String.t() => map(), String.t() => String.t()}, String.t()) ::
           String.t()
@@ -93,10 +94,13 @@ defmodule Curie.Weather do
     Api.start_typing(channel)
 
     with {:ok, location} <- get_location(location, channel),
-         {:ok, forecast} <- get_forecast(location, channel),
-         do: Curie.send(channel, embed: create_embed(forecast))
+         {:ok, forecast} <- get_forecast(location, channel) do
+      Curie.send(channel, embed: create_embed(forecast))
+    end
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 end

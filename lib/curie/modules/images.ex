@@ -2,9 +2,10 @@ defmodule Curie.Images do
   use Curie.Commands
   use GenServer
 
+  @self __MODULE__
+
   @path "resources/images"
   @check_typo ~w/images/
-  @self __MODULE__
 
   @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
@@ -17,10 +18,14 @@ defmodule Curie.Images do
   end
 
   @impl true
-  def handle_call(:get, _from, state), do: {:reply, state, state}
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
 
   @impl true
-  def handle_cast(:reload, _state), do: {:noreply, get_images()}
+  def handle_cast(:reload, _state) do
+    {:noreply, get_images()}
+  end
 
   @spec get_images() :: %{files: [String.t()], names: [String.t()]}
   def get_images do
@@ -54,7 +59,9 @@ defmodule Curie.Images do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 
   @spec handler(map()) :: no_return()
   def handler(message) do

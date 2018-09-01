@@ -31,7 +31,11 @@ defmodule Curie.Currency do
   end
 
   @spec get_balance(User.id()) :: integer() | nil
-  def get_balance(member), do: with(%{value: value} <- Data.get(Balance, member), do: value)
+  def get_balance(member) do
+    with %{value: value} <- Data.get(Balance, member) do
+      value
+    end
+  end
 
   @spec change_balance(:add | :deduct | :replace, User.id(), integer()) :: no_return()
   def change_balance(action, member, value) do
@@ -47,10 +51,14 @@ defmodule Curie.Currency do
   end
 
   @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean()
-  def whitelisted?(%{author: %{id: id}} = _message), do: id |> get_balance() |> is_integer()
+  def whitelisted?(%{author: %{id: id}} = _message) do
+    id |> get_balance() |> is_integer()
+  end
 
   @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean()
-  def whitelisted?(%{user: %{id: id}} = _member), do: id |> get_balance() |> is_integer()
+  def whitelisted?(%{user: %{id: id}} = _member) do
+    id |> get_balance() |> is_integer()
+  end
 
   @spec whitelist_message(map()) :: no_return()
   def whitelist_message(%{guild_id: guild_id} = message) do
@@ -81,7 +89,9 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def command({"balance", message, [call | _rest] = args}), do: subcommand({call, message, args})
+  def command({"balance", message, [call | _rest] = args}) do
+    subcommand({call, message, args})
+  end
 
   @impl true
   def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _]}) do
@@ -112,7 +122,9 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo.command, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo.command, &command/1)
+  end
 
   @impl true
   def subcommand({"curie", message, _args}) do
@@ -123,5 +135,7 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def subcommand(call), do: check_typo(call, @check_typo.subcommand, &subcommand/1)
+  def subcommand(call) do
+    check_typo(call, @check_typo.subcommand, &subcommand/1)
+  end
 end

@@ -2,6 +2,8 @@ defmodule Curie.Leaderboard do
   use Curie.Commands
   use GenServer
 
+  import Nostrum.Struct.Embed
+
   alias Nostrum.Struct.Embed
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
@@ -9,15 +11,14 @@ defmodule Curie.Leaderboard do
   alias Curie.Data.{Balance, Leaderboard}
   alias Curie.Data
 
-  import Nostrum.Struct.Embed
+  @type action :: :forward | :backward | :refresh | :new
+
+  @self __MODULE__
 
   @actions %{"◀" => :backward, "▶" => :forward, "🔄" => :refresh}
   @buttons ["◀", "▶", "🔄"]
   @check_typo ~w/lead/
-  @self __MODULE__
   @page_length 5
-
-  @type action :: :forward | :backward | :refresh | :new
 
   @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
@@ -35,7 +36,9 @@ defmodule Curie.Leaderboard do
   end
 
   @impl true
-  def handle_call(:get, _from, state), do: {:reply, state, state}
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
 
   @impl true
   def handle_call({:update_and_get, new}, _from, state) do
@@ -44,7 +47,9 @@ defmodule Curie.Leaderboard do
   end
 
   @impl true
-  def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
+  def handle_cast({:update, new}, state) do
+    {:noreply, Map.merge(state, new)}
+  end
 
   @impl true
   def handle_cast(:save, state) do
@@ -66,7 +71,9 @@ defmodule Curie.Leaderboard do
   end
 
   @spec recover_state() :: Leaderboard.t()
-  def recover_state, do: Data.one(Leaderboard)
+  def recover_state do
+    Data.one(Leaderboard)
+  end
 
   @spec create_new() :: map()
   def create_new do
@@ -171,16 +178,21 @@ defmodule Curie.Leaderboard do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 
   @spec handler(map()) :: no_return()
-  def handler(%{heartbeat: _heartbeat} = message), do: super(message)
+  def handler(%{heartbeat: _heartbeat} = message) do
+    super(message)
+  end
 
   def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
     me = Nostrum.Cache.Me.get()
     lead_id = GenServer.call(@self, :get).message_id
 
-    if me.id != user_id and message_id == lead_id and emoji.name in @buttons,
-      do: interaction(@actions[emoji.name])
+    if me.id != user_id and message_id == lead_id and emoji.name in @buttons do
+      interaction(@actions[emoji.name])
+    end
   end
 end

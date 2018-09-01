@@ -15,7 +15,8 @@ defmodule Curie.Consumer do
       &Curie.Weather.handler/1,
       &Curie.Pot.handler/1,
       &Curie.TwentyOne.handler/1,
-      &Curie.Leaderboard.handler/1
+      &Curie.Leaderboard.handler/1,
+      &Curie.MessageCache.handler/1
     ],
     presence: [
       &Curie.Storage.store_details/1,
@@ -30,8 +31,9 @@ defmodule Curie.Consumer do
   end
 
   @spec call_handlers(Message.t() | map(), [function()]) :: no_return()
-  def call_handlers(payload, handlers),
-    do: Task.start(fn -> for handler <- handlers, do: handler.(payload) end)
+  def call_handlers(payload, handlers) do
+    Task.start(fn -> for handler <- handlers, do: handler.(payload) end)
+  end
 
   @spec add_heartbeat(Message.t(), WSState.t()) :: map()
   def add_heartbeat(message, ws) do

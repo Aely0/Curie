@@ -1,27 +1,32 @@
 defmodule Curie do
+  import Nostrum.Api, only: [bangify: 1]
+  import Nostrum.Struct.Embed
+
   alias Nostrum.Stuct.{Channel, Guild, Message, User}
   alias Nostrum.Stuct.Guild.Member
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Error.ApiError
 
-  import Nostrum.Api, only: [bangify: 1]
-  import Nostrum.Struct.Embed
-
-  @colors Application.get_env(:curie, :colors)
-
   @type message_or_error :: {:ok, Message.t()} | {:error, ApiError.t()}
   @type destination :: Channel.id() | Message.t()
   @type options :: keyword() | map()
 
+  @colors Application.get_env(:curie, :colors)
+
   @spec color(String.t()) :: non_neg_integer() | nil
-  def color(name), do: @colors[name]
+  def color(name) do
+    @colors[name]
+  end
 
   @spec time_now() :: String.t()
-  def time_now, do: Timex.local() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
+  def time_now do
+    Timex.local() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
+  end
 
   @spec avatar_url(User.t()) :: String.t()
-  def avatar_url(user),
-    do: "https://cdn.discordapp.com/avatars/#{user.id}/#{user.avatar}.webp?size=1024"
+  def avatar_url(user) do
+    "https://cdn.discordapp.com/avatars/#{user.id}/#{user.avatar}.webp?size=1024"
+  end
 
   @spec check_typo(String.t(), String.t() | [String.t()]) :: String.t() | nil
   def check_typo(call, commands) do
@@ -35,7 +40,9 @@ defmodule Curie do
 
   @spec embed!(destination(), String.t(), String.t() | non_neg_integer()) ::
           Message.t() | no_return()
-  def embed!(channel, description, color), do: embed(channel, description, color) |> bangify()
+  def embed!(channel, description, color) do
+    embed(channel, description, color) |> bangify()
+  end
 
   @spec embed(destination(), String.t(), String.t() | non_neg_integer()) :: message_or_error()
   def embed(channel, description, color) do
@@ -49,7 +56,9 @@ defmodule Curie do
   end
 
   @spec send!(destination(), options()) :: Message.t() | no_return()
-  def send!(channel, options), do: Curie.send(channel, options) |> bangify()
+  def send!(channel, options) do
+    Curie.send(channel, options) |> bangify()
+  end
 
   @spec send(destination(), options(), non_neg_integer()) :: message_or_error()
   def send(channel, options, retries \\ 0) do
@@ -70,15 +79,19 @@ defmodule Curie do
   end
 
   @spec edit!(Message.t(), options()) :: Message.t() | no_return()
-  def edit!(message, options), do: edit(message, options) |> bangify()
+  def edit!(message, options) do
+    edit(message, options) |> bangify()
+  end
 
   @spec edit!(Channel.id(), Message.id(), options()) :: Message.t() | no_return()
-  def edit!(channel_id, message_id, options),
-    do: edit(channel_id, message_id, options) |> bangify()
+  def edit!(channel_id, message_id, options) do
+    edit(channel_id, message_id, options) |> bangify()
+  end
 
   @spec edit(Message.t(), options()) :: message_or_error()
-  def edit(%{channel_id: channel_id, id: message_id} = _message, options),
-    do: edit(channel_id, message_id, options)
+  def edit(%{channel_id: channel_id, id: message_id} = _message, options) do
+    edit(channel_id, message_id, options)
+  end
 
   @spec edit(Channel.id(), Message.id(), options(), non_neg_integer()) :: message_or_error()
   def edit(channel_id, message_id, options, retries \\ 0) do

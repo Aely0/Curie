@@ -8,8 +8,9 @@ defmodule Curie.Pot do
   alias Curie.Data.Balance
   alias Curie.Currency
 
-  @check_typo ~w/pot add/
   @self __MODULE__
+
+  @check_typo ~w/pot add/
 
   @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
@@ -27,17 +28,24 @@ defmodule Curie.Pot do
   end
 
   @impl true
-  def handle_call(:get, _from, state), do: {:reply, state, state}
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
 
   @impl true
-  def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
+  def handle_cast({:update, new}, state) do
+    {:noreply, Map.merge(state, new)}
+  end
 
   @impl true
-  def handle_cast({:participant, participant}, state),
-    do: {:noreply, Map.put(state, :participants, state.participants ++ [participant])}
+  def handle_cast({:participant, participant}, state) do
+    {:noreply, Map.put(state, :participants, state.participants ++ [participant])}
+  end
 
   @impl true
-  def handle_cast(:reset, _state), do: {:noreply, defaults()}
+  def handle_cast(:reset, _state) do
+    {:noreply, defaults()}
+  end
 
   @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
   def announce_start(%{author: %{username: name}} = message, value, limit) do
@@ -261,5 +269,7 @@ defmodule Curie.Pot do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 end

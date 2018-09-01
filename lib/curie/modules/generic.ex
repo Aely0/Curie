@@ -2,10 +2,10 @@ defmodule Curie.Generic do
   use Curie.Commands
   use Bitwise
 
+  import Nostrum.Struct.Embed
+
   alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Api
-
-  import Nostrum.Struct.Embed
 
   @check_typo ~w/felweed rally details cat overwatch roll ping/
   @roles Application.get_env(:curie, :roles)
@@ -240,5 +240,7 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 end

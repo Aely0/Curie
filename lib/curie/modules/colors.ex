@@ -89,7 +89,9 @@ defmodule Curie.Colors do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo.command, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo.command, &command/1)
+  end
 
   @impl true
   def subcommand({"remove", %{author: %{id: member}, guild_id: guild} = message, _args}) do
@@ -115,7 +117,8 @@ defmodule Curie.Colors do
 
   @impl true
   def subcommand({_call, message, _args} = call) do
-    unless check_typo(call, @check_typo.subcommand, &subcommand/1),
-      do: Curie.embed(message, "Color not recognized.", "red")
+    unless check_typo(call, @check_typo.subcommand, &subcommand/1) do
+      Curie.embed(message, "Color not recognized.", "red")
+    end
   end
 end

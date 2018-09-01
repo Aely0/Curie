@@ -1,4 +1,6 @@
 defmodule Curie.Scheduler do
+  import Nostrum.Struct.Embed
+
   alias Nostrum.Cache.PresenceCache
   alias Nostrum.Struct.User
   alias Nostrum.Api
@@ -6,8 +8,6 @@ defmodule Curie.Scheduler do
   alias Curie.Currency
   alias Curie.Data.{Balance, Overwatch, Status}
   alias Curie.Data
-
-  import Nostrum.Struct.Embed
 
   @self __MODULE__
 

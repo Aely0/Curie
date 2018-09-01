@@ -2,16 +2,17 @@ defmodule Curie.TwentyOne do
   use Curie.Commands
   use GenServer
 
+  import Curie.Pot, only: [not_enough_players: 1]
+
   alias Nostrum.Cache.{ChannelCache, UserCache, Me}
   alias Nostrum.Struct.{Channel, User}
   alias Nostrum.Api
 
   alias Curie.Currency
 
-  import Curie.Pot, only: [not_enough_players: 1]
+  @self __MODULE__
 
   @check_typo ~w/21 ace hit stand deck/
-  @self __MODULE__
 
   @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
@@ -38,7 +39,9 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def handle_call(:get, _from, state), do: {:reply, state, state}
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
 
   @impl true
   def handle_call({:pick_card, player}, _from, state) do
@@ -103,14 +106,19 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def handle_cast({:update_player_status, player, status}, state),
-    do: {:noreply, put_in(state.players[player].status, status)}
+  def handle_cast({:update_player_status, player, status}, state) do
+    {:noreply, put_in(state.players[player].status, status)}
+  end
 
   @impl true
-  def handle_cast({:update, new}, state), do: {:noreply, Map.merge(state, new)}
+  def handle_cast({:update, new}, state) do
+    {:noreply, Map.merge(state, new)}
+  end
 
   @impl true
-  def handle_cast(:reset, state), do: {:noreply, %{defaults() | last_deck: state.private_deck}}
+  def handle_cast(:reset, state) do
+    {:noreply, %{defaults() | last_deck: state.private_deck}}
+  end
 
   def curie_ace_update(id) do
     %{players: %{^id => curie}} = GenServer.call(@self, :get)
@@ -419,8 +427,9 @@ defmodule Curie.TwentyOne do
   end
 
   @spec can_continue?(%{author: %{id: User.id()}}, map()) :: boolean()
-  def can_continue?(%{author: %{id: id}} = _message, state),
-    do: Map.has_key?(state.players, id) and state.players[id].status == :playing
+  def can_continue?(%{author: %{id: id}} = _message, state) do
+    Map.has_key?(state.players, id) and state.players[id].status == :playing
+  end
 
   @spec handle_event({map(), map(), pos_integer() | nil}) :: no_return()
   def handle_event({message, %{phase: :playing, channel: channel}, _value}) do
@@ -521,5 +530,7 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 end

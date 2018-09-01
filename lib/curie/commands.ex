@@ -1,6 +1,5 @@
 defmodule Curie.Commands do
   @type command_call :: {String.t(), map(), [String.t()]}
-
   @callback command(command_call) :: no_return()
   @callback subcommand(command_call) :: no_return()
   @optional_callbacks subcommand: 1
@@ -14,7 +13,9 @@ defmodule Curie.Commands do
       @prefix Application.get_env(:curie, :prefix)
 
       @spec command?(%{content: String.t()}) :: boolean()
-      def command?(%{content: content} = _message), do: String.starts_with?(content, @prefix)
+      def command?(%{content: content} = _message) do
+        String.starts_with?(content, @prefix)
+      end
 
       @spec parse(map()) :: unquote(__MODULE__).command_call()
       def parse(%{content: content} = message) do
@@ -35,7 +36,11 @@ defmodule Curie.Commands do
       end
 
       @spec handler(map()) :: no_return()
-      def handler(message), do: if(command?(message), do: message |> parse() |> command())
+      def handler(message) do
+        if command?(message) do
+          message |> parse() |> command()
+        end
+      end
 
       defoverridable handler: 1
     end

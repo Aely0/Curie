@@ -117,7 +117,10 @@ defmodule Curie.Storage do
 
   @spec handler(map()) :: no_return()
   def handler(%{author: %{id: id}} = message) do
-    if Me.get().id != id, do: store_details(message)
+    if Me.get().id != id do
+      store_details(message)
+    end
+
     super(message)
   end
 end

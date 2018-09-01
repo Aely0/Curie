@@ -5,8 +5,9 @@ defmodule Curie.Help do
   alias Curie.Data.Help
   alias Curie.Data
 
-  @check_typo ~w/curie currency help/
   @self __MODULE__
+
+  @check_typo ~w/curie currency help/
 
   @spec start_link(term) :: GenServer.on_start()
   def start_link(_args) do
@@ -19,18 +20,25 @@ defmodule Curie.Help do
   end
 
   @impl true
-  def handle_call(:get, _from, state), do: {:reply, state, state}
+  def handle_call(:get, _from, state) do
+    {:reply, state, state}
+  end
 
   @impl true
-  def handle_cast(:reload, _state), do: {:noreply, get_commands()}
+  def handle_cast(:reload, _state) do
+    {:noreply, get_commands()}
+  end
 
   @spec parse(String.t()) :: String.t()
-  def parse(content) when is_binary(content), do: String.replace(content, "<prefix>", @prefix)
+  def parse(content) when is_binary(content) do
+    String.replace(content, "<prefix>", @prefix)
+  end
 
   @spec parse(%{command: String.t(), description: String.t(), short: String.t()}) ::
           {String.t(), %{description: String.t(), short: String.t()}}
-  def parse(%{command: command, description: description, short: short} = _entry),
-    do: {command, %{description: parse(description), short: short}}
+  def parse(%{command: command, description: description, short: short} = _entry) do
+    {command, %{description: parse(description), short: short}}
+  end
 
   @spec get_commands() :: %{
           commands: [String.t()],
@@ -123,5 +131,7 @@ defmodule Curie.Help do
   end
 
   @impl true
-  def command(call), do: check_typo(call, @check_typo, &command/1)
+  def command(call) do
+    check_typo(call, @check_typo, &command/1)
+  end
 end
