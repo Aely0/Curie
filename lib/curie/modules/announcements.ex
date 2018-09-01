@@ -1,14 +1,15 @@
 defmodule Curie.Announcements do
-  alias Nostrum.Struct.{Guild, Invite, Message, User}
+  import Nostrum.Struct.Snowflake, only: [is_snowflake: 1]
+  import Nostrum.Struct.Embed
+
+  alias Nostrum.Struct.{Guild, Invite, User}
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
 
+  alias Curie.MessageCache
   alias Curie.Data.Streams
   alias Curie.Data
-
-  import Nostrum.Struct.Snowflake, only: [is_snowflake: 1]
-  import Nostrum.Struct.Embed
 
   @general Application.get_env(:curie, :channels).general
   @invisible Application.get_env(:curie, :channels).invisible
@@ -43,13 +44,21 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec delete_log(%{channel_id: Message.channel_id()}) :: no_return()
-  def delete_log(%{channel_id: channel_id}) do
-    if channel_id != @invisible do
-      channel_id
-      |> Api.get_channel!()
-      |> (&if(&1.name, do: "#" <> &1.name, else: "#DirectMessage")).()
-      |> (&Curie.embed(@invisible, "Message got deleted in #{&1}", "red")).()
+  @spec delete_log(message_id_channel_id_maybe_guild_id :: map()) :: no_return()
+  def delete_log(%{channel_id: channel} = deleted_message) do
+    with true <- channel != @invisible,
+         {:ok, %{name: channel}} <- Api.get_channel(channel),
+         %{content: content, attachments: files, embeds: embeds} = message <-
+           MessageCache.get(deleted_message) do
+      %{username: name, discriminator: disc} =
+        Map.get(message, :author) || Map.get(message, :user)
+
+      content = if content == "", do: "No Content", else: content
+      files = if files != [], do: " " <> (files |> Enum.map(& &1.filename) |> inspect())
+      embeds = if embeds != [], do: " " <> inspect(embeds)
+
+      "##{channel || "DirectMessage"} #{name}##{disc}: #{content}#{files}#{embeds}"
+      |> (&Curie.embed(@invisible, &1, "red")).()
     end
   end
 
