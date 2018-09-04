@@ -47,7 +47,7 @@ defmodule Curie do
   @spec embed(destination(), String.t(), String.t() | non_neg_integer()) :: message_or_error()
   def embed(channel, description, color) do
     channel = if is_map(channel), do: channel.channel_id, else: channel
-    color = unless is_integer(color), do: color(color), else: color
+    color = if is_integer(color), do: color, else: color(color)
 
     %Nostrum.Struct.Embed{}
     |> put_color(color)

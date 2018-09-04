@@ -116,9 +116,7 @@ defmodule Curie.Colors do
   end
 
   @impl true
-  def subcommand({_call, message, _args} = call) do
-    unless check_typo(call, @check_typo.subcommand, &subcommand/1) do
-      Curie.embed(message, "Color not recognized.", "red")
-    end
+  def subcommand(call) do
+    check_typo(call, @check_typo.subcommand, &subcommand/1)
   end
 end
