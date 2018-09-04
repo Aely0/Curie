@@ -82,7 +82,7 @@ defmodule Curie.MessageCache do
     GenServer.call(@self, {:get, guild, message})
   end
 
-  @spec get(%{guild_id: Channel.id(), id: Message.id()}) :: map() | nil
+  @spec get(%{channel_id: Channel.id(), id: Message.id()}) :: map() | nil
   def get(%{channel_id: direct_message, id: message}) do
     GenServer.call(@self, {:get, direct_message, message})
   end

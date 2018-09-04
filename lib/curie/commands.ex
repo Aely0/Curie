@@ -29,9 +29,9 @@ defmodule Curie.Commands do
               String.t() | [String.t()],
               function()
             ) :: no_return()
-      def check_typo({call, _message, _args} = args, check, caller) do
+      def check_typo({call, message, args}, check, caller) do
         with match when match not in [call, nil] <- Curie.check_typo(call, check) do
-          caller.(args)
+          caller.({match, message, args})
         end
       end
 
