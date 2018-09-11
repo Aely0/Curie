@@ -34,11 +34,9 @@ defmodule Curie.MessageCache do
 
   @impl true
   def handle_call({:get, container_id, message_id}, _from, state) do
-    if Map.has_key?(state, container_id) do
-      {:reply, Enum.find(state[container_id], &(&1.id == message_id)), state}
-    else
-      {:reply, nil, state}
-    end
+    if Map.has_key?(state, container_id),
+      do: {:reply, Enum.find(state[container_id], &(&1.id == message_id)), state},
+      else: {:reply, nil, state}
   end
 
   @impl true
@@ -70,11 +68,9 @@ defmodule Curie.MessageCache do
 
   @spec prepend(list(), map()) :: list()
   defp prepend(container, message) do
-    if length(container) >= @limit do
-      [message | Enum.take(container, @limit - 1)]
-    else
-      [message | container]
-    end
+    if length(container) >= @limit,
+      do: [message | Enum.take(container, @limit - 1)],
+      else: [message | container]
   end
 
   @spec get(%{guild_id: Guild.id(), id: Message.id()}) :: map() | nil

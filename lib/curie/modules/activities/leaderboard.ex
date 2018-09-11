@@ -5,7 +5,6 @@ defmodule Curie.Leaderboard do
   import Nostrum.Struct.Embed
 
   alias Nostrum.Struct.Embed
-  alias Nostrum.Cache.UserCache
   alias Nostrum.Api
 
   alias Curie.Data.{Balance, Leaderboard}
@@ -96,7 +95,7 @@ defmodule Curie.Leaderboard do
     |> Enum.group_by(& &1.value, & &1.member)
     |> Enum.into([])
     |> Enum.sort(&(&1 > &2))
-    |> Enum.map(fn {value, list} -> {value, Enum.map(list, &UserCache.get!(&1).username)} end)
+    |> Enum.map(fn {value, list} -> {value, Enum.map(list, &Curie.get_username/1)} end)
     |> Enum.map(&format_entry/1)
     |> Enum.with_index(1)
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
@@ -165,7 +164,7 @@ defmodule Curie.Leaderboard do
     state = GenServer.call(@self, :get)
     if state.message_id, do: Api.delete_all_reactions(state.channel_id, state.message_id)
 
-    {:ok, %{id: message_id, channel_id: channel_id} = _message} =
+    {:ok, %{id: message_id, channel_id: channel_id}} =
       Curie.send(message, embed: format_output(:new))
 
     GenServer.cast(@self, {:update, %{channel_id: channel_id, message_id: message_id}})
@@ -187,11 +186,10 @@ defmodule Curie.Leaderboard do
     super(message)
   end
 
-  def handler(%{emoji: emoji, message_id: message_id, user_id: user_id} = _reaction) do
-    me = Nostrum.Cache.Me.get()
+  def handler(%{emoji: emoji, message_id: message_id, user_id: user_id}) do
     lead_id = GenServer.call(@self, :get).message_id
 
-    if me.id != user_id and message_id == lead_id and emoji.name in @buttons do
+    if Curie.my_id() != user_id and message_id == lead_id and emoji.name in @buttons do
       interaction(@actions[emoji.name])
     end
   end

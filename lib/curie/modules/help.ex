@@ -36,7 +36,7 @@ defmodule Curie.Help do
 
   @spec parse(%{command: String.t(), description: String.t(), short: String.t()}) ::
           {String.t(), %{description: String.t(), short: String.t()}}
-  def parse(%{command: command, description: description, short: short} = _entry) do
+  def parse(%{command: command, description: description, short: short}) do
     {command, %{description: parse(description), short: short}}
   end
 

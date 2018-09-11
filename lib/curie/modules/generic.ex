@@ -17,6 +17,7 @@ defmodule Curie.Generic do
       try do
         code
         |> Enum.join(" ")
+        |> (&("import IEx.Helpers;" <> &1)).()
         |> Code.eval_string([message: message], __ENV__)
         |> elem(0)
         |> inspect()
@@ -35,7 +36,7 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"purge", %{author: %{id: @owner_id}, channel_id: channel} = _message, [count]}) do
+  def command({"purge", %{author: %{id: @owner_id}, channel_id: channel}, [count]}) do
     count
     |> String.to_integer()
     |> (&Api.get_channel_messages!(channel, &1 + 1, {})).()

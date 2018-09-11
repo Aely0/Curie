@@ -2,11 +2,11 @@ defmodule Curie.Pot do
   use Curie.Commands
   use GenServer
 
-  alias Nostrum.Cache.{ChannelCache, UserCache, Me}
   alias Nostrum.Struct.{Channel, Message, User}
+  alias Nostrum.Cache.ChannelCache
 
+  alias Curie.{Currency, Storage}
   alias Curie.Data.Balance
-  alias Curie.Currency
 
   @self __MODULE__
 
@@ -19,7 +19,7 @@ defmodule Curie.Pot do
 
   @spec defaults() :: map()
   def defaults do
-    %{status: :idle, allow_add: false, value: 0, channel: nil, participants: [], limit: nil}
+    %{status: :idle, allow_add: false, value: 0, channel: nil, players: [], limit: nil}
   end
 
   @impl true
@@ -38,8 +38,8 @@ defmodule Curie.Pot do
   end
 
   @impl true
-  def handle_cast({:participant, participant}, state) do
-    {:noreply, Map.put(state, :participants, state.participants ++ [participant])}
+  def handle_cast({:player, player}, state) do
+    {:noreply, Map.put(state, :players, state.players ++ [player])}
   end
 
   @impl true
@@ -60,9 +60,7 @@ defmodule Curie.Pot do
 
   @spec announce_winner(map(), User.id(), pos_integer(), number()) :: no_return()
   def announce_winner(message, winner, value, chance) do
-    winner = UserCache.get!(winner)
-
-    ("Winner of the Pot: **#{winner.username}**\n" <>
+    ("Winner of the Pot: **#{Curie.get_username(winner)}**\n" <>
        "Amount: **#{value}#{@tempest}**\n" <> "Chance: **#{chance}%**")
     |> (&Curie.embed(message, &1, "yellow")).()
   end
@@ -80,29 +78,33 @@ defmodule Curie.Pot do
       "♪ You are the one and only... ♪"
     ]
     |> Enum.random()
-    |> (&Curie.embed(message, &1 <> "\nNot enough participants, value refunded.", "green")).()
+    |> (&Curie.embed(message, &1 <> "\nNot enough players, value refunded.", "green")).()
   end
 
   @spec curie_decision(
-          :limit | :regular,
           Channel.id(),
+          User.id(),
           Balance.value(),
           value :: pos_integer(),
           limit :: pos_integer(),
           [{User.id(), pos_integer()}]
         ) :: no_return()
-  def curie_decision(:limit, channel, balance, value, limit, participants) do
+  def curie_decision(channel, curie, balance, value, limit, players) do
+    # Decision branch called for limit mode
     cond do
+      curie in Enum.map(players, fn {player, _} -> player end) ->
+        nil
+
       balance >= limit and trunc(limit / (limit + value) * 100) >= 50 ->
         Curie.send(channel, content: @prefix <> "add #{limit}")
 
-      balance >= limit and trunc(limit / (limit + value) * 100) >= 20 and length(participants) > 1 ->
+      balance >= limit and trunc(limit / (limit + value) * 100) >= 20 and length(players) > 1 ->
         Curie.send(channel, content: @prefix <> "add #{limit}")
 
       trunc(balance / (balance + value) * 100) >= 50 ->
         Curie.send(channel, content: @prefix <> "add #{balance}")
 
-      trunc(balance / (balance + value) * 100) >= 50 and length(participants) > 1 ->
+      trunc(balance / (balance + value) * 100) >= 50 and length(players) > 1 ->
         Curie.send(channel, content: @prefix <> "add #{balance}")
 
       true ->
@@ -110,9 +112,17 @@ defmodule Curie.Pot do
     end
   end
 
-  def curie_decision(:regular, channel, me, balance, value, participants) do
+  @spec curie_decision(
+          Channel.id(),
+          User.id(),
+          Balance.value(),
+          value :: pos_integer(),
+          [{User.id(), pos_integer()}]
+        ) :: no_return()
+  def curie_decision(channel, curie, balance, value, [{player, _} | _] = players) do
+    # Decision branch called for regular mode
     cond do
-      participants |> Enum.at(0) |> elem(0) == me.id and length(participants) == 1 ->
+      player == curie and length(players) == 1 ->
         nil
 
       trunc(balance / (balance + value) * 100) in 30..80 ->
@@ -135,16 +145,16 @@ defmodule Curie.Pot do
 
   @spec curie_join(Channel.id()) :: no_return()
   def curie_join(channel) do
-    me = Me.get()
-    balance = Currency.get_balance(me.id)
-    %{value: value, limit: limit, participants: participants} = GenServer.call(@self, :get)
+    curie = Curie.my_id()
+    balance = Currency.get_balance(curie)
+    %{value: value, limit: limit, players: players} = GenServer.call(@self, :get)
 
     cond do
       is_integer(limit) and balance > 0 ->
-        curie_decision(:limit, channel, balance, value, limit, participants)
+        curie_decision(channel, curie, balance, value, limit, players)
 
       limit == nil and balance > 0 ->
-        curie_decision(:regular, channel, me, balance, value, participants)
+        curie_decision(channel, curie, balance, value, players)
 
       true ->
         nil
@@ -153,7 +163,11 @@ defmodule Curie.Pot do
 
   @spec pot(Message.t(), User.id(), pos_integer(), pos_integer() | nil) :: no_return()
   def pot(%{channel_id: channel_id} = message, member, value, limit \\ nil) do
-    channel = "#" <> ChannelCache.get!(channel_id).name
+    channel =
+      case ChannelCache.get(channel_id) do
+        %{name: name} -> "#" <> name
+        _unable_to_retrieve -> "Unknown"
+      end
 
     GenServer.cast(
       @self,
@@ -167,7 +181,7 @@ defmodule Curie.Pot do
        }}
     )
 
-    GenServer.cast(@self, {:participant, {member, value}})
+    GenServer.cast(@self, {:player, {member, value}})
     Currency.change_balance(:deduct, member, value)
 
     announce_start(message, value, limit)
@@ -186,19 +200,19 @@ defmodule Curie.Pot do
     Process.sleep(1000)
 
     state = GenServer.call(@self, :get)
-    state = %{state | participants: Enum.shuffle(state.participants)}
+    state = %{state | players: Enum.shuffle(state.players)}
 
     roll = Enum.random(1..state.value)
 
     winner =
-      Enum.reduce_while(state.participants, 1, fn {id, value}, accumulator ->
+      Enum.reduce_while(state.players, 1, fn {id, value}, accumulator ->
         if roll in accumulator..(value + accumulator - 1),
           do: {:halt, id},
           else: {:cont, accumulator + value}
       end)
 
     winner_total =
-      Enum.filter(state.participants, fn {id, _value} -> id == winner end)
+      Enum.filter(state.players, fn {id, _value} -> id == winner end)
       |> Enum.reduce(0, fn {_id, value}, accumulator -> value + accumulator end)
 
     chance = Float.round(winner_total / state.value * 100, 2)
@@ -237,14 +251,14 @@ defmodule Curie.Pot do
 
   def handle_event({"add", %{author: %{id: member}} = message, state, {value, _args}}) do
     member_total =
-      state.participants
+      state.players
       |> Enum.filter(fn {id, _value} -> id == member end)
       |> Enum.reduce(0, fn {_id, value}, accumulator -> value + accumulator end)
 
     value = if value > state.limit, do: state.limit, else: value
 
     if member_total + value <= state.limit do
-      GenServer.cast(@self, {:participant, {member, value}})
+      GenServer.cast(@self, {:player, {member, value}})
       Currency.change_balance(:deduct, member, value)
       GenServer.cast(@self, {:update, %{value: state.value + value}})
 
@@ -261,10 +275,12 @@ defmodule Curie.Pot do
   @impl true
   def command({event, %{author: %{id: member}} = message, [value | args]})
       when event in ["pot", "add"] do
-    if Currency.whitelisted?(message) do
+    if Storage.whitelisted?(message) do
       value = Currency.value_parse(member, value)
       state = GenServer.call(@self, :get)
       handle_event({event, message, state, {value, args}})
+    else
+      Storage.whitelist_message(message)
     end
   end
 

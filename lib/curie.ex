@@ -4,14 +4,22 @@ defmodule Curie do
 
   alias Nostrum.Stuct.{Channel, Guild, Message, User}
   alias Nostrum.Stuct.Guild.Member
-  alias Nostrum.Cache.GuildCache
+  alias Nostrum.Cache.{GuildCache, UserCache, Me}
   alias Nostrum.Error.ApiError
+  alias Nostrum.Api
 
   @type message_or_error :: {:ok, Message.t()} | {:error, ApiError.t()}
   @type destination :: Channel.id() | Message.t()
   @type options :: keyword() | map()
 
   @colors Application.get_env(:curie, :colors)
+
+  @spec my_id() :: User.id() | nil
+  def my_id do
+    with %{id: curie} <- Me.get() do
+      curie
+    end
+  end
 
   @spec color(String.t()) :: non_neg_integer() | nil
   def color(name) do
@@ -36,6 +44,18 @@ defmodule Curie do
       |> Enum.max_by(fn {_call, similarity} -> similarity end)
 
     if similarity >= 0.75, do: match
+  end
+
+  @spec unix_to_amount(non_neg_integer()) :: String.t()
+  def unix_to_amount(timestamp) do
+    amount = (Timex.local() |> Timex.to_unix()) - timestamp
+    {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
+    {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
+    {days, hours} = {div(hours, 24), rem(hours, 24)}
+
+    [{"d", days}, {"h", hours}, {"m", minutes}, {"s", seconds}]
+    |> Enum.filter(fn {_key, value} -> value != 0 end)
+    |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
   end
 
   @spec embed!(destination(), String.t(), String.t() | non_neg_integer()) ::
@@ -88,8 +108,8 @@ defmodule Curie do
     edit(channel_id, message_id, options) |> bangify()
   end
 
-  @spec edit(Message.t(), options()) :: message_or_error()
-  def edit(%{channel_id: channel_id, id: message_id} = _message, options) do
+  @spec edit(%{channel_id: Channel.id(), id: Message.id()}, options()) :: message_or_error()
+  def edit(%{channel_id: channel_id, id: message_id}, options) do
     edit(channel_id, message_id, options)
   end
 
@@ -137,16 +157,18 @@ defmodule Curie do
     end
   end
 
-  @spec unix_to_amount(non_neg_integer()) :: String.t()
-  def unix_to_amount(timestamp) do
-    amount = (Timex.local() |> Timex.to_unix()) - timestamp
-    {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
-    {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
-    {days, hours} = {div(hours, 24), rem(hours, 24)}
+  @spec get_username(User.id()) :: String.t()
+  def get_username(id) do
+    case UserCache.get(id) do
+      {:ok, %{username: name}} ->
+        name
 
-    [{"d", days}, {"h", hours}, {"m", minutes}, {"s", seconds}]
-    |> Enum.filter(fn {_key, value} -> value != 0 end)
-    |> Enum.map_join(", ", fn {key, value} -> to_string(value) <> key end)
+      {:error, _reason} ->
+        case Api.get_user(id) do
+          {:ok, %{username: name}} -> name
+          {:error, _reason} -> "Unknown"
+        end
+    end
   end
 
   @spec get_member(Guild.id(), atom(), term(), non_neg_integer()) :: Member.t() | nil
@@ -172,7 +194,7 @@ defmodule Curie do
           %{guild_id: Guild.id(), content: String.t(), mentions: [User.t()]},
           non_neg_integer()
         ) :: Member.t() | nil
-  def get_member(%{guild_id: guild, content: content, mentions: mentions} = _message, position) do
+  def get_member(%{guild_id: guild, content: content, mentions: mentions}, position) do
     full_name =
       content
       |> String.split()

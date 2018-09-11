@@ -1,90 +1,78 @@
 defmodule Curie.Colors do
   use Curie.Commands
 
-  alias Nostrum.Struct.User
+  alias Nostrum.Cache.GuildCache
   alias Nostrum.Api
 
-  alias Curie.Currency
+  alias Curie.{Currency, Storage}
 
   @check_typo %{command: ~w/color/, subcommand: ~w/remove preview/}
   @color_roles Application.get_env(:curie, :color_roles)
-  @special_snowflake 371_732_667_080_638_466
+  @snowflakes @color_roles["snowflakes"]
 
-  @spec get_color(String.t()) :: String.t() | nil
-  def get_color(color) do
-    color
-    |> String.downcase()
-    |> String.capitalize()
-    |> (&if(Map.has_key?(@color_roles, &1), do: &1)).()
+  @spec parse_color_name(String.t()) :: String.t() | nil
+  def parse_color_name(color_name) do
+    if Map.has_key?(@color_roles, color_name),
+      do: color_name,
+      else: Curie.check_typo(color_name, Map.keys(@color_roles))
   end
 
-  @spec fallback(String.t(), map(), [String.t()]) :: no_return()
-  def fallback("command", message, args) do
-    case Curie.check_typo(List.first(args), Map.keys(@color_roles)) do
-      nil ->
-        subcommand({List.first(args), message, args})
-
-      match ->
-        args
-        |> List.replace_at(0, match)
-        |> (&command({"color", message, &1})).()
-    end
+  def get_member_roles(member, guild) do
+    GuildCache.select!(guild, & &1.members[member].roles)
   end
 
-  def fallback("subcommand", message, args) do
-    case Curie.check_typo(Enum.at(args, 1), Map.keys(@color_roles)) do
-      nil ->
-        Curie.embed(message, "Color not recognized.", "red")
+  def get_role_color(color_name, guild) do
+    GuildCache.select!(guild, & &1.roles[@color_roles[color_name]].color)
+  end
 
-      match ->
-        args
-        |> List.replace_at(1, match)
-        |> (&subcommand({"preview", message, &1})).()
+  def remove_all_color_roles(member, guild) do
+    member_roles = get_member_roles(member, guild)
+    color_roles = Map.values(@color_roles)
+
+    for role <- member_roles do
+      if role in color_roles do
+        Api.remove_guild_member_role(guild, member, role)
+      end
     end
   end
 
   @spec color_preview(String.t(), map()) :: no_return()
-  def color_preview(color, %{guild_id: guild_id} = message) do
-    me = Nostrum.Cache.Me.get().id
+  def color_preview(color_name, %{channel_id: channel, guild_id: guild}) do
+    color_value = get_role_color(color_name, guild)
+    color_id = @color_roles[color_name]
+    curie = Curie.my_id()
 
-    color_role =
-      guild_id
-      |> Api.get_guild_roles!()
-      |> Enum.find(&(&1.id == @color_roles[color]))
-
-    Api.add_guild_member_role(guild_id, me, @color_roles[color])
-    Curie.embed(message, color, color_role.color)
-    Api.remove_guild_member_role(guild_id, me, @color_roles[color])
+    Api.add_guild_member_role(guild, curie, color_id)
+    Curie.embed(channel, color_name, color_value)
+    Api.remove_guild_member_role(guild, curie, color_id)
   end
 
-  @spec confirm_transaction(String.t(), User.id(), map()) :: no_return()
-  def confirm_transaction(color, member, %{guild_id: guild_id} = message) do
-    member_roles = Api.get_guild_member!(guild_id, member).roles
-    color_roles = Map.values(@color_roles)
-
-    for role <- member_roles do
-      if role in color_roles, do: Api.remove_guild_member_role(guild_id, member, role)
-    end
-
-    if @special_snowflake not in member_roles,
-      do: Api.add_guild_member_role(guild_id, member, @special_snowflake)
-
-    Api.add_guild_member_role(guild_id, member, @color_roles[color])
+  @spec confirm_transaction(String.t(), map()) :: no_return()
+  def confirm_transaction(color_name, %{
+        author: %{id: member, username: name},
+        channel_id: channel,
+        guild_id: guild
+      }) do
+    remove_all_color_roles(member, guild)
+    Api.add_guild_member_role(guild, member, @color_roles[color_name])
+    Api.add_guild_member_role(guild, member, @snowflakes)
     Currency.change_balance(:deduct, member, 500)
-
-    color_role =
-      Api.get_guild_roles!(guild_id)
-      |> Enum.find(&(&1.id == @color_roles[color]))
-
-    "#{message.author.username} acquired #{color}!"
-    |> (&Curie.embed(message, &1, color_role.color)).()
+    Curie.embed(channel, "#{name} acquired #{color_name}!", get_role_color(color_name, guild))
   end
 
   @impl true
-  def command({"color", %{author: %{id: member}} = message, [color | _] = args}) do
-    case get_color(color) do
-      nil -> fallback("command", message, args)
-      color -> confirm_transaction(color, member, message)
+  def command({"color", message, [color_name | rest]}) do
+    case parse_color_name(color_name) do
+      nil ->
+        case Curie.check_typo(color_name, @check_typo.subcommand) do
+          nil -> Curie.embed(message, "Color not recognized.", "red")
+          subcall -> subcommand({subcall, message, rest})
+        end
+
+      color ->
+        if Storage.whitelisted?(message),
+          do: confirm_transaction(color, message),
+          else: Storage.whitelist_message(message)
     end
   end
 
@@ -94,29 +82,23 @@ defmodule Curie.Colors do
   end
 
   @impl true
-  def subcommand({"remove", %{author: %{id: member}, guild_id: guild} = message, _args}) do
-    if Currency.whitelisted?(message) do
-      member_roles = Api.get_guild_member!(guild, member).roles
-      color_roles = [@special_snowflake | Map.values(@color_roles)]
-
-      for role <- member_roles do
-        if role in color_roles, do: Api.remove_guild_member_role(guild, member, role)
-      end
-
-      Curie.embed(message, "Color associated roles were removed.", "green")
-    end
-  end
-
-  @impl true
-  def subcommand({"preview", message, [_ | [color | _]] = args}) do
-    case get_color(color) do
-      nil -> fallback("subcommand", message, args)
+  def subcommand({"preview", message, [color_name | _rest]}) do
+    case parse_color_name(color_name) do
+      nil -> Curie.embed(message, "Color not recognized.", "red")
       color -> color_preview(color, message)
     end
   end
 
   @impl true
-  def subcommand(call) do
-    check_typo(call, @check_typo.subcommand, &subcommand/1)
+  def subcommand({"remove", %{author: %{id: member}, guild_id: guild} = message, _args}) do
+    if Storage.whitelisted?(message) do
+      remove_all_color_roles(member, guild)
+      Curie.embed(message, "Color associated roles were removed.", "green")
+    else
+      Storage.whitelist_message(message)
+    end
   end
+
+  @impl true
+  def subcommand(_invalid_arguments), do: nil
 end

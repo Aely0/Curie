@@ -90,7 +90,7 @@ defmodule Curie.Weather do
   end
 
   @impl true
-  def command({"weather", %{channel_id: channel} = _message, location}) do
+  def command({"weather", %{channel_id: channel}, location}) do
     Api.start_typing(channel)
 
     with {:ok, location} <- get_location(location, channel),

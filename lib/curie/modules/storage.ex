@@ -1,18 +1,44 @@
 defmodule Curie.Storage do
   use Curie.Commands
 
-  alias Nostrum.Cache.{ChannelCache, UserCache, Me}
+  alias Nostrum.Cache.{ChannelCache, GuildCache, UserCache}
   alias Nostrum.Struct.{Channel, Message, User}
 
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
 
+  @user_tables [Balance, Details]
+
+  @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean()
+  def whitelisted?(%{author: %{id: user}}) do
+    !!Data.get(Balance, user)
+  end
+
+  @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean()
+  def whitelisted?(%{user: %{id: user}}) do
+    !!Data.get(Balance, user)
+  end
+
+  @spec whitelisted?(User.id()) :: boolean()
+  def whitelisted?(user) do
+    !!Data.get(Balance, user)
+  end
+
+  @spec whitelist_message(map()) :: no_return()
+  def whitelist_message(%{guild_id: guild_id} = message) do
+    with {:ok, %{owner_id: owner_id}} <- GuildCache.get(guild_id),
+         {:ok, %{username: name}} <- UserCache.get(owner_id) do
+      "Whitelisting required, ask #{name}."
+      |> (&Curie.embed(message, &1, "red")).()
+    end
+  end
+
   @spec remove(User.id()) :: no_return()
-  def remove(member) do
-    for table <- [Balance, Details] do
-      table
-      |> Data.get(member)
-      |> (&if(&1, do: Data.delete(&1))).()
+  def remove(user) do
+    for table <- @user_tables do
+      with %{} = entry <- Data.get(table, user) do
+        Data.delete(entry)
+      end
     end
   end
 
@@ -62,28 +88,28 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec status_gather(%{game: String.t(), user: User.t()}) :: no_return()
-  def status_gather(%{game: game, user: %{id: user}} = _presence) do
-    if game != nil and game.type == 0 and Data.get(Status, game.name) == nil do
-      user
-      |> UserCache.get!()
-      |> Map.get(:username)
-      |> (&%Status{message: game.name, member: &1}).()
+  @spec status_gather(%{game: %{name: String.t(), type: 0}, user: %{id: User.t()}}) :: no_return()
+  def status_gather(%{game: %{name: name, type: 0}, user: %{id: user}}) do
+    if Data.get(Status, name) == nil do
+      %Status{message: name, member: Curie.get_username(user)}
       |> Data.insert()
     end
   end
 
+  @spec status_gather(term()) :: nil
+  def status_gather(_unusable), do: nil
+
   @spec change_member_standing(String.t(), User.id(), User.username(), Message.t()) :: Message.t()
   def change_member_standing("whitelist", id, name, %{guild_id: guild} = message) do
-    if Balance |> Data.get(id) |> is_nil() do
+    if whitelisted?(id) do
+      "Member already whitelisted."
+      |> (&Curie.embed(message, &1, "red")).()
+    else
       %Balance{member: id, value: 0, guild: guild}
       |> Data.insert()
 
       "#{name} added, wooo! :tada:"
       |> (&Curie.embed(message, &1, "green")).()
-    else
-      "Member already whitelisted."
-      |> (&Curie.embed(message, &1, "red")).()
     end
   end
 
@@ -117,10 +143,7 @@ defmodule Curie.Storage do
 
   @spec handler(map()) :: no_return()
   def handler(%{author: %{id: id}} = message) do
-    if Me.get().id != id do
-      store_details(message)
-    end
-
+    if Curie.my_id() != id, do: store_details(message)
     super(message)
   end
 end

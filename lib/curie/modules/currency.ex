@@ -1,11 +1,11 @@
 defmodule Curie.Currency do
   use Curie.Commands
 
-  alias Nostrum.Cache.{GuildCache, UserCache}
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Struct.User
   alias Curie.Data.Balance
   alias Curie.Data
+  alias Curie.Storage
 
   @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
@@ -50,41 +50,22 @@ defmodule Curie.Currency do
     |> Data.update()
   end
 
-  @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean()
-  def whitelisted?(%{author: %{id: id}} = _message) do
-    id |> get_balance() |> is_integer()
-  end
-
-  @spec whitelisted?(%{user: %{id: User.id()}}) :: boolean()
-  def whitelisted?(%{user: %{id: id}} = _member) do
-    id |> get_balance() |> is_integer()
-  end
-
-  @spec whitelist_message(map()) :: no_return()
-  def whitelist_message(%{guild_id: guild_id} = message) do
-    with {:ok, %{owner_id: owner_id} = _guild} <- GuildCache.get(guild_id),
-         {:ok, %{username: name} = _owner} <- UserCache.get(owner_id) do
-      "Whitelisting required, ask #{name}."
-      |> (&Curie.embed(message, &1, "red")).()
-    end
-  end
-
   @spec validate_recipient(map()) :: Member.t() | nil
   def validate_recipient(message) do
     message
     |> Curie.get_member(2)
-    |> (&if(&1 != nil and whitelisted?(&1), do: &1)).()
+    |> (&if(&1 && Storage.whitelisted?(&1), do: &1)).()
   end
 
   @impl true
   def command({"balance", %{author: %{id: member, username: name}} = message, []}) do
-    if whitelisted?(message) do
+    if Storage.whitelisted?(message) do
       member
       |> get_balance()
       |> (&"#{name} has #{&1}#{@tempest}.").()
       |> (&Curie.embed(message, &1, "lblue")).()
     else
-      whitelist_message(message)
+      Storage.whitelist_message(message)
     end
   end
 
@@ -95,7 +76,7 @@ defmodule Curie.Currency do
 
   @impl true
   def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _]}) do
-    if whitelisted?(message) do
+    if Storage.whitelisted?(message) do
       case validate_recipient(message) do
         nil ->
           Curie.embed(message, "Invalid recipient.", "red")
@@ -117,7 +98,7 @@ defmodule Curie.Currency do
           end
       end
     else
-      whitelist_message(message)
+      Storage.whitelist_message(message)
     end
   end
 
@@ -128,7 +109,7 @@ defmodule Curie.Currency do
 
   @impl true
   def subcommand({"curie", message, _args}) do
-    Nostrum.Cache.Me.get().id
+    Curie.my_id()
     |> get_balance()
     |> (&"My balance is #{&1}#{@tempest}.").()
     |> (&Curie.embed(message, &1, "lblue")).()

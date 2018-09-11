@@ -13,7 +13,7 @@ defmodule Curie.Commands do
       @prefix Application.get_env(:curie, :prefix)
 
       @spec command?(%{content: String.t()}) :: boolean()
-      def command?(%{content: content} = _message) do
+      def command?(%{content: content}) do
         String.starts_with?(content, @prefix)
       end
 
