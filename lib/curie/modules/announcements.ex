@@ -64,10 +64,12 @@ defmodule Curie.Announcements do
 
   @spec leave_log(Member.t()) :: no_return()
   def leave_log(%{user: %{username: member}}) do
-    if Timex.local() |> Timex.format!("%H%M", :strftime) == "0000" do
-      "#{member} was pruned for 30 days of inactivity #{Curie.time_now()}"
-    else
-      "#{member} left the guild. #{Curie.time_now()}"
+    case Curie.local_datetime() do
+      %{hour: 0, minute: 0} ->
+        "#{member} was pruned for 30 days of inactivity #{Curie.time_now()}"
+
+      _time ->
+        "#{member} left the guild. #{Curie.time_now()}"
     end
     |> (&Curie.embed(@invisible, &1, "dblue")).()
   end
@@ -76,7 +78,7 @@ defmodule Curie.Announcements do
   def has_cooldown?(member) do
     # Returns true if timestamp is less than 6h old
     case Data.get(Streams, member) do
-      %{time: time} -> (Timex.local() |> Timex.to_unix()) - time <= 21600
+      %{time: time} -> (Curie.local_datetime() |> Timex.to_unix()) - time <= 21600
       _no_cooldown -> false
     end
   end
@@ -87,7 +89,7 @@ defmodule Curie.Announcements do
       nil -> %Streams{member: member}
       cooldown -> cooldown
     end
-    |> Streams.changeset(%{time: Timex.local() |> Timex.to_unix()})
+    |> Streams.changeset(%{time: Curie.local_datetime() |> Timex.to_unix()})
     |> Data.insert_or_update()
   end
 

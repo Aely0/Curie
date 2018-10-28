@@ -2,6 +2,8 @@ defmodule Curie do
   import Nostrum.Api, only: [bangify: 1]
   import Nostrum.Struct.Embed
 
+  alias Timex.AmbiguousDateTime
+
   alias Nostrum.Stuct.{Channel, Guild, Message, User}
   alias Nostrum.Stuct.Guild.Member
   alias Nostrum.Cache.{GuildCache, UserCache, Me}
@@ -26,9 +28,17 @@ defmodule Curie do
     @colors[name]
   end
 
+  @spec local_datetime() :: DateTime.t()
+  def local_datetime do
+    case Timex.local() do
+      %DateTime{} = time -> time
+      %AmbiguousDateTime{} = time -> time.after
+    end
+  end
+
   @spec time_now() :: String.t()
   def time_now do
-    Timex.local() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
+    local_datetime() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
   end
 
   @spec avatar_url(User.t()) :: String.t()
@@ -48,7 +58,7 @@ defmodule Curie do
 
   @spec unix_to_amount(non_neg_integer()) :: String.t()
   def unix_to_amount(timestamp) do
-    amount = (Timex.local() |> Timex.to_unix()) - timestamp
+    amount = (Curie.local_datetime() |> Timex.to_unix()) - timestamp
     {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
     {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
     {days, hours} = {div(hours, 24), rem(hours, 24)}

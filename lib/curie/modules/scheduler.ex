@@ -165,7 +165,7 @@ defmodule Curie.Scheduler do
 
   @spec scheduler() :: no_return()
   def scheduler do
-    %{hour: hour, minute: minute, second: second} = Timex.local()
+    %{hour: hour, minute: minute, second: second} = Curie.local_datetime()
 
     if minute == 0 and second == 0 do
       Task.start(fn -> curie_balance_change(:decay) end)

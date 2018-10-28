@@ -51,7 +51,7 @@ defmodule Curie.Storage do
         entry -> entry
       end
       |> Details.changeset(%{
-        spoke: Timex.local() |> Timex.to_unix(),
+        spoke: Curie.local_datetime() |> Timex.to_unix(),
         channel: if(name, do: "##{name}", else: "#DirectMessage")
       })
       |> Data.insert_or_update()
@@ -65,7 +65,7 @@ defmodule Curie.Storage do
         nil -> %Details{member: id}
         entry -> entry
       end
-      |> Details.changeset(%{online: Timex.local() |> Timex.to_unix()})
+      |> Details.changeset(%{online: Curie.local_datetime() |> Timex.to_unix()})
       |> Data.insert_or_update()
     end
   end

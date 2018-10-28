@@ -111,25 +111,30 @@ defmodule Curie.Leaderboard do
 
   @spec format_output(action()) :: Embed.t()
   def format_output(action) do
-    state =
+    %{
+      current_page: current_page,
+      page_count: page_count,
+      entries: entries,
+      last_refresh: last_refresh
+    } =
       if action in [:new, :refresh],
         do: create_new(),
         else: GenServer.call(@self, :get)
 
-    section_start = @page_length * state.current_page - @page_length
+    section_start = @page_length * current_page - @page_length
 
     section_end =
-      if action == :forward and state.current_page == state.page_count,
-        do: length(state.entries),
-        else: @page_length * state.current_page - 1
+      if action == :forward and current_page == page_count,
+        do: length(entries),
+        else: @page_length * current_page - 1
 
-    ranks = state.entries |> Enum.slice(section_start..section_end) |> Enum.join("\n")
+    ranks = entries |> Enum.slice(section_start..section_end) |> Enum.join("\n")
 
     %Nostrum.Struct.Embed{}
     |> put_color(Curie.color("lblue"))
     |> put_description("Tempest rankings:\n#{ranks}")
-    |> put_footer("Page #{state.current_page}/#{state.page_count}", nil)
-    |> put_timestamp(state.last_refresh)
+    |> put_footer("Page #{current_page}/#{page_count}", nil)
+    |> put_timestamp(last_refresh)
   end
 
   @spec interaction(action()) :: no_return()
@@ -161,8 +166,11 @@ defmodule Curie.Leaderboard do
 
   @impl true
   def command({"lead", message, _args}) do
-    state = GenServer.call(@self, :get)
-    if state.message_id, do: Api.delete_all_reactions(state.channel_id, state.message_id)
+    %{message_id: old_message_id, channel_id: old_channel_id} = GenServer.call(@self, :get)
+
+    if old_message_id do
+      Api.delete_all_reactions(old_channel_id, old_message_id)
+    end
 
     {:ok, %{id: message_id, channel_id: channel_id}} =
       Curie.send(message, embed: format_output(:new))
