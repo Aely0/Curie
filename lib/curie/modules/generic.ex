@@ -106,23 +106,28 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"avatar", %{channel_id: channel} = message, _args}) do
+  def command({"avatar", %{channel_id: channel} = message, [format | rest] = args}) do
     Api.start_typing(channel)
 
-    with {:ok, %{user: %{username: username} = user}} <- Curie.get_member(message, 1),
-         avatar_url = Curie.avatar_url(user),
-         {:ok, %{headers: headers, body: body}} = Curie.get(avatar_url),
-         {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0) do
-      Curie.send(message, file: %{name: "#{username}.#{type}", body: body})
+    format = Curie.check_typo(format, ~w/jpg png webp gif/)
+    member_position = if format, do: 2, else: 1
+    format_with_default = format || "webp"
+
+    with {:ok, %{user: %{username: username} = user}} <-
+           Curie.get_member(message, member_position),
+         avatar_url = Curie.avatar_url(user, format_with_default),
+         {:ok, %{body: body}} <- Curie.get(avatar_url) do
+      Curie.send(message, file: %{name: "#{username}.#{format_with_default}", body: body})
     else
       {:error, :member_not_found} ->
-        Curie.embed(message, "Member not found", "red")
+        name = if format, do: Enum.join(rest, " "), else: Enum.join(args, " ")
+        Curie.embed(message, "Member '#{name}' not found", "red")
+
+      {:error, "415"} ->
+        Curie.embed(message, "Invalid format for member's avatar", "red")
 
       {:error, reason} ->
         Curie.embed(message, "Unable to fetch member's avatar (#{reason})", "red")
-
-      nil ->
-        Curie.embed(message, "Unknown content type", "red")
     end
   end
 
