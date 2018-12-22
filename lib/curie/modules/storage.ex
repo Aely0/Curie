@@ -130,11 +130,11 @@ defmodule Curie.Storage do
   @impl true
   def command({action, @owner = message, _args}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
-      nil ->
-        Curie.embed(message, "Member not found.", "red")
-
-      %{user: %{id: id, username: username}} ->
+      {:ok, %{user: %{id: id, username: username}}} ->
         change_member_standing(action, id, username, message)
+
+      {:error, _reason} ->
+        Curie.embed(message, "Member not found.", "red")
     end
   end
 

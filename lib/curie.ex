@@ -4,8 +4,8 @@ defmodule Curie do
 
   alias Timex.AmbiguousDateTime
 
-  alias Nostrum.Stuct.{Channel, Guild, Message, User}
-  alias Nostrum.Stuct.Guild.Member
+  alias Nostrum.Struct.{Channel, Guild, Message, User}
+  alias Nostrum.Struct.Guild.Member
   alias Nostrum.Cache.{GuildCache, UserCache, Me}
   alias Nostrum.Error.ApiError
   alias Nostrum.Api
@@ -42,8 +42,8 @@ defmodule Curie do
   end
 
   @spec avatar_url(User.t()) :: String.t()
-  def avatar_url(user) do
-    "https://cdn.discordapp.com/avatars/#{user.id}/#{user.avatar}.webp?size=1024"
+  def avatar_url(user, format \\ "webp") do
+    User.avatar_url(user, format) <> "?size=4096"
   end
 
   @spec check_typo(String.t(), String.t() | [String.t()]) :: String.t() | nil
@@ -181,29 +181,42 @@ defmodule Curie do
     end
   end
 
-  @spec get_member(Guild.id(), atom(), term(), non_neg_integer()) :: Member.t() | nil
-  def get_member(guild, key, value, retries \\ 0) do
+  @spec get_member(Member.t() | nil) :: {:ok, Member.t()} | {:error, :member_not_found}
+  def get_member(%Member{} = member), do: {:ok, member}
+  def get_member(nil), do: {:error, :member_not_found}
+
+  @spec get_member(Guild.id(), atom(), term()) :: {:ok, Member.t()} | {:error, atom()}
+  def get_member(guild, key, value) do
     case GuildCache.select(guild, & &1.members) do
       {:ok, map} when key == :id ->
-        map[value]
+        get_member(map[value])
 
       {:ok, map} when key == :tag ->
         [name, disc] = Regex.run(~r/^(.+)#(\d{4})$/, value, capture: :all_but_first)
-        Enum.find(Map.values(map), &(&1.user.username == name and &1.user.discriminator == disc))
+        find_by_tag = &(&1.user.username == name and &1.user.discriminator == disc)
+
+        map
+        |> Map.values()
+        |> Enum.find(find_by_tag)
+        |> get_member()
 
       {:ok, map} ->
-        Enum.find(Map.values(map), &(Map.get(&1.user, key) == value))
+        find_by_key = &(Map.get(&1.user, key) == value)
 
-      {:error, _reason} ->
-        Process.sleep(200)
-        if retries <= 5, do: get_member(guild, key, value, retries + 1)
+        map
+        |> Map.values()
+        |> Enum.find(find_by_key)
+        |> get_member()
+
+      {:error, _reason} = error ->
+        error
     end
   end
 
   @spec get_member(
           %{guild_id: Guild.id(), content: String.t(), mentions: [User.t()]},
           non_neg_integer()
-        ) :: Member.t() | nil
+        ) :: {:ok, Member.t()} | {:error, atom()}
   def get_member(%{guild_id: guild, content: content, mentions: mentions}, position) do
     full_name =
       content

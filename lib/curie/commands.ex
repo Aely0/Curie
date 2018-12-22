@@ -24,11 +24,8 @@ defmodule Curie.Commands do
         {call, message, args}
       end
 
-      @spec check_typo(
-              unquote(__MODULE__).command_call(),
-              String.t() | [String.t()],
-              function()
-            ) :: no_return()
+      @spec check_typo(unquote(__MODULE__).command_call(), String.t() | [String.t()], function()) ::
+              no_return()
       def check_typo({call, message, args}, check, caller) do
         with match when match not in [call, nil] <- Curie.check_typo(call, check) do
           caller.({match, message, args})

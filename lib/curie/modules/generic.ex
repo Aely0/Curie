@@ -7,9 +7,8 @@ defmodule Curie.Generic do
   alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Api
 
-  @check_typo ~w/felweed rally details cat overwatch roll ping/
+  @check_typo ~w/felweed rally avatar details cat overwatch roll ping/
   @roles Application.get_env(:curie, :roles)
-  @owner_id @owner.author.id
 
   @impl true
   def command({"eval", @owner = message, code}) do
@@ -36,16 +35,28 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"purge", %{author: %{id: @owner_id}, channel_id: channel}, [count]}) do
-    count
-    |> String.to_integer()
-    |> (&Api.get_channel_messages!(channel, &1 + 1, {})).()
-    |> Enum.map(& &1.id)
-    |> (&Api.bulk_delete_messages!(channel, &1)).()
+  def command({"purge", @owner = %{id: id, channel_id: channel}, [count | option]}) do
+    if option != [] and option |> hd() |> Curie.check_typo("curie") do
+      curie = Curie.my_id()
+
+      count
+      |> String.to_integer()
+      |> (&Api.get_channel_messages!(channel, &1 + 1)).()
+      |> Enum.filter(&(&1.author.id == curie))
+      |> Enum.map(& &1.id)
+      |> (&[id | &1]).()
+      |> (&Api.bulk_delete_messages!(channel, &1)).()
+    else
+      count
+      |> String.to_integer()
+      |> (&Api.get_channel_messages!(channel, &1 + 1)).()
+      |> Enum.map(& &1.id)
+      |> (&Api.bulk_delete_messages!(channel, &1)).()
+    end
   end
 
   @impl true
-  def command({"avatar", @owner = message, [path]}) do
+  def command({"change_avatar", @owner = message, [path]}) do
     case File.read(path) do
       {:ok, file} ->
         %{".jpg" => "jpeg", ".png" => "png", ".gif" => "gif"}
@@ -69,11 +80,7 @@ defmodule Curie.Generic do
       when role in ["felweed", "rally"] and args != [] do
     if author in @roles[role].mods do
       case Curie.get_member(message, 1) do
-        nil ->
-          "Member '#{Enum.join(args, " ")}' not found."
-          |> (&Curie.embed(message, &1, "red")).()
-
-        %{roles: roles, user: %{id: member, username: name}} ->
+        {:ok, %{roles: roles, user: %{id: member, username: name}}} ->
           if member in @roles[role].mods do
             "Cannot be used on yourself or other moderators."
             |> (&Curie.embed(message, &1, "red")).()
@@ -90,23 +97,45 @@ defmodule Curie.Generic do
             "Role #{String.capitalize(role)} #{action} #{name}."
             |> (&Curie.embed(message, &1, "dblue")).()
           end
+
+        {:error, _reason} ->
+          "Member '#{Enum.join(args, " ")}' not found."
+          |> (&Curie.embed(message, &1, "red")).()
       end
+    end
+  end
+
+  @impl true
+  def command({"avatar", %{channel_id: channel} = message, _args}) do
+    Api.start_typing(channel)
+
+    with {:ok, %{user: %{username: username} = user}} <- Curie.get_member(message, 1),
+         avatar_url = Curie.avatar_url(user),
+         {:ok, %{headers: headers, body: body}} = Curie.get(avatar_url),
+         {_key, "image/" <> type} = List.keyfind(headers, "Content-Type", 0) do
+      Curie.send(message, file: %{name: "#{username}.#{type}", body: body})
+    else
+      {:error, :member_not_found} ->
+        Curie.embed(message, "Member not found", "red")
+
+      {:error, reason} ->
+        Curie.embed(message, "Unable to fetch member's avatar (#{reason})", "red")
+
+      nil ->
+        Curie.embed(message, "Unknown content type", "red")
     end
   end
 
   @impl true
   def command({"details", %{guild_id: guild} = message, args}) when args != [] do
     case Curie.get_member(message, 1) do
-      nil ->
-        "Member '#{Enum.join(args, " ")}' not found."
-        |> (&Curie.embed(message, &1, "red")).()
-
-      %{
-        nick: nick,
-        roles: roles,
-        joined_at: joined_at,
-        user: %{id: id, username: name, discriminator: disc}
-      } ->
+      {:ok,
+       %{
+         nick: nick,
+         roles: roles,
+         joined_at: joined_at,
+         user: %{id: id, username: name, discriminator: disc}
+       }} ->
         details = Curie.Storage.fetch_details(id)
 
         status =
@@ -160,6 +189,10 @@ defmodule Curie.Generic do
             "Guild joined: #{guild_joined}\n" <> "Account created: #{account_created}"
 
         Curie.embed(message, description, "green")
+
+      {:error, _reason} ->
+        "Member '#{Enum.join(args, " ")}' not found."
+        |> (&Curie.embed(message, &1, "red")).()
     end
   end
 

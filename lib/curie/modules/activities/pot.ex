@@ -165,8 +165,8 @@ defmodule Curie.Pot do
   def pot(%{channel_id: channel_id} = message, member, value, limit \\ nil) do
     channel =
       case ChannelCache.get(channel_id) do
-        {:ok, %{name: name}} -> name
-        _not_found -> "unknown"
+        {:ok, %{name: name}} -> "#" <> name
+        _not_found -> "an unknown channel"
       end
 
     GenServer.cast(
@@ -228,7 +228,7 @@ defmodule Curie.Pot do
 
   @spec handle_event({String.t(), map(), map(), list()}) :: no_return()
   def handle_event({"pot", message, %{status: :playing, channel: channel}, _args}) do
-    Curie.embed(message, "Game in progress (##{channel})", "red")
+    Curie.embed(message, "Game already started in #{channel}.", "red")
   end
 
   def handle_event({"add", message, %{status: :idle}, _args}) do

@@ -7,7 +7,6 @@ defmodule Curie.Application do
       ~r/nostrum.git", "(\w{7}).+"/
       |> Regex.run(binary, capture: :all_but_first)
       |> List.first()
-      |> Kernel.<>(" ")
     end
   end
 
@@ -23,7 +22,7 @@ defmodule Curie.Application do
       Curie.Consumer
     ]
 
-    IO.puts("  == Curie - Nostrum #{nostrum_git_hash()}==\n")
+    IO.puts("  == Curie - Nostrum #{nostrum_git_hash()} ==\n")
     Supervisor.start_link(children, strategy: :one_for_one, name: Curie.Supervisor)
   end
 end
