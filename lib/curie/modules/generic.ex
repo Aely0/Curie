@@ -141,30 +141,19 @@ defmodule Curie.Generic do
          joined_at: joined_at,
          user: %{id: id, username: name, discriminator: disc}
        }} ->
-        details = Curie.Storage.fetch_details(id)
+        {last_online, last_spoke, in_channel} = Curie.Storage.get_details(id)
 
         status =
           case PresenceCache.get(id, guild) do
-            {:ok, %{status: status}} -> status
-            _presence_not_found -> :offline
-          end
-          |> case do
-            :offline ->
-              if is_integer(details.online),
-                do: "Offline for " <> Curie.unix_to_amount(details.online),
-                else: details.online
-
-            :dnd ->
+            {:ok, %{status: :dnd}} ->
               "Do Not Disturb"
 
-            status ->
+            {:ok, %{status: status}} when status != :offline ->
               status |> Atom.to_string() |> String.capitalize()
-          end
 
-        spoke =
-          if is_integer(details.spoke),
-            do: Curie.unix_to_amount(details.spoke) <> " ago",
-            else: details.spoke
+            _presence_not_found_or_offline ->
+              last_online
+          end
 
         roles =
           GuildCache.get!(guild).roles
@@ -179,16 +168,16 @@ defmodule Curie.Generic do
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         guild_joined =
-          if(joined_at, do: joined_at, else: Api.get_guild_member!(guild, id).joined_at)
+          (joined_at || Api.get_guild_member!(guild, id).joined_at)
           |> Timex.parse!("{ISO:Extended}")
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         description =
-          "Display Name: #{if nick, do: nick, else: name}\n" <>
+          "Display Name: #{nick || name}\n" <>
             "Member: #{name}##{disc}\n" <>
             "Status: #{status}\n" <>
-            "Last spoke: #{spoke}\n" <>
-            "In channel: #{details.channel}\n" <>
+            "Last spoke: #{last_spoke}\n" <>
+            "In channel: #{in_channel}\n" <>
             "ID: #{id}\n" <>
             "Roles: #{roles}\n" <>
             "Guild joined: #{guild_joined}\n" <> "Account created: #{account_created}"

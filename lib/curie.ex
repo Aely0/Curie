@@ -57,7 +57,7 @@ defmodule Curie do
   end
 
   @spec unix_to_amount(non_neg_integer()) :: String.t()
-  def unix_to_amount(timestamp) do
+  def unix_to_amount(timestamp) when is_integer(timestamp) and timestamp >= 0 do
     amount = (Curie.local_datetime() |> Timex.to_unix()) - timestamp
     {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
     {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
@@ -98,13 +98,16 @@ defmodule Curie do
       {:ok, _message} = result ->
         result
 
-      {:error, %{status_code: code}} = error ->
-        if code >= 500 and retries <= 10 do
-          Process.sleep(2000)
-          Curie.send(channel, options, retries + 1)
-        else
-          error
-        end
+      {:error, %{status_code: code}} when code >= 500 and retries <= 10 ->
+        Process.sleep(500)
+        Curie.send(channel, options, retries + 1)
+
+      {:error, _error} when retries <= 5 ->
+        Process.sleep(500)
+        Curie.send(channel, options, retries + 1)
+
+      error ->
+        error
     end
   end
 
@@ -129,13 +132,16 @@ defmodule Curie do
       {:ok, _message} = result ->
         result
 
-      {:error, %{status_code: code}} = error ->
-        if code >= 500 and retries <= 10 do
-          Process.sleep(250)
-          edit(channel_id, message_id, options, retries + 1)
-        else
-          error
-        end
+      {:error, %{status_code: code}} when code >= 500 and retries <= 5 ->
+        Process.sleep(500)
+        edit(channel_id, message_id, options, retries + 1)
+
+      {:error, _error} when retries <= 5 ->
+        Process.sleep(500)
+        edit(channel_id, message_id, options, retries + 1)
+
+      error ->
+        error
     end
   end
 
@@ -143,27 +149,22 @@ defmodule Curie do
           {:ok, HTTPoison.Respose.t()} | {:error, String.t()}
   def get(url, headers \\ [], retries \\ 0) when is_list(headers) do
     case HTTPoison.get(url, [{"Connection", "close"}] ++ headers, follow_redirect: true) do
-      {:ok, response} = result ->
-        case response.status_code do
-          200 ->
-            result
+      {:ok, %{status_code: 200}} = response ->
+        response
 
-          code ->
-            if code >= 500 and retries < 5 do
-              Process.sleep(2000)
-              get(url, headers, retries + 1)
-            else
-              {:error, Integer.to_string(code)}
-            end
-        end
+      {:ok, %{status_code: code}} when code >= 500 and retries < 5 ->
+        Process.sleep(500)
+        get(url, headers, retries + 1)
 
-      {:error, error} ->
-        if retries < 5 do
-          Process.sleep(2000)
-          get(url, headers, retries + 1)
-        else
-          {:error, inspect(error.reason)}
-        end
+      {:ok, %{status_code: code}} ->
+        {:error, Integer.to_string(code)}
+
+      {:error, _error} when retries < 5 ->
+        Process.sleep(500)
+        get(url, headers, retries + 1)
+
+      {:error, %{reason: reason}} ->
+        {:error, inspect(reason)}
     end
   end
 

@@ -73,24 +73,21 @@ defmodule Curie.Storage do
   @spec store_details(term()) :: nil
   def store_details(_unusable), do: nil
 
-  @spec fetch_details(User.id()) ::
-          %{online: String.t(), spoke: String.t(), channel: String.t()} | Details.t()
-  def fetch_details(member) do
+  @spec get_details(User.id()) :: {String.t(), String.t(), String.t()}
+  def get_details(member) do
     case Data.get(Details, member) do
       nil ->
-        %{online: "Never seen online", spoke: "Never", channel: "None"}
+        {"Never seen online", "Never", "None"}
 
-      details ->
-        details
-        |> (&if(&1.online == nil, do: %{&1 | online: "Never seen online"}, else: &1)).()
-        |> (&if(&1.spoke == nil, do: %{&1 | spoke: "Never"}, else: &1)).()
-        |> (&if(&1.channel == nil, do: %{&1 | channel: "None"}, else: &1)).()
+      %{online: online, spoke: spoke, channel: channel} ->
+        {if(online, do: "Offline for " <> Curie.unix_to_amount(online)) || "Never seen online",
+         if(spoke, do: Curie.unix_to_amount(spoke) <> " ago") || "Never", channel || "None"}
     end
   end
 
   @spec status_gather(%{game: %{name: String.t(), type: 0}, user: %{id: User.t()}}) :: no_return()
   def status_gather(%{game: %{name: name, type: 0}, user: %{id: user}}) do
-    if Data.get(Status, name) == nil do
+    if !Data.get(Status, name) do
       %Status{message: name, member: Curie.get_username(user)}
       |> Data.insert()
     end
