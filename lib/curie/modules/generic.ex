@@ -113,8 +113,8 @@ defmodule Curie.Generic do
     member_position = if format, do: 2, else: 1
     format_with_default = format || "webp"
 
-    with {:ok, %{user: %{username: username} = user}} <-
-           Curie.get_member(message, member_position),
+    with {:ok, %{user: %{id: id}}} <- Curie.get_member(message, member_position),
+         {:ok, %{username: username} = user} <- Api.get_user(id),
          avatar_url = Curie.avatar_url(user, format_with_default),
          {:ok, %{body: body}} <- Curie.get(avatar_url) do
       Curie.send(message, file: %{name: "#{username}.#{format_with_default}", body: body})

@@ -41,7 +41,7 @@ defmodule Curie do
     local_datetime() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
   end
 
-  @spec avatar_url(User.t()) :: String.t()
+  @spec avatar_url(User.t(), String.t()) :: String.t()
   def avatar_url(user, format \\ "webp") do
     User.avatar_url(user, format) <> "?size=4096"
   end
@@ -182,32 +182,42 @@ defmodule Curie do
     end
   end
 
-  @spec get_member(Member.t() | nil) :: {:ok, Member.t()} | {:error, :member_not_found}
-  def get_member(%Member{} = member), do: {:ok, member}
-  def get_member(nil), do: {:error, :member_not_found}
+  @spec find_member(%{User.id() => Member.t()}, (Member.t() -> boolean())) ::
+          {:ok, Member.t()} | {:error, :member_not_found}
+  def find_member(members, check) do
+    members
+    |> Map.values()
+    |> Enum.find(check)
+    |> case do
+      %Member{} = member -> {:ok, member}
+      nil -> {:error, :member_not_found}
+    end
+  end
 
   @spec get_member(Guild.id(), atom(), term()) :: {:ok, Member.t()} | {:error, atom()}
   def get_member(guild, key, value) do
     case GuildCache.select(guild, & &1.members) do
-      {:ok, map} when key == :id ->
-        get_member(map[value])
+      {:ok, members} when key == :id ->
+        case members[value] do
+          %Member{} = member -> {:ok, member}
+          nil -> {:error, :member_not_found}
+        end
 
-      {:ok, map} when key == :tag ->
+      {:ok, members} when key == :display_name ->
+        members
+        |> find_member(&(&1.user.username == value))
+        |> case do
+          {:ok, _member} = result -> result
+          {:error, :member_not_found} -> find_member(members, &(&1.nick == value))
+        end
+
+      {:ok, members} when key == :tag ->
         [name, disc] = Regex.run(~r/^(.+)#(\d{4})$/, value, capture: :all_but_first)
         find_by_tag = &(&1.user.username == name and &1.user.discriminator == disc)
+        find_member(members, find_by_tag)
 
-        map
-        |> Map.values()
-        |> Enum.find(find_by_tag)
-        |> get_member()
-
-      {:ok, map} ->
-        find_by_key = &(Map.get(&1.user, key) == value)
-
-        map
-        |> Map.values()
-        |> Enum.find(find_by_key)
-        |> get_member()
+      {:ok, members} ->
+        find_member(members, &(Map.get(&1.user, key) == value))
 
       {:error, _reason} = error ->
         error
@@ -241,7 +251,7 @@ defmodule Curie do
           get_member(guild, :tag, full_name)
 
         true ->
-          get_member(guild, :username, full_name)
+          get_member(guild, :display_name, full_name)
       end
     end
   end

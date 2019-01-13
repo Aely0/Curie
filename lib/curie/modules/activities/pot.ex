@@ -189,9 +189,14 @@ defmodule Curie.Pot do
     time = Enum.random(50..70)
 
     for remaining <- time..1 do
-      if time - 30 == remaining, do: Curie.embed(message, "Rolling in 20-40 seconds.", "dblue")
+      if time - 30 == remaining do
+        Curie.embed(message, "Rolling in 20-40 seconds.", "dblue")
+      end
 
-      if 1 == remaining, do: curie_join(channel_id)
+      if 1 == remaining do
+        curie_join(channel_id)
+      end
+
       Process.sleep(1000)
     end
 

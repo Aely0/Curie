@@ -392,8 +392,8 @@ defmodule Curie.TwentyOne do
   def start(%{channel_id: channel_id} = message, member, value) do
     channel =
       case ChannelCache.get(channel_id) do
-        %{name: name} -> "#" <> name
-        _unable_to_retrieve -> "Unknown"
+        {:ok, %{name: name}} -> "#" <> name
+        _not_found -> "an unknown channel"
       end
 
     new_state = %{phase: :joining, channel: channel, set_value: value, total_value: value}
@@ -432,7 +432,7 @@ defmodule Curie.TwentyOne do
 
   @spec handle_event({map(), map(), pos_integer() | nil}) :: no_return()
   def handle_event({message, %{phase: :playing, channel: channel}, _value}) do
-    Curie.embed(message, "Game in progress: " <> channel, "red")
+    Curie.embed(message, "Game already started in #{channel}.", "red")
   end
 
   def handle_event({%{guild_id: nil} = message, _state, _value}) do
