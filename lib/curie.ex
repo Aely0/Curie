@@ -4,7 +4,7 @@ defmodule Curie do
 
   alias Timex.AmbiguousDateTime
 
-  alias Nostrum.Struct.{Channel, Guild, Message, User}
+  alias Nostrum.Struct.{Channel, Guild, Message, User, Snowflake}
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Cache.{GuildCache, UserCache, Me}
   alias Nostrum.Error.ApiError
@@ -194,8 +194,27 @@ defmodule Curie do
     end
   end
 
-  @spec get_member(Guild.id(), atom(), term()) :: {:ok, Member.t()} | {:error, atom()}
-  def get_member(guild, key, value) do
+  @spec member_search_method({Guild.id(), [User.t()], String.t()}) ::
+          {Guild.id(), atom(), Snowflake.t() | String.t()}
+  def member_search_method({guild, mentions, full_name}) do
+    cond do
+      mentions != [] ->
+        {guild, :id, hd(mentions).id}
+
+      full_name =~ ~r/^\d+$/ ->
+        {guild, :id, String.to_integer(full_name)}
+
+      full_name =~ ~r/#\d{4}$/ ->
+        {guild, :tag, full_name}
+
+      true ->
+        {guild, :display_name, full_name}
+    end
+  end
+
+  @spec get_member({Guild.id(), atom(), Snowflake.t() | String.t()}) ::
+          {:ok, Member.t()} | {:error, atom()}
+  def get_member({guild, key, value}) do
     case GuildCache.select(guild, & &1.members) do
       {:ok, members} when key == :id ->
         case members[value] do
@@ -228,31 +247,24 @@ defmodule Curie do
           %{guild_id: Guild.id(), content: String.t(), mentions: [User.t()]},
           non_neg_integer()
         ) :: {:ok, Member.t()} | {:error, atom()}
-  def get_member(%{guild_id: guild, content: content, mentions: mentions}, position) do
+  def get_member(%{content: content, mentions: mentions} = message, position) do
     full_name =
       content
       |> String.split()
       |> (&Enum.slice(&1, position..length(&1))).()
       |> Enum.join(" ")
 
-    if guild != nil and full_name != "" do
-      cond do
-        mentions != [] ->
-          mentions
-          |> List.first()
-          |> (&get_member(guild, :id, &1.id)).()
+    cond do
+      not Map.has_key?(message, :guild_id) or message.guild_id == nil ->
+        {:error, :requires_guild_context}
 
-        full_name =~ ~r/^\d+$/ ->
-          full_name
-          |> String.to_integer()
-          |> (&get_member(guild, :id, &1)).()
+      full_name == "" ->
+        {:error, :no_identifier_given}
 
-        full_name =~ ~r/#\d{4}$/ ->
-          get_member(guild, :tag, full_name)
-
-        true ->
-          get_member(guild, :display_name, full_name)
-      end
+      true ->
+        {message.guild_id, mentions, full_name}
+        |> member_search_method()
+        |> get_member()
     end
   end
 end
