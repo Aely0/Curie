@@ -49,12 +49,13 @@ defmodule Curie.Consumer do
   end
 
   @impl true
-  def handle_event({:MESSAGE_CREATE, {%{content: _content} = message}, ws_state}) do
+  def handle_event({:MESSAGE_CREATE, {message}, ws_state}) do
     message |> add_heartbeat(ws_state) |> call_handlers(@handlers.message)
   end
 
   @impl true
-  def handle_event({:MESSAGE_UPDATE, {%{content: _content} = updated}, ws_state}) do
+  def handle_event({:MESSAGE_UPDATE, {%{content: content} = updated}, ws_state})
+      when content != nil do
     updated |> add_heartbeat(ws_state) |> call_handlers(@handlers.message)
   end
 
