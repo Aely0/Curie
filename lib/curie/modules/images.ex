@@ -2,6 +2,8 @@ defmodule Curie.Images do
   use Curie.Commands
   use GenServer
 
+  @type image_map :: %{(name :: String.t()) => filename :: String.t()}
+
   @self __MODULE__
 
   @path "resources/images"
@@ -14,7 +16,7 @@ defmodule Curie.Images do
 
   @impl true
   def init(_args) do
-    {:ok, get_images()}
+    {:ok, get_stored_images()}
   end
 
   @impl true
@@ -24,38 +26,46 @@ defmodule Curie.Images do
 
   @impl true
   def handle_cast(:reload, _state) do
-    {:noreply, get_images()}
+    {:noreply, get_stored_images()}
   end
 
-  @spec get_images() :: %{files: [String.t()], names: [String.t()]}
+  @spec get_images() :: image_map()
   def get_images do
-    files = File.ls!(@path)
-    names = Enum.map(files, &(String.split(&1, ".", parts: 2) |> hd()))
-    %{names: names, files: files}
+    GenServer.call(@self, :get)
+  end
+
+  @spec refresh_image_state() :: no_return()
+  def refresh_image_state do
+    GenServer.cast(@self, :reload)
+  end
+
+  @spec get_stored_images() :: image_map()
+  def get_stored_images do
+    @path
+    |> File.ls!()
+    |> Enum.reduce(%{}, fn file, map ->
+      Map.put(map, file |> String.split(".") |> hd(), file)
+    end)
   end
 
   @spec send_match(map()) :: no_return()
   def send_match(%{content: content} = message) do
-    images = GenServer.call(@self, :get)
-    index = Enum.find_index(images.names, &(content == &1))
+    images = get_images()
 
-    if index do
-      Enum.at(images.files, index)
-      |> (&Curie.send(message, file: @path <> "/" <> &1)).()
+    if Map.has_key?(images, content) do
+      Curie.send(message, file: @path <> "/" <> images[content])
     end
   end
 
   @impl true
   def command({"images", @owner = message, [call]}) when call == "r" do
-    GenServer.cast(@self, :reload)
-    Curie.embed(message, "Image directory refreshed.", "green")
+    refresh_image_state()
+    Curie.embed(message, "Image directory state refreshed.", "green")
   end
 
   @impl true
   def command({"images", message, []}) do
-    GenServer.call(@self, :get)
-    |> (&(Enum.join(&1.names, ", ") <> ".")).()
-    |> (&Curie.embed(message, &1, "green")).()
+    Curie.embed(message, (get_images() |> Map.keys() |> Enum.join(", ")) <> ".", "green")
   end
 
   @impl true

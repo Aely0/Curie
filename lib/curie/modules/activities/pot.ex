@@ -47,6 +47,26 @@ defmodule Curie.Pot do
     {:noreply, defaults()}
   end
 
+  @spec get_state() :: map()
+  def get_state do
+    GenServer.call(@self, :get)
+  end
+
+  @spec update_state(map()) :: no_return()
+  def update_state(new_state) do
+    GenServer.cast(@self, {:update, new_state})
+  end
+
+  @spec add_player({User.id(), non_neg_integer()}) :: no_return()
+  def add_player(player) do
+    GenServer.cast(@self, {:player, player})
+  end
+
+  @spec reset_state() :: no_return()
+  def reset_state do
+    GenServer.cast(@self, :reset)
+  end
+
   @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
   def announce_start(%{author: %{username: name}} = message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
@@ -147,7 +167,7 @@ defmodule Curie.Pot do
   def curie_join(channel) do
     curie = Curie.my_id()
     balance = Currency.get_balance(curie)
-    %{value: value, limit: limit, players: players} = GenServer.call(@self, :get)
+    %{value: value, limit: limit, players: players} = get_state()
 
     cond do
       is_integer(limit) and balance > 0 ->
@@ -169,19 +189,15 @@ defmodule Curie.Pot do
         _not_found -> "an unknown channel"
       end
 
-    GenServer.cast(
-      @self,
-      {:update,
-       %{
-         status: :playing,
-         limit: limit,
-         value: value,
-         channel: channel,
-         allow_add: true
-       }}
-    )
+    update_state(%{
+      status: :playing,
+      limit: limit,
+      value: value,
+      channel: channel,
+      allow_add: true
+    })
 
-    GenServer.cast(@self, {:player, {member, value}})
+    add_player({member, value})
     Currency.change_balance(:deduct, member, value)
 
     announce_start(message, value, limit)
@@ -200,11 +216,11 @@ defmodule Curie.Pot do
       Process.sleep(1000)
     end
 
-    GenServer.cast(@self, {:update, %{allow_add: false}})
+    update_state(%{allow_add: false})
     Curie.embed(message, "Rolling...", "dblue")
     Process.sleep(1000)
 
-    state = GenServer.call(@self, :get)
+    state = get_state()
     state = %{state | players: Enum.shuffle(state.players)}
 
     roll = Enum.random(1..state.value)
@@ -228,7 +244,7 @@ defmodule Curie.Pot do
       else: announce_winner(message, winner, state.value, chance)
 
     Currency.change_balance(:add, winner, state.value)
-    GenServer.cast(@self, :reset)
+    reset_state()
   end
 
   @spec handle_event({String.t(), map(), map(), list()}) :: no_return()
@@ -263,9 +279,9 @@ defmodule Curie.Pot do
     value = if value > state.limit, do: state.limit, else: value
 
     if member_total + value <= state.limit do
-      GenServer.cast(@self, {:player, {member, value}})
+      add_player({member, value})
       Currency.change_balance(:deduct, member, value)
-      GenServer.cast(@self, {:update, %{value: state.value + value}})
+      update_state(%{value: state.value + value})
 
       ("**#{message.author.username}** added **#{value}#{@tempest}**. " <>
          "Pot value is now **#{state.value + value}#{@tempest}**.")
@@ -282,7 +298,7 @@ defmodule Curie.Pot do
       when event in ["pot", "add"] do
     if Storage.whitelisted?(message) do
       value = Currency.value_parse(member, value)
-      state = GenServer.call(@self, :get)
+      state = get_state()
       handle_event({event, message, state, {value, args}})
     else
       Storage.whitelist_message(message)

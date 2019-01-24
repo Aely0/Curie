@@ -23,13 +23,8 @@ defmodule Curie.MessageCache do
   end
 
   @impl true
-  def handle_cast({:add, %{guild_id: nil, channel_id: direct_message} = message}, state) do
-    {:noreply, add(direct_message, message, state)}
-  end
-
-  @impl true
-  def handle_cast({:add, %{guild_id: guild} = message}, state) do
-    {:noreply, add(guild, message, state)}
+  def handle_cast({:add, %{guild_id: guild, channel_id: channel} = message}, state) do
+    {:noreply, add(guild || channel, message, state)}
   end
 
   @impl true
@@ -55,6 +50,11 @@ defmodule Curie.MessageCache do
     {:reply, ignore_list, state}
   end
 
+  @spec add(Message.t()) :: no_return()
+  defp add(message) do
+    GenServer.cast(@self, {:add, message})
+  end
+
   @spec add(Channel.id() | Guild.id(), map(), map()) :: map()
   defp add(container_id, message, state) do
     if Map.has_key?(state, container_id) do
@@ -73,6 +73,16 @@ defmodule Curie.MessageCache do
       else: [message | container]
   end
 
+  @spec ignore?(%{author: %{id: User.id()}}) :: boolean()
+  def ignore?(%{author: %{id: member}}) do
+    member in GenServer.call(@self, :ignore)
+  end
+
+  @spec ignore?(%{user: %{id: User.id()}}) :: boolean()
+  def ignore?(%{user: %{id: member}}) do
+    member in GenServer.call(@self, :ignore)
+  end
+
   @spec get(%{guild_id: Guild.id(), id: Message.id()}) :: map() | nil
   def get(%{guild_id: guild, id: message}) do
     GenServer.call(@self, {:get, guild, message})
@@ -88,20 +98,10 @@ defmodule Curie.MessageCache do
     GenServer.call(@self, {:get, message_id})
   end
 
-  @spec ignore?(%{author: %{id: User.id()}}) :: boolean()
-  def ignore?(%{author: %{id: member}}) do
-    member in GenServer.call(@self, :ignore)
-  end
-
-  @spec ignore?(%{user: %{id: User.id()}}) :: boolean()
-  def ignore?(%{user: %{id: member}}) do
-    member in GenServer.call(@self, :ignore)
-  end
-
   @spec handler(map()) :: no_return()
   def handler(message) do
     if not ignore?(message) do
-      GenServer.cast(@self, {:add, message})
+      add(message)
     end
   end
 end

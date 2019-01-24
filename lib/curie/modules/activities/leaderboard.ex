@@ -26,7 +26,7 @@ defmodule Curie.Leaderboard do
 
   @impl true
   def init(_args) do
-    with %Leaderboard{channel_id: channel_id, message_id: message_id} = state <- recover_state(),
+    with %Leaderboard{channel_id: channel_id, message_id: message_id} = state <- load_state(),
          {:ok, _message} <- Api.get_channel_message(channel_id, message_id) do
       {:ok, state}
     else
@@ -69,12 +69,32 @@ defmodule Curie.Leaderboard do
     {:noreply, state}
   end
 
-  @spec recover_state() :: Leaderboard.t()
-  def recover_state do
+  @spec get_state() :: Leaderboard.t()
+  def get_state do
+    GenServer.call(@self, :get)
+  end
+
+  @spec update_and_get_state(map()) :: Leaderboard.t()
+  def update_and_get_state(new_state) do
+    GenServer.call(@self, {:update_and_get, new_state})
+  end
+
+  @spec update_state(map()) :: no_return()
+  def update_state(new_state) do
+    GenServer.cast(@self, {:update, new_state})
+  end
+
+  @spec save_state() :: no_return()
+  def save_state do
+    GenServer.cast(@self, :save)
+  end
+
+  @spec load_state() :: Leaderboard.t()
+  def load_state do
     Data.one(Leaderboard)
   end
 
-  @spec create_new() :: map()
+  @spec create_new() :: Leaderboard.t()
   def create_new do
     entries = create_entries()
 
@@ -85,7 +105,7 @@ defmodule Curie.Leaderboard do
       entries: entries
     }
 
-    GenServer.call(@self, {:update_and_get, state})
+    update_and_get_state(state)
   end
 
   @spec create_entries() :: [String.t()]
@@ -119,7 +139,7 @@ defmodule Curie.Leaderboard do
     } =
       if action in [:new, :refresh],
         do: create_new(),
-        else: GenServer.call(@self, :get)
+        else: get_state()
 
     section_start = @page_length * current_page - @page_length
 
@@ -139,34 +159,34 @@ defmodule Curie.Leaderboard do
 
   @spec interaction(action()) :: no_return()
   def interaction(:backward) do
-    state = GenServer.call(@self, :get)
+    state = get_state()
 
     if state.current_page > 1 do
-      GenServer.cast(@self, {:update, %{current_page: state.current_page - 1}})
+      update_state(%{current_page: state.current_page - 1})
       Curie.edit!(state.channel_id, state.message_id, embed: format_output(:backward))
-      GenServer.cast(@self, :save)
+      save_state()
     end
   end
 
   def interaction(:forward) do
-    state = GenServer.call(@self, :get)
+    state = get_state()
 
     if state.current_page < state.page_count do
-      GenServer.cast(@self, {:update, %{current_page: state.current_page + 1}})
+      update_state(%{current_page: state.current_page + 1})
       Curie.edit!(state.channel_id, state.message_id, embed: format_output(:forward))
-      GenServer.cast(@self, :save)
+      save_state()
     end
   end
 
   def interaction(:refresh) do
-    state = GenServer.call(@self, :get)
+    state = get_state()
     Curie.edit!(state.channel_id, state.message_id, embed: format_output(:refresh))
-    GenServer.cast(@self, :save)
+    save_state()
   end
 
   @impl true
   def command({"lead", message, _args}) do
-    %{message_id: old_message_id, channel_id: old_channel_id} = GenServer.call(@self, :get)
+    %{message_id: old_message_id, channel_id: old_channel_id} = get_state()
 
     if old_message_id do
       Api.delete_all_reactions(old_channel_id, old_message_id)
@@ -175,8 +195,8 @@ defmodule Curie.Leaderboard do
     {:ok, %{id: message_id, channel_id: channel_id}} =
       Curie.send(message, embed: format_output(:new))
 
-    GenServer.cast(@self, {:update, %{channel_id: channel_id, message_id: message_id}})
-    GenServer.cast(@self, :save)
+    update_state(%{channel_id: channel_id, message_id: message_id})
+    save_state()
 
     for button <- @buttons do
       Api.create_reaction!(channel_id, message_id, button)
@@ -190,15 +210,17 @@ defmodule Curie.Leaderboard do
   end
 
   @spec handler(map()) :: no_return()
-  def handler(%{heartbeat: _heartbeat} = message) do
-    super(message)
+  def handler(%{guild_id: guild_id} = message) do
+    if guild_id do
+      super(message)
+    end
   end
 
-  def handler(%{emoji: emoji, message_id: message_id, user_id: user_id}) do
-    lead_id = GenServer.call(@self, :get).message_id
+  def handler(%{emoji: %{name: emoji}, message_id: message_id, user_id: user_id}) do
+    lead_id = get_state().message_id
 
-    if Curie.my_id() != user_id and message_id == lead_id and emoji.name in @buttons do
-      interaction(@actions[emoji.name])
+    if Curie.my_id() != user_id and message_id == lead_id and emoji in @buttons do
+      interaction(@actions[emoji])
     end
   end
 end

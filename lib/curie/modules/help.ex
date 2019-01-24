@@ -5,6 +5,11 @@ defmodule Curie.Help do
   alias Curie.Data.Help
   alias Curie.Data
 
+  @type command_info :: %{
+          commands: [String.t()],
+          full: %{String.t() => %{description: String.t(), short: String.t() | nil}}
+        }
+
   @self __MODULE__
 
   @check_typo ~w/curie currency help/
@@ -16,7 +21,7 @@ defmodule Curie.Help do
 
   @impl true
   def init(_args) do
-    {:ok, get_commands()}
+    {:ok, get_stored_commands()}
   end
 
   @impl true
@@ -26,7 +31,17 @@ defmodule Curie.Help do
 
   @impl true
   def handle_cast(:reload, _state) do
-    {:noreply, get_commands()}
+    {:noreply, get_stored_commands()}
+  end
+
+  @spec get_command_info() :: command_info()
+  def get_command_info do
+    GenServer.call(@self, :get)
+  end
+
+  @spec refresh_help_state() :: no_return()
+  def refresh_help_state do
+    GenServer.cast(@self, :reload)
   end
 
   @spec parse(String.t()) :: String.t()
@@ -40,17 +55,15 @@ defmodule Curie.Help do
     {command, %{description: parse(description), short: short}}
   end
 
-  @spec get_commands() :: %{
-          commands: [String.t()],
-          full: %{String.t() => %{description: String.t(), short: String.t() | nil}}
-        }
-  def get_commands do
+  @spec get_stored_commands() :: command_info()
+  def get_stored_commands do
     case Data.all(Help) do
       [] ->
         %{commands: [], full: %{}}
 
       entries ->
-        Enum.map(entries, &parse/1)
+        entries
+        |> Enum.map(&parse/1)
         |> Enum.into(%{})
         |> (&%{commands: Map.keys(&1), full: &1}).()
     end
@@ -96,13 +109,13 @@ defmodule Curie.Help do
 
   @impl true
   def command({"help", @owner = message, [call]}) when call == "r" do
-    GenServer.cast(@self, :reload)
+    refresh_help_state()
     Curie.embed(message, "Help module state reloaded.", "green")
   end
 
   @impl true
   def command({"help", message, []}) do
-    %{commands: commands, full: full} = GenServer.call(@self, :get)
+    %{commands: commands, full: full} = get_command_info()
 
     commands
     |> Enum.filter(&(full[&1].short != nil))
@@ -118,7 +131,7 @@ defmodule Curie.Help do
 
   @impl true
   def command({"help", message, [command | _rest]}) do
-    %{commands: commands, full: full} = GenServer.call(@self, :get)
+    %{commands: commands, full: full} = get_command_info()
 
     case Curie.check_typo(command, commands) do
       nil ->
