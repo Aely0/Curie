@@ -53,8 +53,13 @@ defmodule Curie.Currency do
   @spec validate_recipient(map()) :: Member.t() | nil
   def validate_recipient(message) do
     case Curie.get_member(message, 2) do
-      {:ok, member} -> if Storage.whitelisted?(member), do: member
-      {:error, _reason} -> nil
+      {:ok, member} ->
+        if Storage.whitelisted?(member) do
+          member
+        end
+
+      {:error, _reason} ->
+        nil
     end
   end
 

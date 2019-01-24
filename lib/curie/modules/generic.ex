@@ -98,8 +98,12 @@ defmodule Curie.Generic do
             |> (&Curie.embed(message, &1, "dblue")).()
           end
 
-        {:error, _reason} ->
+        {:error, :member_not_found} ->
           "Member '#{Enum.join(args, " ")}' not found."
+          |> (&Curie.embed(message, &1, "red")).()
+
+        {:error, reason} ->
+          "Unable to update roles (#{reason})."
           |> (&Curie.embed(message, &1, "red")).()
       end
     end
@@ -121,13 +125,13 @@ defmodule Curie.Generic do
     else
       {:error, :member_not_found} ->
         name = if format, do: Enum.join(rest, " "), else: Enum.join(args, " ")
-        Curie.embed(message, "Member '#{name}' not found", "red")
+        Curie.embed(message, "Member '#{name}' not found.", "red")
 
       {:error, "415"} ->
-        Curie.embed(message, "Invalid format for member's avatar", "red")
+        Curie.embed(message, "Invalid format for member's avatar.", "red")
 
       {:error, reason} ->
-        Curie.embed(message, "Unable to fetch member's avatar (#{reason})", "red")
+        Curie.embed(message, "Unable to fetch member's avatar (#{reason}).", "red")
     end
   end
 
@@ -184,8 +188,12 @@ defmodule Curie.Generic do
 
         Curie.embed(message, description, "green")
 
-      {:error, _reason} ->
+      {:error, :member_not_found} ->
         "Member '#{Enum.join(args, " ")}' not found."
+        |> (&Curie.embed(message, &1, "red")).()
+
+      {:error, reason} ->
+        "Unable to retrieve details (#{reason})."
         |> (&Curie.embed(message, &1, "red")).()
     end
   end

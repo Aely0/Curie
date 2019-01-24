@@ -130,8 +130,8 @@ defmodule Curie.Storage do
       {:ok, %{user: %{id: id, username: username}}} ->
         change_member_standing(action, id, username, message)
 
-      {:error, _reason} ->
-        Curie.embed(message, "Member not found.", "red")
+      {:error, reason} ->
+        Curie.embed(message, "Unable to #{action} member (#{reason}).", "red")
     end
   end
 
