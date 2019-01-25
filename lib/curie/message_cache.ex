@@ -74,13 +74,13 @@ defmodule Curie.MessageCache do
   end
 
   @spec ignore?(%{author: %{id: User.id()}}) :: boolean()
-  def ignore?(%{author: %{id: member}}) do
-    member in GenServer.call(@self, :ignore)
+  def ignore?(%{author: %{id: member_id}}) do
+    member_id in GenServer.call(@self, :ignore)
   end
 
   @spec ignore?(%{user: %{id: User.id()}}) :: boolean()
-  def ignore?(%{user: %{id: member}}) do
-    member in GenServer.call(@self, :ignore)
+  def ignore?(%{user: %{id: member_id}}) do
+    member_id in GenServer.call(@self, :ignore)
   end
 
   @spec get(%{guild_id: Guild.id(), id: Message.id()}) :: map() | nil

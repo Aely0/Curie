@@ -74,8 +74,8 @@ defmodule Curie.Storage do
   def store_details(_unusable), do: nil
 
   @spec get_details(User.id()) :: {String.t(), String.t(), String.t()}
-  def get_details(member) do
-    case Data.get(Details, member) do
+  def get_details(member_id) do
+    case Data.get(Details, member_id) do
       nil ->
         {"Never seen online", "Never", "None"}
 
@@ -97,7 +97,8 @@ defmodule Curie.Storage do
   def status_gather(_unusable), do: nil
 
   @spec change_member_standing(String.t(), User.id(), User.username(), Message.t()) :: Message.t()
-  def change_member_standing("whitelist", id, name, %{guild_id: guild} = message) do
+  def change_member_standing("whitelist", id, name, %{guild_id: guild} = message)
+      when guild != nil do
     if whitelisted?(id) do
       "Member already whitelisted."
       |> (&Curie.embed(message, &1, "red")).()
@@ -116,8 +117,8 @@ defmodule Curie.Storage do
         "Already does not exist. Job's done... I guess?"
         |> (&Curie.embed(message, &1, "red")).()
 
-      member ->
-        Data.delete(member)
+      balance ->
+        Data.delete(balance)
 
         "#{name} removed, never liked that one anyway."
         |> (&Curie.embed(message, &1, "green")).()

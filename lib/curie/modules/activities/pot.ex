@@ -182,7 +182,7 @@ defmodule Curie.Pot do
   end
 
   @spec pot(Message.t(), User.id(), pos_integer(), pos_integer() | nil) :: no_return()
-  def pot(%{channel_id: channel_id} = message, member, value, limit \\ nil) do
+  def pot(%{channel_id: channel_id} = message, member_id, value, limit \\ nil) do
     channel =
       case ChannelCache.get(channel_id) do
         {:ok, %{name: name}} -> "#" <> name
@@ -197,8 +197,8 @@ defmodule Curie.Pot do
       allow_add: true
     })
 
-    add_player({member, value})
-    Currency.change_balance(:deduct, member, value)
+    add_player({member_id, value})
+    Currency.change_balance(:deduct, member_id, value)
 
     announce_start(message, value, limit)
 
@@ -264,23 +264,23 @@ defmodule Curie.Pot do
     Curie.embed(message, "Invalid amount.", "red")
   end
 
-  def handle_event({"pot", %{author: %{id: member}} = message, _state, {value, args}}) do
+  def handle_event({"pot", %{author: %{id: member_id}} = message, _state, {value, args}}) do
     if args != [] and args |> List.first() |> Curie.check_typo("limit"),
-      do: pot(message, member, value, value),
-      else: pot(message, member, value)
+      do: pot(message, member_id, value, value),
+      else: pot(message, member_id, value)
   end
 
-  def handle_event({"add", %{author: %{id: member}} = message, state, {value, _args}}) do
+  def handle_event({"add", %{author: %{id: member_id}} = message, state, {value, _args}}) do
     member_total =
       state.players
-      |> Enum.filter(fn {id, _value} -> id == member end)
+      |> Enum.filter(fn {id, _value} -> id == member_id end)
       |> Enum.reduce(0, fn {_id, value}, accumulator -> value + accumulator end)
 
     value = if value > state.limit, do: state.limit, else: value
 
     if member_total + value <= state.limit do
-      add_player({member, value})
-      Currency.change_balance(:deduct, member, value)
+      add_player({member_id, value})
+      Currency.change_balance(:deduct, member_id, value)
       update_state(%{value: state.value + value})
 
       ("**#{message.author.username}** added **#{value}#{@tempest}**. " <>
@@ -294,10 +294,10 @@ defmodule Curie.Pot do
   end
 
   @impl true
-  def command({event, %{author: %{id: member}} = message, [value | args]})
+  def command({event, %{author: %{id: member_id}} = message, [value | args]})
       when event in ["pot", "add"] do
     if Storage.whitelisted?(message) do
-      value = Currency.value_parse(member, value)
+      value = Currency.value_parse(member_id, value)
       state = get_state()
       handle_event({event, message, state, {value, args}})
     else

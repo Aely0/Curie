@@ -217,8 +217,8 @@ defmodule Curie.TwentyOne do
   end
 
   @spec announce_start(map(), pos_integer()) :: no_return()
-  def announce_start(%{author: %{username: member}} = message, value) do
-    ("#{member} started a game of 21! " <>
+  def announce_start(%{author: %{username: name}} = message, value) do
+    ("#{name} started a game of 21! " <>
        "Join value is **#{value}**#{@tempest}\n" <> "Use **!21** to join! Join phase ends in 20s!")
     |> (&Curie.embed(message, &1, "dblue")).()
   end
@@ -415,13 +415,13 @@ defmodule Curie.TwentyOne do
   end
 
   @spec join(map(), User.id()) :: no_return()
-  def join(message, member) do
+  def join(message, member_id) do
     %{total_value: total_value, set_value: set_value, players: players} = get_state()
 
     players = Map.keys(players)
 
     cond do
-      member in players ->
+      member_id in players ->
         Curie.embed(message, "You are already in.", "red")
 
       length(players) >= 10 ->
@@ -429,9 +429,9 @@ defmodule Curie.TwentyOne do
 
       true ->
         update_state(%{total_value: total_value + set_value})
-        Currency.change_balance(:deduct, member, set_value)
-        name = Curie.get_username(member)
-        add_player(member)
+        Currency.change_balance(:deduct, member_id, set_value)
+        name = Curie.get_username(member_id)
+        add_player(member_id)
 
         "**#{name}** joined. [#{length(players) + 1}/10]"
         |> (&Curie.embed(message, &1, "lblue")).()
@@ -439,7 +439,7 @@ defmodule Curie.TwentyOne do
   end
 
   @spec start(map(), User.id(), pos_integer()) :: no_return()
-  def start(%{channel_id: channel_id} = message, member, value) do
+  def start(%{channel_id: channel_id} = message, member_id, value) do
     channel =
       case ChannelCache.get(channel_id) do
         {:ok, %{name: name}} -> "#" <> name
@@ -453,8 +453,8 @@ defmodule Curie.TwentyOne do
       total_value: value
     })
 
-    add_player(member)
-    Currency.change_balance(:deduct, member, value)
+    add_player(member_id)
+    Currency.change_balance(:deduct, member_id, value)
     announce_start(message, value)
 
     if join_phase(message) do
@@ -496,12 +496,12 @@ defmodule Curie.TwentyOne do
     Curie.embed(message, "Invalid amount.", "red")
   end
 
-  def handle_event({%{author: %{id: member}} = message, %{phase: :idle}, value}) do
-    start(message, member, value)
+  def handle_event({%{author: %{id: member_id}} = message, %{phase: :idle}, value}) do
+    start(message, member_id, value)
   end
 
-  def handle_event({%{author: %{id: member}} = message, %{phase: :joining}, _value}) do
-    join(message, member)
+  def handle_event({%{author: %{id: member_id}} = message, %{phase: :joining}, _value}) do
+    join(message, member_id)
   end
 
   @impl true
@@ -517,13 +517,13 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def command({"ace", %{guild_id: guild, author: %{id: member}} = message, [value | _rest]})
+  def command({"ace", %{guild_id: guild, author: %{id: member_id}} = message, [value | _rest]})
       when guild == nil do
     state = get_state()
 
     if can_continue?(message, state) do
       cond do
-        state.players[member].aces <= 0 ->
+        state.players[member_id].aces <= 0 ->
           Curie.embed(message, "No Aces to convert.", "red")
 
         value not in ["1", "11"] ->
@@ -531,7 +531,7 @@ defmodule Curie.TwentyOne do
 
         true ->
           card_type = String.to_integer(value)
-          {card_value, status} = ace_convert(member, card_type)
+          {card_value, status} = ace_convert(member_id, card_type)
           content = "Ace converted to **#{card_type}**.\nHand value is now **#{card_value}**."
           Curie.embed(message, content, "lblue")
           if status == :busted, do: Curie.embed(message, "Really...? \**sighs* \*", "red")
@@ -540,12 +540,12 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def command({"hit", %{guild_id: guild, author: %{id: member}} = message, _args})
+  def command({"hit", %{guild_id: guild, author: %{id: member_id}} = message, _args})
       when guild == nil do
     state = get_state()
 
     if can_continue?(message, state) and not has_aces?(message, state) do
-      {card, card_value, status} = pick_card(member)
+      {card, card_value, status} = pick_card(member_id)
       status = Atom.to_string(status) |> String.capitalize()
       content = "You received **#{card}**.\n#{status} with **#{card_value}**."
       Curie.embed(message, content, "lblue")
@@ -553,22 +553,22 @@ defmodule Curie.TwentyOne do
   end
 
   @impl true
-  def command({"stand", %{guild_id: guild, author: %{id: member}} = message, _args})
+  def command({"stand", %{guild_id: guild, author: %{id: member_id}} = message, _args})
       when guild == nil do
     state = get_state()
 
     if can_continue?(message, state) and not has_aces?(message, state) do
-      update_player_status(member, :standing)
-      card_value = state.players[member].card_value
+      update_player_status(member_id, :standing)
+      card_value = state.players[member_id].card_value
       content = "You are now standing with **#{card_value}**."
       Curie.embed(message, content, "lblue")
     end
   end
 
   @impl true
-  def command({"21", %{author: %{id: member}} = message, [value | _rest]}) do
+  def command({"21", %{author: %{id: member_id}} = message, [value | _rest]}) do
     if Storage.whitelisted?(message) do
-      value = Currency.value_parse(member, value)
+      value = Currency.value_parse(member_id, value)
       state = get_state()
       handle_event({message, state, value})
     else

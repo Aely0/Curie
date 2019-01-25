@@ -80,17 +80,17 @@ defmodule Curie.Generic do
       when role in ["felweed", "rally"] and args != [] do
     if author in @roles[role].mods do
       case Curie.get_member(message, 1) do
-        {:ok, %{roles: roles, user: %{id: member, username: name}}} ->
-          if member in @roles[role].mods do
+        {:ok, %{roles: roles, user: %{id: member_id, username: name}}} ->
+          if member_id in @roles[role].mods do
             "Cannot be used on yourself or other moderators."
             |> (&Curie.embed(message, &1, "red")).()
           else
             action =
               if @roles[role].id in roles do
-                Api.remove_guild_member_role(guild, member, @roles[role].id)
+                Api.remove_guild_member_role(guild, member_id, @roles[role].id)
                 "removed from"
               else
-                Api.add_guild_member_role(guild, member, @roles[role].id)
+                Api.add_guild_member_role(guild, member_id, @roles[role].id)
                 "added to"
               end
 
@@ -258,11 +258,11 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"roll", %{author: member} = message, _args}) do
-    text = "#{member.username} rolls: #{Enum.random(1..100)}"
+  def command({"roll", %{author: %{username: name} = user} = message, _args}) do
+    text = "#{name} rolls: #{Enum.random(1..100)}"
 
     %Nostrum.Struct.Embed{}
-    |> put_author(text, nil, Curie.avatar_url(member))
+    |> put_author(text, nil, Curie.avatar_url(user))
     |> put_color(Curie.color("lblue"))
     |> (&Curie.send(message, embed: &1)).()
   end

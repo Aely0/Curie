@@ -10,8 +10,8 @@ defmodule Curie.Currency do
   @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
 
   @spec value_parse(User.id(), String.t()) :: pos_integer() | nil
-  def value_parse(member, value) when is_integer(member) and is_binary(value) do
-    value_parse(value, get_balance(member))
+  def value_parse(member_id, value) when is_integer(member_id) and is_binary(value) do
+    value_parse(value, get_balance(member_id))
   end
 
   @spec value_parse(String.t(), integer() | nil) :: pos_integer() | nil
@@ -31,22 +31,22 @@ defmodule Curie.Currency do
   end
 
   @spec get_balance(User.id()) :: integer() | nil
-  def get_balance(member) do
-    with %{value: value} <- Data.get(Balance, member) do
+  def get_balance(member_id) do
+    with %{value: value} <- Data.get(Balance, member_id) do
       value
     end
   end
 
   @spec change_balance(:add | :deduct | :replace, User.id(), integer()) :: no_return()
-  def change_balance(action, member, value) do
-    member = Data.get(Balance, member)
+  def change_balance(action, member_id, value) do
+    balance = Data.get(Balance, member_id)
 
     case action do
-      :add -> member.value + value
-      :deduct -> member.value - value
+      :add -> balance.value + value
+      :deduct -> balance.value - value
       :replace -> value
     end
-    |> (&Balance.changeset(member, %{value: &1})).()
+    |> (&Balance.changeset(balance, %{value: &1})).()
     |> Data.update()
   end
 
@@ -64,9 +64,9 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def command({"balance", %{author: %{id: member, username: name}} = message, []}) do
+  def command({"balance", %{author: %{id: member_id, username: name}} = message, []}) do
     if Storage.whitelisted?(message) do
-      member
+      member_id
       |> get_balance()
       |> (&"#{name} has #{&1}#{@tempest}.").()
       |> (&Curie.embed(message, &1, "lblue")).()

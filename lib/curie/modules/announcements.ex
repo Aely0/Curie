@@ -63,30 +63,30 @@ defmodule Curie.Announcements do
   end
 
   @spec leave_log(Member.t()) :: no_return()
-  def leave_log(%{user: %{username: member}}) do
+  def leave_log(%{user: %{username: name}}) do
     case Curie.local_datetime() do
       %{hour: 0, minute: 0} ->
-        "#{member} was pruned for 30 days of inactivity #{Curie.time_now()}"
+        "#{name} was pruned for 30 days of inactivity #{Curie.time_now()}"
 
       _time ->
-        "#{member} left the guild. #{Curie.time_now()}"
+        "#{name} left the guild. #{Curie.time_now()}"
     end
     |> (&Curie.embed(@invisible, &1, "dblue")).()
   end
 
   @spec has_cooldown?(User.id()) :: boolean()
-  def has_cooldown?(member) do
+  def has_cooldown?(member_id) do
     # Returns true if timestamp is less than 6h old
-    case Data.get(Streams, member) do
+    case Data.get(Streams, member_id) do
       %{time: time} -> (Curie.local_datetime() |> Timex.to_unix()) - time <= 21600
       _no_cooldown -> false
     end
   end
 
   @spec set_cooldown(User.id()) :: no_return()
-  def set_cooldown(member) do
-    case Data.get(Streams, member) do
-      nil -> %Streams{member: member}
+  def set_cooldown(member_id) do
+    case Data.get(Streams, member_id) do
+      nil -> %Streams{member: member_id}
       cooldown -> cooldown
     end
     |> Streams.changeset(%{time: Curie.local_datetime() |> Timex.to_unix()})
@@ -94,16 +94,16 @@ defmodule Curie.Announcements do
   end
 
   @spec stream(%{game: String.t(), user: %{id: User.id()}}) :: no_return()
-  def stream(%{game: game, user: %{id: member}}) do
-    if game != nil and game.type == 1 and not has_cooldown?(member) do
+  def stream(%{game: game, user: %{id: member_id}}) do
+    if game != nil and game.type == 1 and not has_cooldown?(member_id) do
       twitch_id = Application.get_env(:curie, :twitch)
       channel_name = game.url |> String.split("/") |> List.last()
       url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
 
       with {:ok, %{body: body}} <- Curie.get(url),
            {:ok, details} <- Poison.decode(body),
-           {:ok, %{username: name} = user} <- UserCache.get(member),
-           {:ok, _entry} <- set_cooldown(member) do
+           {:ok, %{username: name} = user} <- UserCache.get(member_id),
+           {:ok, _entry} <- set_cooldown(member_id) do
         %Nostrum.Struct.Embed{}
         |> put_author("#{name} started streaming!", nil, Curie.avatar_url(user))
         |> put_description("[#{game.name}](#{game.url})")
