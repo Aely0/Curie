@@ -168,6 +168,32 @@ defmodule Curie do
     end
   end
 
+  @spec get_display_name(Message.t()) :: String.t()
+  def get_display_name(%{member: member, guild_id: guild_id, author: user}) do
+    cond do
+      member -> member.nick || user.username
+      guild_id -> get_display_name(guild_id, user.id)
+      user -> get_username(user.id)
+    end
+  end
+
+  @spec get_display_name(Guild.id(), User.id()) :: String.t()
+  def get_display_name(guild_id, user_id) do
+    case get_member({guild_id, :id, user_id}) do
+      {:ok, %{nick: nick, user: %{username: name}}} ->
+        nick || name
+
+      {:error, _reason} ->
+        case Api.get_guild_member(guild_id, user_id) do
+          {:ok, %{nick: nick, user: %{username: name}}} ->
+            nick || name
+
+          {:error, _reason} ->
+            "Unknown"
+        end
+    end
+  end
+
   @spec get_username(User.id()) :: String.t()
   def get_username(id) do
     case UserCache.get(id) do
@@ -243,11 +269,8 @@ defmodule Curie do
     end
   end
 
-  @spec get_member(
-          %{guild_id: Guild.id(), content: String.t(), mentions: [User.t()]},
-          non_neg_integer()
-        ) :: {:ok, Member.t()} | {:error, atom()}
-  def get_member(%{content: content, mentions: mentions} = message, position) do
+  @spec get_member(Message.t(), non_neg_integer()) :: {:ok, Member.t()} | {:error, atom()}
+  def get_member(%{guild_id: guild_id, content: content, mentions: mentions} = message, position) do
     full_name =
       content
       |> String.split()
@@ -255,7 +278,7 @@ defmodule Curie do
       |> Enum.join(" ")
 
     cond do
-      not Map.has_key?(message, :guild_id) or message.guild_id == nil ->
+      guild_id == nil ->
         {:error, :requires_guild_context}
 
       full_name == "" ->
