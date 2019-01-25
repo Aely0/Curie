@@ -4,6 +4,7 @@ defmodule Curie.Data.Migrations.CreateLeaderboard do
   def change do
     create table("leaderboard", primary_key: false) do
       add(:channel_id, :bigint, primary_key: true)
+      add(:guild_id, :bigint)
       add(:message_id, :bigint)
       add(:last_refresh, :text)
       add(:page_count, :integer)

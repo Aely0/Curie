@@ -4,6 +4,7 @@ defmodule Curie.Data.Leaderboard do
 
   @primary_key {:channel_id, :integer, []}
   schema "leaderboard" do
+    field(:guild_id, :integer)
     field(:message_id, :integer)
     field(:last_refresh, :string)
     field(:page_count, :integer)
@@ -16,6 +17,7 @@ defmodule Curie.Data.Leaderboard do
     struct
     |> cast(params, [
       :channel_id,
+      :guild_id,
       :message_id,
       :last_refresh,
       :page_count,

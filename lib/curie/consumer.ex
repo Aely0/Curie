@@ -60,8 +60,8 @@ defmodule Curie.Consumer do
   end
 
   @impl true
-  def handle_event({:PRESENCE_UPDATE, {_guild, _old, new}, _ws_state}) do
-    call_handlers(new, @handlers.presence)
+  def handle_event({:PRESENCE_UPDATE, {_guild_id, _old, _new} = presence, _ws_state}) do
+    call_handlers(presence, @handlers.presence)
   end
 
   @impl true

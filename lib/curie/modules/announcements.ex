@@ -94,7 +94,7 @@ defmodule Curie.Announcements do
   end
 
   @spec stream(%{game: String.t(), user: %{id: User.id()}}) :: no_return()
-  def stream(%{game: game, user: %{id: member_id}}) do
+  def stream({guild_id, _old, %{game: game, user: %{id: member_id}}}) do
     if game != nil and game.type == 1 and not has_cooldown?(member_id) do
       twitch_id = Application.get_env(:curie, :twitch)
       channel_name = game.url |> String.split("/") |> List.last()
@@ -102,7 +102,8 @@ defmodule Curie.Announcements do
 
       with {:ok, %{body: body}} <- Curie.get(url),
            {:ok, details} <- Poison.decode(body),
-           {:ok, %{username: name} = user} <- UserCache.get(member_id),
+           {:ok, %{id: user_id} = user} <- UserCache.get(member_id),
+           name = Curie.get_display_name(guild_id, user_id),
            {:ok, _entry} <- set_cooldown(member_id) do
         %Nostrum.Struct.Embed{}
         |> put_author("#{name} started streaming!", nil, Curie.avatar_url(user))

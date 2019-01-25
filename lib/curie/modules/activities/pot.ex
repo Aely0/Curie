@@ -19,7 +19,15 @@ defmodule Curie.Pot do
 
   @spec defaults() :: map()
   def defaults do
-    %{status: :idle, allow_add: false, value: 0, channel: nil, players: [], limit: nil}
+    %{
+      guild_id: nil,
+      status: :idle,
+      allow_add: false,
+      value: 0,
+      channel_name: nil,
+      players: [],
+      limit: nil
+    }
   end
 
   @impl true
@@ -68,10 +76,10 @@ defmodule Curie.Pot do
   end
 
   @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
-  def announce_start(%{author: %{username: name}} = message, value, limit) do
+  def announce_start(message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
 
-    ("Pot started by **#{name}**! " <>
+    ("Pot started by **#{Curie.get_display_name(message)}**! " <>
        "Join with **!add value**.\n" <>
        "Value: **#{value}#{@tempest}**\n" <>
        "Mode: **#{mode}**\n" <> "Rolling winner in 50-70 seconds!")
@@ -80,7 +88,9 @@ defmodule Curie.Pot do
 
   @spec announce_winner(map(), User.id(), pos_integer(), number()) :: no_return()
   def announce_winner(message, winner, value, chance) do
-    ("Winner of the Pot: **#{Curie.get_username(winner)}**\n" <>
+    %{guild_id: guild_id} = get_state()
+
+    ("Winner of the Pot: **#{Curie.get_display_name(guild_id, winner)}**\n" <>
        "Amount: **#{value}#{@tempest}**\n" <> "Chance: **#{chance}%**")
     |> (&Curie.embed(message, &1, "yellow")).()
   end
@@ -98,7 +108,8 @@ defmodule Curie.Pot do
       "♪ You are the one and only... ♪"
     ]
     |> Enum.random()
-    |> (&Curie.embed(message, &1 <> "\nNot enough players, value refunded.", "green")).()
+    |> (&(&1 <> "\nNot enough players, value refunded.")).()
+    |> (&Curie.embed(message, &1, "green")).()
   end
 
   @spec curie_decision(
@@ -109,23 +120,23 @@ defmodule Curie.Pot do
           limit :: pos_integer(),
           [{User.id(), pos_integer()}]
         ) :: no_return()
-  def curie_decision(channel, curie, balance, value, limit, players) do
+  def curie_decision(channel_id, curie, balance, value, limit, players) do
     # Decision branch called for limit mode
     cond do
       curie in Enum.map(players, fn {player, _} -> player end) ->
         nil
 
       balance >= limit and trunc(limit / (limit + value) * 100) >= 50 ->
-        Curie.send(channel, content: @prefix <> "add #{limit}")
+        Curie.send(channel_id, content: @prefix <> "add #{limit}")
 
       balance >= limit and trunc(limit / (limit + value) * 100) >= 20 and length(players) > 1 ->
-        Curie.send(channel, content: @prefix <> "add #{limit}")
+        Curie.send(channel_id, content: @prefix <> "add #{limit}")
 
       trunc(balance / (balance + value) * 100) >= 50 ->
-        Curie.send(channel, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, content: @prefix <> "add #{balance}")
 
       trunc(balance / (balance + value) * 100) >= 50 and length(players) > 1 ->
-        Curie.send(channel, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, content: @prefix <> "add #{balance}")
 
       true ->
         nil
@@ -139,23 +150,23 @@ defmodule Curie.Pot do
           value :: pos_integer(),
           [{User.id(), pos_integer()}]
         ) :: no_return()
-  def curie_decision(channel, curie, balance, value, [{player, _} | _] = players) do
+  def curie_decision(channel_id, curie, balance, value, [{player, _} | _] = players) do
     # Decision branch called for regular mode
     cond do
       player == curie and length(players) == 1 ->
         nil
 
       trunc(balance / (balance + value) * 100) in 30..80 ->
-        Curie.send(channel, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, content: @prefix <> "add #{balance}")
 
       trunc(balance / (balance + value) * 100) >= 80 and trunc(balance / 100 * 50) > 0 ->
         amount = trunc(balance / 100 * 50)
-        Curie.send(channel, content: @prefix <> "add #{amount}")
+        Curie.send(channel_id, content: @prefix <> "add #{amount}")
 
       trunc(balance / (balance + value) * 100) <= 30 and trunc(balance / 100 * 20) > 0 ->
         if Enum.random(1..5) == 5 do
           amount = trunc(balance / 100 * 20)
-          Curie.send(channel, content: @prefix <> "add #{amount}")
+          Curie.send(channel_id, content: @prefix <> "add #{amount}")
         end
 
       true ->
@@ -164,17 +175,17 @@ defmodule Curie.Pot do
   end
 
   @spec curie_join(Channel.id()) :: no_return()
-  def curie_join(channel) do
+  def curie_join(channel_id) do
     curie = Curie.my_id()
     balance = Currency.get_balance(curie)
     %{value: value, limit: limit, players: players} = get_state()
 
     cond do
       is_integer(limit) and balance > 0 ->
-        curie_decision(channel, curie, balance, value, limit, players)
+        curie_decision(channel_id, curie, balance, value, limit, players)
 
       limit == nil and balance > 0 ->
-        curie_decision(channel, curie, balance, value, players)
+        curie_decision(channel_id, curie, balance, value, players)
 
       true ->
         nil
@@ -182,18 +193,19 @@ defmodule Curie.Pot do
   end
 
   @spec pot(Message.t(), User.id(), pos_integer(), pos_integer() | nil) :: no_return()
-  def pot(%{channel_id: channel_id} = message, member_id, value, limit \\ nil) do
-    channel =
+  def pot(%{guild_id: guild_id, channel_id: channel_id} = message, member_id, value, limit \\ nil) do
+    channel_name =
       case ChannelCache.get(channel_id) do
         {:ok, %{name: name}} -> "#" <> name
         _not_found -> "an unknown channel"
       end
 
     update_state(%{
+      guild_id: guild_id,
       status: :playing,
       limit: limit,
       value: value,
-      channel: channel,
+      channel_name: channel_name,
       allow_add: true
     })
 
@@ -248,8 +260,8 @@ defmodule Curie.Pot do
   end
 
   @spec handle_event({String.t(), map(), map(), list()}) :: no_return()
-  def handle_event({"pot", message, %{status: :playing, channel: channel}, _args}) do
-    Curie.embed(message, "Game already started in #{channel}.", "red")
+  def handle_event({"pot", message, %{status: :playing, channel_name: channel_name}, _args}) do
+    Curie.embed(message, "Game already started in #{channel_name}.", "red")
   end
 
   def handle_event({"add", message, %{status: :idle}, _args}) do
@@ -283,7 +295,7 @@ defmodule Curie.Pot do
       Currency.change_balance(:deduct, member_id, value)
       update_state(%{value: state.value + value})
 
-      ("**#{message.author.username}** added **#{value}#{@tempest}**. " <>
+      ("**#{Curie.get_display_name(message)}** added **#{value}#{@tempest}**. " <>
          "Pot value is now **#{state.value + value}#{@tempest}**.")
       |> (&Curie.embed(message, &1, "lblue")).()
     else

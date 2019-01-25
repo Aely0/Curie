@@ -53,16 +53,14 @@ defmodule Curie.Colors do
   end
 
   @spec confirm_transaction(String.t(), map()) :: no_return()
-  def confirm_transaction(color_name, %{
-        author: %{id: member_id, username: name},
-        channel_id: channel,
-        guild_id: guild_id
-      }) do
+  def confirm_transaction(color_name, %{author: %{id: member_id}, guild_id: guild_id} = message) do
+    color = get_role_color(color_name, guild_id)
+    member_name = Curie.get_display_name(message)
     remove_all_color_roles(member_id, guild_id)
     Api.add_guild_member_role(guild_id, member_id, @color_roles[color_name])
     Api.add_guild_member_role(guild_id, member_id, @snowflakes)
     Currency.change_balance(:deduct, member_id, 500)
-    Curie.embed(channel, "#{name} acquired #{color_name}!", get_role_color(color_name, guild_id))
+    Curie.embed(message, "#{member_name} acquired #{color_name}!", color)
   end
 
   @impl true

@@ -1,11 +1,13 @@
 defmodule Curie.Storage do
   use Curie.Commands
 
-  alias Nostrum.Cache.{ChannelCache, GuildCache, UserCache}
+  alias Nostrum.Cache.{ChannelCache, GuildCache}
   alias Nostrum.Struct.{Channel, Message, User}
 
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
+
+  @type presence :: {Guild.id(), old_presence :: map(), new_presence :: map()}
 
   @user_tables [Balance, Details]
 
@@ -27,8 +29,8 @@ defmodule Curie.Storage do
   @spec whitelist_message(map()) :: no_return()
   def whitelist_message(%{guild_id: guild_id} = message) do
     with {:ok, %{owner_id: owner_id}} <- GuildCache.get(guild_id),
-         {:ok, %{username: name}} <- UserCache.get(owner_id) do
-      "Whitelisting required, ask #{name}."
+         owner_name = Curie.get_display_name(guild_id, owner_id) do
+      "Whitelisting required, ask #{owner_name}."
       |> (&Curie.embed(message, &1, "red")).()
     end
   end
@@ -42,8 +44,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec store_details(%{author: %{id: User.id()}, channel_id: Channel.id(), type: Message.type()}) ::
-          no_return()
+  @spec store_details(Message.t()) :: no_return()
   def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
     with {:ok, %Channel{name: name}} when type == 0 <- ChannelCache.get(channel_id) do
       case Data.get(Details, id) do
@@ -58,8 +59,8 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec store_details(%{user: %{id: User.id()}, status: atom()}) :: no_return()
-  def store_details(%{user: %{id: id}, status: status}) do
+  @spec store_details(presence()) :: no_return()
+  def store_details({_guild_id, _old, %{user: %{id: id}, status: status}}) do
     if status == :offline do
       case Data.get(Details, id) do
         nil -> %Details{member: id}
@@ -85,10 +86,10 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec status_gather(%{game: %{name: String.t(), type: 0}, user: %{id: User.t()}}) :: no_return()
-  def status_gather(%{game: %{name: name, type: 0}, user: %{id: user}}) do
-    if !Data.get(Status, name) do
-      %Status{message: name, member: Curie.get_username(user)}
+  @spec status_gather(presence()) :: no_return()
+  def status_gather({guild_id, _old, %{game: %{name: game_name, type: 0}, user: %{id: user_id}}}) do
+    if !Data.get(Status, game_name) do
+      %Status{message: game_name, member: Curie.get_display_name(guild_id, user_id)}
       |> Data.insert()
     end
   end
@@ -128,8 +129,8 @@ defmodule Curie.Storage do
   @impl true
   def command({action, @owner = message, _args}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
-      {:ok, %{user: %{id: id, username: username}}} ->
-        change_member_standing(action, id, username, message)
+      {:ok, %{nick: nick, user: %{id: id, username: username}}} ->
+        change_member_standing(action, id, nick || username, message)
 
       {:error, reason} ->
         Curie.embed(message, "Unable to #{action} member (#{reason}).", "red")

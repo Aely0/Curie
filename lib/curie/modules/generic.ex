@@ -80,7 +80,7 @@ defmodule Curie.Generic do
       when role in ["felweed", "rally"] and args != [] do
     if author in @roles[role].mods do
       case Curie.get_member(message, 1) do
-        {:ok, %{roles: roles, user: %{id: member_id, username: name}}} ->
+        {:ok, %{nick: nick, roles: roles, user: %{id: member_id, username: username}}} ->
           if member_id in @roles[role].mods do
             "Cannot be used on yourself or other moderators."
             |> (&Curie.embed(message, &1, "red")).()
@@ -94,7 +94,7 @@ defmodule Curie.Generic do
                 "added to"
               end
 
-            "Role #{String.capitalize(role)} #{action} #{name}."
+            "Role #{String.capitalize(role)} #{action} #{nick || username}."
             |> (&Curie.embed(message, &1, "dblue")).()
           end
 
@@ -110,18 +110,20 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"avatar", %{channel_id: channel} = message, [format | rest] = args}) do
-    Api.start_typing(channel)
+  def command({"avatar", %{channel_id: channel_id} = message, [format | rest] = args}) do
+    Api.start_typing(channel_id)
 
     format = Curie.check_typo(format, ~w/jpg png webp gif/)
     member_position = if format, do: 2, else: 1
     format_with_default = format || "webp"
 
-    with {:ok, %{user: %{id: id}}} <- Curie.get_member(message, member_position),
-         {:ok, %{username: username} = user} <- Api.get_user(id),
+    with {:ok, %{nick: nick, user: %{id: user_id, username: username}}} <-
+           Curie.get_member(message, member_position),
+         {:ok, user} <- Api.get_user(user_id),
          avatar_url = Curie.avatar_url(user, format_with_default),
          {:ok, %{body: body}} <- Curie.get(avatar_url) do
-      Curie.send(message, file: %{name: "#{username}.#{format_with_default}", body: body})
+      filename = "#{nick || username}.#{format_with_default}"
+      Curie.send(message, file: %{name: filename, body: body})
     else
       {:error, :member_not_found} ->
         name = if format, do: Enum.join(rest, " "), else: Enum.join(args, " ")
@@ -143,7 +145,7 @@ defmodule Curie.Generic do
          nick: nick,
          roles: roles,
          joined_at: joined_at,
-         user: %{id: id, username: name, discriminator: disc}
+         user: %{id: id, username: username, discriminator: disc}
        }} ->
         {last_online, last_spoke, in_channel} = Curie.Storage.get_details(id)
 
@@ -177,8 +179,8 @@ defmodule Curie.Generic do
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         description =
-          "Display Name: #{nick || name}\n" <>
-            "Member: #{name}##{disc}\n" <>
+          "Display Name: #{nick || username}\n" <>
+            "Member: #{username}##{disc}\n" <>
             "Status: #{status}\n" <>
             "Last spoke: #{last_spoke}\n" <>
             "In channel: #{in_channel}\n" <>
@@ -258,8 +260,8 @@ defmodule Curie.Generic do
   end
 
   @impl true
-  def command({"roll", %{author: %{username: name} = user} = message, _args}) do
-    text = "#{name} rolls: #{Enum.random(1..100)}"
+  def command({"roll", %{author: user} = message, _args}) do
+    text = "#{Curie.get_display_name(message)} rolls: #{Enum.random(1..100)}"
 
     %Nostrum.Struct.Embed{}
     |> put_author(text, nil, Curie.avatar_url(user))

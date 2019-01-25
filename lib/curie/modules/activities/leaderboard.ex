@@ -26,11 +26,12 @@ defmodule Curie.Leaderboard do
 
   @impl true
   def init(_args) do
-    with %Leaderboard{channel_id: channel_id, message_id: message_id} = state <- load_state(),
+    with %Leaderboard{channel_id: channel_id, message_id: message_id} = state
+         when channel_id != nil and message_id != nil <- load_state(),
          {:ok, _message} <- Api.get_channel_message(channel_id, message_id) do
       {:ok, state}
     else
-      _no_recoverable_state -> {:ok, %{channel_id: nil, message_id: nil}}
+      _no_recoverable_state -> {:ok, %{channel_id: nil, guild_id: nil, message_id: nil}}
     end
   end
 
@@ -54,6 +55,7 @@ defmodule Curie.Leaderboard do
   def handle_cast(:save, state) do
     parameters = %{
       channel_id: state.channel_id,
+      guild_id: state.guild_id,
       message_id: state.message_id,
       last_refresh: state.last_refresh,
       page_count: state.page_count,
@@ -110,12 +112,16 @@ defmodule Curie.Leaderboard do
 
   @spec create_entries() :: [String.t()]
   def create_entries do
+    %{guild_id: guild_id} = get_state()
+
     Balance
     |> Data.all()
     |> Enum.group_by(& &1.value, & &1.member)
     |> Enum.into([])
     |> Enum.sort(&(&1 > &2))
-    |> Enum.map(fn {value, list} -> {value, Enum.map(list, &Curie.get_username/1)} end)
+    |> Enum.map(fn {value, list} ->
+      {value, Enum.map(list, &Curie.get_display_name(guild_id, &1))}
+    end)
     |> Enum.map(&format_entry/1)
     |> Enum.with_index(1)
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
@@ -185,8 +191,9 @@ defmodule Curie.Leaderboard do
   end
 
   @impl true
-  def command({"lead", message, _args}) do
-    %{message_id: old_message_id, channel_id: old_channel_id} = get_state()
+  def command({"lead", %{guild_id: guild_id} = message, _args}) do
+    %{message_id: old_message_id, channel_id: old_channel_id} =
+      update_and_get_state(%{guild_id: guild_id})
 
     if old_message_id do
       Api.delete_all_reactions(old_channel_id, old_message_id)
@@ -210,17 +217,17 @@ defmodule Curie.Leaderboard do
   end
 
   @spec handler(map()) :: no_return()
-  def handler(%{guild_id: guild_id} = message) do
-    if guild_id do
-      super(message)
-    end
-  end
-
   def handler(%{emoji: %{name: emoji}, message_id: message_id, user_id: user_id}) do
     lead_id = get_state().message_id
 
     if Curie.my_id() != user_id and message_id == lead_id and emoji in @buttons do
       interaction(@actions[emoji])
+    end
+  end
+
+  def handler(%{guild_id: guild_id} = message) do
+    if guild_id do
+      super(message)
     end
   end
 end

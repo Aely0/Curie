@@ -30,7 +30,7 @@ defmodule Curie.Currency do
     |> (&if(&1 != nil and &1 in 1..balance, do: &1)).()
   end
 
-  @spec get_balance(User.id()) :: integer() | nil
+  @spec get_balance(User.id()) :: Balance.value() | nil
   def get_balance(member_id) do
     with %{value: value} <- Data.get(Balance, member_id) do
       value
@@ -64,11 +64,11 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def command({"balance", %{author: %{id: member_id, username: name}} = message, []}) do
+  def command({"balance", %{author: %{id: member_id}} = message, []}) do
     if Storage.whitelisted?(message) do
       member_id
       |> get_balance()
-      |> (&"#{name} has #{&1}#{@tempest}.").()
+      |> (&"#{Curie.get_display_name(message)} has #{&1}#{@tempest}.").()
       |> (&Curie.embed(message, &1, "lblue")).()
     else
       Storage.whitelist_message(message)
@@ -81,23 +81,26 @@ defmodule Curie.Currency do
   end
 
   @impl true
-  def command({"gift", %{author: %{id: author, username: gifter}} = message, [value | _]}) do
+  def command({"gift", %{author: %{id: gifter}} = message, [value | _]}) do
     if Storage.whitelisted?(message) do
       case validate_recipient(message) do
         nil ->
           Curie.embed(message, "Invalid recipient.", "red")
 
-        %{user: %{id: target}} when target == author ->
+        %{user: %{id: giftee}} when giftee == gifter ->
           Curie.embed(message, "Really...?", "red")
 
-        %{user: %{id: target, username: giftee}} ->
-          case value_parse(value, get_balance(author)) do
+        %{nick: nick, user: %{id: giftee, username: username}} ->
+          case value_parse(value, get_balance(gifter)) do
             nil ->
               Curie.embed(message, "Invalid amount.", "red")
 
             amount ->
-              change_balance(:deduct, author, amount)
-              change_balance(:add, target, amount)
+              change_balance(:deduct, gifter, amount)
+              change_balance(:add, giftee, amount)
+
+              gifter = Curie.get_display_name(message)
+              giftee = nick || username
 
               "#{gifter} gifted #{amount}#{@tempest} to #{giftee}."
               |> (&Curie.embed(message, &1, "lblue")).()
