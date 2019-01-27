@@ -56,9 +56,15 @@ defmodule Curie do
     if similarity >= 0.75, do: match
   end
 
-  @spec unix_to_amount(non_neg_integer()) :: String.t()
-  def unix_to_amount(timestamp) when is_integer(timestamp) and timestamp >= 0 do
-    amount = (Curie.local_datetime() |> Timex.to_unix()) - timestamp
+  @spec unix_to_amount(non_neg_integer(), atom()) :: String.t()
+  def unix_to_amount(timestamp, mode \\ :local) when is_integer(timestamp) and timestamp >= 0 do
+    datetime =
+      case mode do
+        :local -> Curie.local_datetime()
+        :utc -> Timex.now()
+      end
+
+    amount = Timex.to_unix(datetime) - timestamp
     {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
     {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
     {days, hours} = {div(hours, 24), rem(hours, 24)}
