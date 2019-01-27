@@ -10,7 +10,6 @@ defmodule Curie.Scheduler do
   alias Curie.Data
 
   @self __MODULE__
-
   @overwatch Application.get_env(:curie, :channels).overwatch
   @shadowmere 90_579_372_049_723_392
 
@@ -21,7 +20,7 @@ defmodule Curie.Scheduler do
 
   @spec start_link() :: Supervisor.on_start()
   def start_link do
-    {:ok, pid} = Task.start_link(fn -> scheduler() end)
+    {:ok, pid} = Task.start_link(&scheduler/0)
     Process.register(pid, @self)
     {:ok, pid}
   end

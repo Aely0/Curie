@@ -17,7 +17,6 @@ defmodule Curie.TwentyOne do
   @type ace_type :: 1 | 11
 
   @self __MODULE__
-
   @check_typo ~w/21 ace hit stand deck/
 
   @spec start_link(term) :: GenServer.on_start()
@@ -327,14 +326,16 @@ defmodule Curie.TwentyOne do
         end
       end
 
-      if curie in players, do: Task.start(fn -> curie_move_logic() end)
+      if curie in players do
+        Task.start(&curie_move_logic/0)
+      end
     end
 
     ready_check = ready_check(state, ready_check)
 
     if curie in players and curie not in ready_check and
          Enum.count(state.players) - 1 == length(ready_check) do
-      Task.start(fn -> curie_move_logic() end)
+      Task.start(&curie_move_logic/0)
     end
 
     Process.sleep(1000)

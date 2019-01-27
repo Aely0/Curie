@@ -11,7 +11,6 @@ defmodule Curie.Help do
         }
 
   @self __MODULE__
-
   @check_typo ~w/curie currency help/
 
   @spec start_link(term) :: GenServer.on_start()

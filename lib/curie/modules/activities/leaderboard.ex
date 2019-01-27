@@ -13,7 +13,6 @@ defmodule Curie.Leaderboard do
   @type action :: :forward | :backward | :refresh | :new
 
   @self __MODULE__
-
   @actions %{"◀" => :backward, "▶" => :forward, "🔄" => :refresh}
   @buttons ["◀", "▶", "🔄"]
   @check_typo ~w/lead/

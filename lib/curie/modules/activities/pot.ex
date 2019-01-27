@@ -9,7 +9,6 @@ defmodule Curie.Pot do
   alias Curie.Data.Balance
 
   @self __MODULE__
-
   @check_typo ~w/pot add/
 
   @spec start_link(term) :: GenServer.on_start()

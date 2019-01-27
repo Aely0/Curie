@@ -7,7 +7,6 @@ defmodule Curie.MessageCache do
   alias Nostrum.Api
 
   @self __MODULE__
-
   @ignore [Application.get_env(:curie, :owner)]
   @limit 200
 
