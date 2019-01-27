@@ -14,12 +14,14 @@ defmodule Curie.Application do
   def start(_type, _args) do
     children = [
       Curie.Data,
+      Curie.Storage,
       Curie.MessageCache,
       Curie.Scheduler,
       Curie.Images,
       Curie.Help,
       Curie.ActivitySupervisor,
-      Curie.Consumer
+      Curie.Consumer,
+      Curie.Heartbeat
     ]
 
     IO.puts("  == Curie - Nostrum #{nostrum_git_hash()} ==\n")
