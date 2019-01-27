@@ -7,9 +7,28 @@ defmodule Curie.Storage do
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
 
+  alias Curie.Heartbeat
+
   @type presence :: {Guild.id(), old_presence :: map(), new_presence :: map()}
 
+  @self __MODULE__
   @user_tables [Balance, Details]
+
+  @spec child_spec(term()) :: Supervisor.child_spec()
+  def child_spec(_opts) do
+    %{id: @self, start: {@self, :start_link, []}, restart: :transient}
+  end
+
+  @spec start_link() :: Supervisor.on_start()
+  def start_link do
+    Task.start_link(&clear_last_status/0)
+  end
+
+  def clear_last_status do
+    if Heartbeat.offline_for_more_than?(120) do
+      Data.update_all(Details, set: [last_status_change: nil, last_status_type: nil])
+    end
+  end
 
   @spec whitelisted?(%{author: %{id: User.id()}}) :: boolean()
   def whitelisted?(%{author: %{id: user}}) do
@@ -45,15 +64,13 @@ defmodule Curie.Storage do
   end
 
   @spec store_details(Message.t()) :: no_return()
-  def store_details(%{author: %{id: id}, channel_id: channel_id, type: type}) do
+  def store_details(%{author: %{id: id}, channel_id: channel_id, guild_id: guild_id, type: type}) do
     with {:ok, %Channel{name: name}} when type == 0 <- ChannelCache.get(channel_id) do
-      case Data.get(Details, id) do
-        nil -> %Details{member: id}
-        entry -> entry
-      end
+      (Data.get(Details, id) || %Details{member: id})
       |> Details.changeset(%{
         spoke: Curie.local_datetime() |> Timex.to_unix(),
-        channel: if(name, do: "##{name}", else: "#DirectMessage")
+        channel: if(name, do: "##{name}", else: "#DirectMessage"),
+        guild_id: guild_id
       })
       |> Data.insert_or_update()
     end
@@ -61,29 +78,33 @@ defmodule Curie.Storage do
 
   @spec store_details(presence()) :: no_return()
   def store_details({_guild_id, _old, %{user: %{id: id}, status: status}}) do
-    if status == :offline do
-      case Data.get(Details, id) do
-        nil -> %Details{member: id}
-        entry -> entry
-      end
-      |> Details.changeset(%{online: Curie.local_datetime() |> Timex.to_unix()})
+    details = Data.get(Details, id)
+
+    if details == nil or details.last_status_type != to_string(status) do
+      (details || %Details{member: id})
+      |> Details.changeset(
+        if status == :offline do
+          %{
+            offline_since: Timex.to_unix(Curie.local_datetime()),
+            last_status_change: nil,
+            last_status_type: nil
+          }
+        else
+          %{
+            last_status_change: Timex.to_unix(Curie.local_datetime()),
+            last_status_type: to_string(status)
+          }
+        end
+      )
       |> Data.insert_or_update()
     end
   end
 
-  @spec store_details(term()) :: nil
   def store_details(_unusable), do: nil
 
-  @spec get_details(User.id()) :: {String.t(), String.t(), String.t()}
+  @spec get_details(User.id()) :: Details.t()
   def get_details(member_id) do
-    case Data.get(Details, member_id) do
-      nil ->
-        {"Never seen online", "Never", "None"}
-
-      %{online: online, spoke: spoke, channel: channel} ->
-        {if(online, do: "Offline for " <> Curie.unix_to_amount(online)) || "Never seen online",
-         if(spoke, do: Curie.unix_to_amount(spoke) <> " ago") || "Never", channel || "None"}
-    end
+    Data.get(Details, member_id) || %Details{}
   end
 
   @spec status_gather(presence()) :: no_return()
@@ -94,7 +115,6 @@ defmodule Curie.Storage do
     end
   end
 
-  @spec status_gather(term()) :: nil
   def status_gather(_unusable), do: nil
 
   @spec change_member_standing(String.t(), User.id(), User.username(), Message.t()) :: Message.t()
@@ -142,7 +162,10 @@ defmodule Curie.Storage do
 
   @spec handler(map()) :: no_return()
   def handler(%{author: %{id: id}} = message) do
-    if Curie.my_id() != id, do: store_details(message)
+    if Curie.my_id() != id do
+      store_details(message)
+    end
+
     super(message)
   end
 end

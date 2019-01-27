@@ -145,21 +145,65 @@ defmodule Curie.Generic do
          nick: nick,
          roles: roles,
          joined_at: joined_at,
-         user: %{id: id, username: username, discriminator: disc}
+         user: %{id: user_id, username: username, discriminator: disc}
        }} ->
-        {last_online, last_spoke, in_channel} = Curie.Storage.get_details(id)
+        %{
+          offline_since: offline_since,
+          last_status_change: last_status_change,
+          last_status_type: last_status_type,
+          spoke: last_spoke,
+          channel: in_channel
+        } = Curie.Storage.get_details(user_id)
+
+        presence = PresenceCache.get(user_id, guild)
 
         status =
-          case PresenceCache.get(id, guild) do
+          case presence do
             {:ok, %{status: :dnd}} ->
-              "Do Not Disturb"
+              if last_status_change && last_status_type == "dnd",
+                do: "Do Not Disturb for " <> Curie.unix_to_amount(last_status_change),
+                else: "Do Not Disturb"
 
             {:ok, %{status: status}} when status != :offline ->
-              status |> Atom.to_string() |> String.capitalize()
+              status_name = status |> Atom.to_string() |> String.capitalize()
 
-            _presence_not_found_or_offline ->
-              last_online
+              if last_status_change && last_status_type == to_string(status),
+                do: status_name <> " for " <> Curie.unix_to_amount(last_status_change),
+                else: status_name
+
+            _offline_or_not_found ->
+              if offline_since,
+                do: "Offline for #{Curie.unix_to_amount(offline_since)}",
+                else: "Never seen online"
           end
+
+        activity =
+          case presence do
+            {:ok, %{game: %{name: name, type: type, timestamps: %{start: start}}}} ->
+              %{0 => "Playing ", 1 => "Streaming ", 2 => "Listening to "}[type] <>
+                name <> " for " <> Curie.unix_to_amount(trunc(start / 1000), :utc)
+
+            {:ok, %{status: :online}} ->
+              "Stuff and things"
+
+            _offline_idle_dnd ->
+              [
+                "Sailing the 7 seas",
+                "Furnishing their evil lair",
+                "Dreaming about cheese...",
+                "Watching paint dry",
+                "Pretending to be a potato",
+                "Praising the sun",
+                "Doing a barrel roll",
+                "Taking a 14h nap"
+              ]
+              |> Enum.random()
+          end
+
+        last_spoke =
+          if last_spoke,
+            do: Curie.unix_to_amount(last_spoke) <> " ago",
+            else: "Never"
 
         roles =
           GuildCache.get!(guild).roles
@@ -169,12 +213,12 @@ defmodule Curie.Generic do
           |> (&if(&1 == "", do: "None", else: &1)).()
 
         account_created =
-          ((id >>> 22) + 1_420_070_400_000)
-          |> Timex.from_unix(:milliseconds)
+          ((user_id >>> 22) + 1_420_070_400_000)
+          |> Timex.from_unix(:millisecond)
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
         guild_joined =
-          (joined_at || Api.get_guild_member!(guild, id).joined_at)
+          (joined_at || Api.get_guild_member!(guild, user_id).joined_at)
           |> Timex.parse!("{ISO:Extended}")
           |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
 
@@ -182,9 +226,10 @@ defmodule Curie.Generic do
           "Display Name: #{nick || username}\n" <>
             "Member: #{username}##{disc}\n" <>
             "Status: #{status}\n" <>
-            "Last spoke: #{last_spoke}\n" <>
-            "In channel: #{in_channel}\n" <>
-            "ID: #{id}\n" <>
+            "Activity: #{activity}\n" <>
+            "Last spoke: #{last_spoke || "Never"}\n" <>
+            "In channel: #{in_channel || "None"}\n" <>
+            "ID: #{user_id}\n" <>
             "Roles: #{roles}\n" <>
             "Guild joined: #{guild_joined}\n" <> "Account created: #{account_created}"
 
