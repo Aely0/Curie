@@ -1,6 +1,17 @@
 defmodule Curie.Data.Leaderboard do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Nostrum.Struct.Snowflake
+
+  @type t :: %__MODULE__{
+          channel_id: Snowflake.t(),
+          guild_id: Snowflake.t(),
+          message_id: Snowflake.t(),
+          last_refresh: pos_integer(),
+          page_count: pos_integer(),
+          current_page: pos_integer(),
+          entries: [String.t()]
+        }
 
   @primary_key {:channel_id, :integer, []}
   schema "leaderboard" do

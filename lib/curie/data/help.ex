@@ -2,6 +2,12 @@ defmodule Curie.Data.Help do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          command: String.t(),
+          description: String.t(),
+          short: String.t() | nil
+        }
+
   @primary_key {:command, :string, []}
   schema "help" do
     field(:description, :string)

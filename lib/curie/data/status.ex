@@ -2,6 +2,11 @@ defmodule Curie.Data.Status do
   use Ecto.Schema
   import Ecto.Changeset
 
+  @type t :: %__MODULE__{
+          message: String.t(),
+          member: String.t()
+        }
+
   @primary_key {:message, :string, []}
   schema "status" do
     field(:member, :string)

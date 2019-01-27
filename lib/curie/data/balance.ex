@@ -1,6 +1,13 @@
 defmodule Curie.Data.Balance do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Nostrum.Struct.Snowflake
+
+  @type t :: %__MODULE__{
+          member: Snowflake.t(),
+          value: pos_integer(),
+          guild: Snowflake.t()
+        }
 
   @primary_key {:member, :integer, []}
   schema "balance" do

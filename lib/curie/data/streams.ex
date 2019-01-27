@@ -1,6 +1,12 @@
 defmodule Curie.Data.Streams do
   use Ecto.Schema
   import Ecto.Changeset
+  alias Nostrum.Struct.Snowflake
+
+  @type t :: %__MODULE__{
+          member: Snowflake.t(),
+          time: pos_integer()
+        }
 
   @primary_key {:member, :integer, []}
   schema "streams" do
