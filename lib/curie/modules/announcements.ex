@@ -85,15 +85,12 @@ defmodule Curie.Announcements do
 
   @spec set_cooldown(User.id()) :: no_return()
   def set_cooldown(member_id) do
-    case Data.get(Streams, member_id) do
-      nil -> %Streams{member: member_id}
-      cooldown -> cooldown
-    end
+    (Data.get(Streams, member_id) || %Streams{member: member_id})
     |> Streams.changeset(%{time: Curie.local_datetime() |> Timex.to_unix()})
     |> Data.insert_or_update()
   end
 
-  @spec stream(%{game: String.t(), user: %{id: User.id()}}) :: no_return()
+  @spec stream({Guild.id(), map(), %{game: String.t(), user: %{id: User.id()}}}) :: no_return()
   def stream({guild_id, _old, %{game: game, user: %{id: member_id}}}) do
     if game != nil and game.type == 1 and not has_cooldown?(member_id) do
       twitch_id = Application.get_env(:curie, :twitch)
