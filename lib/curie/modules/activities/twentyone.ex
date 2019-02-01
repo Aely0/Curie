@@ -39,17 +39,17 @@ defmodule Curie.TwentyOne do
     }
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     {:ok, defaults()}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:pick_card, player}, _from, state) do
     {card, new_deck} = List.pop_at(state.deck, 0, 0)
     state = %{state | deck: new_deck}
@@ -72,7 +72,7 @@ defmodule Curie.TwentyOne do
     {:reply, {card, card_value, status}, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:ace_convert, player, type}, _from, state) do
     state =
       update_in(state.players[player].aces, fn count -> count - 1 end)
@@ -88,20 +88,20 @@ defmodule Curie.TwentyOne do
     {:reply, {card_value, status}, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:add_player, player}, state) do
     new_player_state = %{cards: [], card_value: 0, aces: 0, status: :playing}
     new_state = put_in(state.players[player], new_player_state)
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:remove_player, player}, state) do
     {_removed, new_state} = pop_in(state.players[player])
     {:noreply, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:create_deck, state) do
     deck =
       Enum.flat_map(1..9, &List.duplicate(&1, 4))
@@ -111,17 +111,17 @@ defmodule Curie.TwentyOne do
     {:noreply, %{state | deck: deck, private_deck: deck}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:update_player_status, player, status}, state) do
     {:noreply, put_in(state.players[player].status, status)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:update, new}, state) do
     {:noreply, Map.merge(state, new)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:reset, state) do
     {:noreply, %{defaults() | last_deck: state.private_deck}}
   end
@@ -510,7 +510,7 @@ defmodule Curie.TwentyOne do
     join(message, member_id)
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"deck", message, _args}) do
     %{last_deck: last_deck} = get_state()
 
@@ -522,7 +522,7 @@ defmodule Curie.TwentyOne do
     Curie.embed(message, content, "green")
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"ace", %{guild_id: guild, author: %{id: member_id}} = message, [value | _rest]})
       when guild == nil do
     state = get_state()
@@ -545,7 +545,7 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"hit", %{guild_id: guild, author: %{id: member_id}} = message, _args})
       when guild == nil do
     state = get_state()
@@ -558,7 +558,7 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"stand", %{guild_id: guild, author: %{id: member_id}} = message, _args})
       when guild == nil do
     state = get_state()
@@ -571,7 +571,7 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"21", %{author: %{id: member_id}} = message, [value | _rest]}) do
     if Storage.whitelisted?(message) do
       value = Currency.value_parse(member_id, value)
@@ -582,14 +582,14 @@ defmodule Curie.TwentyOne do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"21", message, []}) do
     if Storage.whitelisted?(message),
       do: handle_event({message, get_state(), nil}),
       else: Storage.whitelist_message(message)
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

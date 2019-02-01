@@ -10,7 +10,7 @@ defmodule Curie.Generic do
   @check_typo ~w/felweed rally avatar details cat overwatch roll ping/
   @roles Application.get_env(:curie, :roles)
 
-  @impl true
+  @impl Curie.Commands
   def command({"eval", @owner = message, code}) do
     result =
       try do
@@ -34,7 +34,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"purge", @owner = %{id: id, channel_id: channel}, [count | option]}) do
     if option != [] and option |> hd() |> Curie.check_typo("curie") do
       curie = Curie.my_id()
@@ -55,7 +55,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"change_avatar", @owner = message, [path]}) do
     case File.read(path) do
       {:ok, file} ->
@@ -75,7 +75,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({role, %{author: %{id: author}, guild_id: guild} = message, args})
       when role in ["felweed", "rally"] and args != [] do
     if author in @roles[role].mods do
@@ -109,7 +109,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"avatar", %{channel_id: channel_id} = message, [format | rest] = args}) do
     Api.start_typing(channel_id)
 
@@ -137,7 +137,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"details", %{guild_id: guild} = message, args}) when args != [] do
     case Curie.get_member(message, 1) do
       {:ok,
@@ -245,7 +245,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"cat", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
@@ -267,7 +267,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"overwatch", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
@@ -304,7 +304,7 @@ defmodule Curie.Generic do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"roll", %{author: user} = message, _args}) do
     text = "#{Curie.get_display_name(message)} rolls: #{Enum.random(1..100)}"
 
@@ -314,7 +314,7 @@ defmodule Curie.Generic do
     |> (&Curie.send(message, embed: &1)).()
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"ping", %{heartbeat: %{send: send, ack: ack}} = message, _args}) do
     (ack - send)
     |> Integer.to_string()
@@ -322,7 +322,7 @@ defmodule Curie.Generic do
     |> (&Curie.send(message, content: &1 <> "ms")).()
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

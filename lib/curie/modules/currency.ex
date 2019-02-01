@@ -63,7 +63,7 @@ defmodule Curie.Currency do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"balance", %{author: %{id: member_id}} = message, []}) do
     if Storage.whitelisted?(message) do
       member_id
@@ -75,12 +75,12 @@ defmodule Curie.Currency do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"balance", message, [call | _rest] = args}) do
     subcommand({call, message, args})
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"gift", %{author: %{id: gifter}} = message, [value | _]}) do
     if Storage.whitelisted?(message) do
       case validate_recipient(message) do
@@ -111,12 +111,12 @@ defmodule Curie.Currency do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo.command, &command/1)
   end
 
-  @impl true
+  @impl Curie.Commands
   def subcommand({"curie", message, _args}) do
     Curie.my_id()
     |> get_balance()
@@ -124,7 +124,7 @@ defmodule Curie.Currency do
     |> (&Curie.embed(message, &1, "lblue")).()
   end
 
-  @impl true
+  @impl Curie.Commands
   def subcommand(call) do
     check_typo(call, @check_typo.subcommand, &subcommand/1)
   end

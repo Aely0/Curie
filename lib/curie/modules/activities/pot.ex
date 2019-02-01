@@ -29,27 +29,27 @@ defmodule Curie.Pot do
     }
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     {:ok, defaults()}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:update, new}, state) do
     {:noreply, Map.merge(state, new)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:player, player}, state) do
     {:noreply, Map.put(state, :players, state.players ++ [player])}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:reset, _state) do
     {:noreply, defaults()}
   end
@@ -304,7 +304,7 @@ defmodule Curie.Pot do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({event, %{author: %{id: member_id}} = message, [value | args]})
       when event in ["pot", "add"] do
     if Storage.whitelisted?(message) do
@@ -316,7 +316,7 @@ defmodule Curie.Pot do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

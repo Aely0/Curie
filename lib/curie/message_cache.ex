@@ -15,25 +15,25 @@ defmodule Curie.MessageCache do
     GenServer.start_link(@self, [], name: @self)
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     {:ok, %{id: me}} = Api.get_current_user()
     {:ok, %{:ignore => [me | @ignore]}}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:add, %{guild_id: guild, channel_id: channel} = message}, state) do
     {:noreply, add(guild || channel, message, state)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:get, container_id, message_id}, _from, state) do
     if Map.has_key?(state, container_id),
       do: {:reply, Enum.find(state[container_id], &(&1.id == message_id)), state},
       else: {:reply, nil, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:get, message_id}, _from, state) do
     state
     |> Map.delete(:ignore)
@@ -44,7 +44,7 @@ defmodule Curie.MessageCache do
     |> (&{:reply, &1, state}).()
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:ignore, _from, %{ignore: ignore_list} = state) do
     {:reply, ignore_list, state}
   end

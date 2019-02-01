@@ -63,7 +63,7 @@ defmodule Curie.Colors do
     Curie.embed(message, "#{member_name} acquired #{color_name}!", color)
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"color", message, [color_name | rest]}) do
     case parse_color_name(color_name) do
       nil ->
@@ -79,12 +79,12 @@ defmodule Curie.Colors do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo.command, &command/1)
   end
 
-  @impl true
+  @impl Curie.Commands
   def subcommand({"preview", message, [color_name | _rest]}) do
     case parse_color_name(color_name) do
       nil -> Curie.embed(message, "Color not recognized.", "red")
@@ -92,7 +92,7 @@ defmodule Curie.Colors do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def subcommand({"remove", %{author: %{id: member_id}, guild_id: guild_id} = message, _args}) do
     if Storage.whitelisted?(message) do
       remove_all_color_roles(member_id, guild_id)
@@ -102,6 +102,6 @@ defmodule Curie.Colors do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def subcommand(_invalid_arguments), do: nil
 end

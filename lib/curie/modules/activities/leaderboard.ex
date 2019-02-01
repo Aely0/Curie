@@ -23,7 +23,7 @@ defmodule Curie.Leaderboard do
     GenServer.start_link(@self, [], name: @self)
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     with %Leaderboard{channel_id: channel_id, message_id: message_id} = state
          when channel_id != nil and message_id != nil <- load_state(),
@@ -34,23 +34,23 @@ defmodule Curie.Leaderboard do
     end
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call({:update_and_get, new}, _from, state) do
     new_state = Map.merge(state, new)
     {:reply, new_state, new_state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast({:update, new}, state) do
     {:noreply, Map.merge(state, new)}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:save, state) do
     parameters = %{
       channel_id: state.channel_id,
@@ -189,7 +189,7 @@ defmodule Curie.Leaderboard do
     save_state()
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"lead", %{guild_id: guild_id} = message, _args}) do
     %{message_id: old_message_id, channel_id: old_channel_id} =
       update_and_get_state(%{guild_id: guild_id})
@@ -210,7 +210,7 @@ defmodule Curie.Leaderboard do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

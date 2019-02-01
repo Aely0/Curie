@@ -89,7 +89,7 @@ defmodule Curie.Weather do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"weather", %{channel_id: channel}, location}) do
     Api.start_typing(channel)
 
@@ -99,7 +99,7 @@ defmodule Curie.Weather do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

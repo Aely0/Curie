@@ -42,54 +42,54 @@ defmodule Curie.Consumer do
     Map.put(message, :heartbeat, %{send: send, ack: ack})
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:READY, _payload, _ws_state}) do
     IO.puts("# Curie: Awake! #{Curie.time_now()}")
     Curie.Scheduler.set_status()
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:MESSAGE_CREATE, {message}, ws_state}) do
     message |> add_heartbeat(ws_state) |> call_handlers(@handlers.message)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:MESSAGE_UPDATE, {%{content: content} = updated}, ws_state})
       when content != nil do
     updated |> add_heartbeat(ws_state) |> call_handlers(@handlers.message)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:PRESENCE_UPDATE, {_guild_id, _old, _new} = presence, _ws_state}) do
     call_handlers(presence, @handlers.presence)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:MESSAGE_DELETE, {message}, _ws_state}) do
     Curie.Announcements.delete_log(message)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:MESSAGE_REACTION_ADD, {reaction}, _ws_state}) do
     Curie.Leaderboard.handler(reaction)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:MESSAGE_REACTION_REMOVE, {reaction}, _ws_state}) do
     Curie.Leaderboard.handler(reaction)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:GUILD_MEMBER_ADD, {guild_id, member}, _ws_state}) do
     Curie.Announcements.join_log(guild_id, member)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event({:GUILD_MEMBER_REMOVE, {_guild_id, member}, _ws_state}) do
     Curie.Announcements.leave_log(member)
     Curie.Storage.remove(member.user.id)
   end
 
-  @impl true
+  @impl Nostrum.Consumer
   def handle_event(_event), do: :ignored
 end

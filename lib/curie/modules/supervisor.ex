@@ -13,7 +13,7 @@ defmodule Curie.ActivitySupervisor do
     Supervisor.start_link(@self, [], name: @self)
   end
 
-  @impl true
+  @impl Supervisor
   def init(_args) do
     children = [
       Curie.Leaderboard,

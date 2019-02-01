@@ -10,7 +10,7 @@ defmodule Curie.Application do
     end
   end
 
-  @impl true
+  @impl Application
   def start(_type, _args) do
     children = [
       Curie.Data,

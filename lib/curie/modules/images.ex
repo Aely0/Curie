@@ -13,17 +13,17 @@ defmodule Curie.Images do
     GenServer.start_link(@self, [], name: @self)
   end
 
-  @impl true
+  @impl GenServer
   def init(_args) do
     {:ok, get_stored_images()}
   end
 
-  @impl true
+  @impl GenServer
   def handle_call(:get, _from, state) do
     {:reply, state, state}
   end
 
-  @impl true
+  @impl GenServer
   def handle_cast(:reload, _state) do
     {:noreply, get_stored_images()}
   end
@@ -56,18 +56,18 @@ defmodule Curie.Images do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"images", @owner = message, [call]}) when call == "r" do
     refresh_image_state()
     Curie.embed(message, "Image directory state refreshed.", "green")
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({"images", message, []}) do
     Curie.embed(message, (get_images() |> Map.keys() |> Enum.join(", ")) <> ".", "green")
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(call) do
     check_typo(call, @check_typo, &command/1)
   end

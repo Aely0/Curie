@@ -2,7 +2,7 @@ defmodule Curie.Storage do
   use Curie.Commands
 
   alias Nostrum.Cache.{ChannelCache, GuildCache}
-  alias Nostrum.Struct.{Channel, Message, User}
+  alias Nostrum.Struct.{Message, User}
 
   alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
@@ -64,12 +64,13 @@ defmodule Curie.Storage do
   end
 
   @spec store_details(Message.t()) :: no_return()
-  def store_details(%{author: %{id: id}, channel_id: channel_id, guild_id: guild_id, type: type}) do
-    with {:ok, %Channel{name: name}} when type == 0 <- ChannelCache.get(channel_id) do
+  def store_details(%{author: %{id: id}, channel_id: channel_id, guild_id: guild_id, type: type})
+      when guild_id != nil do
+    with {:ok, %{name: channel_name}} when type == 0 <- ChannelCache.get(channel_id) do
       (Data.get(Details, id) || %Details{member: id})
       |> Details.changeset(%{
         spoke: Curie.local_datetime() |> Timex.to_unix(),
-        channel: if(name, do: "##{name}", else: "#DirectMessage"),
+        channel: "#" <> channel_name,
         guild_id: guild_id
       })
       |> Data.insert_or_update()
@@ -146,7 +147,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command({action, @owner = message, _args}) when action in ["whitelist", "remove"] do
     case Curie.get_member(message, 1) do
       {:ok, %{nick: nick, user: %{id: id, username: username}}} ->
@@ -157,7 +158,7 @@ defmodule Curie.Storage do
     end
   end
 
-  @impl true
+  @impl Curie.Commands
   def command(_call), do: nil
 
   @spec handler(map()) :: no_return()
