@@ -44,21 +44,38 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec delete_log(message_id_channel_id_maybe_guild_id :: map()) :: no_return()
-  def delete_log(%{channel_id: channel} = deleted_message) do
-    with true <- channel != @invisible,
-         {:ok, %{name: channel}} <- Api.get_channel(channel),
-         %{content: content, attachments: files, embeds: embeds} = message <-
-           MessageCache.get(deleted_message) do
+  @spec delete_log(map_with_message_id_channel_id_maybe_guild_id :: map()) :: no_return()
+  def delete_log(%{guild_id: guild_id, channel_id: channel_id} = deleted_message) do
+    with true <- channel_id != @invisible and guild_id != nil,
+         {:ok, [message | _] = messages} <- MessageCache.get(deleted_message),
+         {:ok, %{name: channel_name}} <- Api.get_channel(channel_id) do
       %{username: name, discriminator: disc} =
         Map.get(message, :author) || Map.get(message, :user)
 
-      content = if content == "", do: "No Content", else: content
-      files = if files != [], do: " " <> (files |> Enum.map(& &1.filename) |> inspect())
-      embeds = if embeds != [], do: " " <> inspect(embeds)
+      details =
+        for %{content: content, attachments: files, embeds: embeds} <- messages do
+          content = if content == "", do: "No Content", else: content
+          files = if files != [], do: " " <> (files |> Enum.map(& &1.filename) |> inspect())
+          embeds = if embeds != [], do: " " <> inspect(embeds)
+          "#{content}#{files}#{embeds}"
+        end
+        |> Enum.join(", edit: ")
 
-      "##{channel || "DirectMessage"} #{name}##{disc}: #{content}#{files}#{embeds}"
+      "##{channel_name} #{name}##{disc}: #{details}"
       |> (&Curie.embed(@invisible, &1, "red")).()
+    else
+      false ->
+        :ignore
+
+      {:error, :not_found} ->
+        {:ok, %{name: channel_name}} = Api.get_channel(channel_id)
+
+        "Message deleted in ##{channel_name}"
+        |> (&Curie.embed(@invisible, &1, "red")).()
+
+      {:error, reason} ->
+        "Delete log failed (#{inspect(reason)})"
+        |> (&Curie.embed(@invisible, &1, "red")).()
     end
   end
 
