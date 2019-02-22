@@ -79,7 +79,7 @@ defmodule Curie.Help do
        "tracking changes and mundane maintanace tasks.\n" <>
        "If you want to find out about all the things I can help you with,\n" <>
        "you can use one of my commands called **#{@prefix}help**.\n" <>
-       "If you want to look at my source code, you can find it here:\n" <>
+       "If you want to look at my source, you can find it here:\n" <>
        "https://github.com/Andris0/CurieEx")
     |> (&Curie.embed(message, &1, 0x620589)).()
   end
@@ -101,8 +101,7 @@ defmodule Curie.Help do
        "from a passive gain by being online during full clock hours.\n" <>
        "Passive gain caps at 300, so you'll actaully have to play\n" <>
        "with some other folk if you want to have enough for a name color.\n" <>
-       "Other than that, good luck and don't spend it all in one place!\n" <>
-       "(Not like you can spend it anywhere else anyway.)")
+       "Other than that, good luck and don't spend it all in one place!")
     |> (&Curie.embed(message, &1, 0xFFD700)).()
   end
 
@@ -121,8 +120,8 @@ defmodule Curie.Help do
     |> Enum.map(&"**#{@prefix <> &1}** - #{full[&1].short}")
     |> Enum.join("\n")
     |> (&("=> Curie's commands\n\n#{&1}\n\n" <>
-            "[+] indicates the need of additional\n" <>
-            "values for a command to run.\n\n" <>
+            "[+] - command requires additional values to run\n" <>
+            "[?] - command can take optional values\n\n" <>
             "Use **#{@prefix}help command** to see additional information,\n" <>
             "passable values, examples and subcommands\nfor a specific command.")).()
     |> (&Curie.embed(message, &1, "green")).()
