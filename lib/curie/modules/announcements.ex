@@ -83,7 +83,7 @@ defmodule Curie.Announcements do
   def leave_log(%{user: %{username: name}}) do
     case Curie.local_datetime() do
       %{hour: 0, minute: 0} ->
-        "#{name} was pruned for 30 days of inactivity #{Curie.time_now()}"
+        "#{name} was pruned for 30 days of inactivity #{Curie.time_now("%d-%m-%Y")}"
 
       _time ->
         "#{name} left the guild. #{Curie.time_now()}"

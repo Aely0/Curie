@@ -36,9 +36,9 @@ defmodule Curie do
     end
   end
 
-  @spec time_now() :: String.t()
-  def time_now do
-    local_datetime() |> Timex.format!("%H:%M:%S %d-%m-%Y", :strftime)
+  @spec time_now(strftime_format :: String.t()) :: String.t()
+  def time_now(format \\ "%H:%M:%S %d-%m-%Y") do
+    local_datetime() |> Timex.format!(format, :strftime)
   end
 
   @spec avatar_url(User.t(), String.t()) :: String.t()
