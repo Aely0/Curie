@@ -4,7 +4,7 @@ defmodule Curie.Application do
   @spec nostrum_git_hash() :: String.t()
   def nostrum_git_hash do
     with {:ok, binary} <- File.read("mix.lock") do
-      ~r/nostrum.git", "(\w{7}).+"/
+      ~r/nostrum.git", "(\w{7})/
       |> Regex.run(binary, capture: :all_but_first)
       |> List.first()
     end
