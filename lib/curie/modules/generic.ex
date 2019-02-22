@@ -4,6 +4,8 @@ defmodule Curie.Generic do
 
   import Nostrum.Struct.Embed
 
+  alias Curie.Generic.Dice
+
   alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Api
 
@@ -305,13 +307,14 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"roll", %{author: user} = message, _args}) do
-    text = "#{Curie.get_display_name(message)} rolls: #{Enum.random(1..100)}"
+  def command({"roll", message, args}) do
+    case Dice.roll(Enum.at(args, 0, "D100")) do
+      {:ok, roll} ->
+        Curie.embed(message, Curie.get_display_name(message) <> " " <> roll, "lblue")
 
-    %Nostrum.Struct.Embed{}
-    |> put_author(text, nil, Curie.avatar_url(user))
-    |> put_color(Curie.color("lblue"))
-    |> (&Curie.send(message, embed: &1)).()
+      {:error, reason} ->
+        Curie.embed(message, reason, "red")
+    end
   end
 
   @impl Curie.Commands
