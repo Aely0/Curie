@@ -25,9 +25,7 @@ curie-*.tar
 /.elixir_ls/
 /.vscode/
 
-/resources/
 /config/
-/test/
 
 curie.bat
 README.md

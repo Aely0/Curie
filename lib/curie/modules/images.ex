@@ -5,7 +5,7 @@ defmodule Curie.Images do
   @type image_map :: %{(name :: String.t()) => filename :: String.t()}
 
   @self __MODULE__
-  @path "resources/images"
+  @path "assets/images"
   @check_typo ~w/images/
 
   @spec start_link(term) :: GenServer.on_start()
