@@ -55,15 +55,17 @@ defmodule Curie.Weather do
   @spec format_forecast(%{String.t() => map(), String.t() => String.t()}, String.t()) ::
           String.t()
   def format_forecast(%{"currently" => weather, "timezone" => timezone}, address) do
-    "Location: #{address}\n" <>
-      "Local time: #{get_local_time(timezone)}\n" <>
-      "Weather: #{weather["summary"]}\n" <>
-      "Temperature: #{weather["temperature"]}°C\n" <>
-      "Apparent: #{weather["apparentTemperature"]}°C\n" <>
-      "Wind speed: #{weather["windSpeed"]}m/s\n" <>
-      "Wind direction: #{weather["windBearing"]}°\n" <>
-      "Humidity: #{trunc(weather["humidity"] * 100)}%\n" <>
-      "Cloud coverage: #{trunc(weather["cloudCover"] * 100)}%"
+    """
+    Location: #{address}
+    Local time: #{get_local_time(timezone)}
+    Weather: #{weather["summary"]}
+    Temperature: #{weather["temperature"]}°C
+    Apparent: #{weather["apparentTemperature"]}°C
+    Wind speed: #{weather["windSpeed"]}m/s
+    Wind direction: #{weather["windBearing"]}°
+    Humidity: #{trunc(weather["humidity"] * 100)}%
+    Cloud coverage: #{trunc(weather["cloudCover"] * 100)}%
+    """
   end
 
   @spec create_embed(String.t()) :: Embed.t()

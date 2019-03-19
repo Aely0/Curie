@@ -70,38 +70,42 @@ defmodule Curie.Help do
 
   @impl Curie.Commands
   def command({"curie", message, _args}) do
-    ("Heya, my name is Curie! I am a Discord bot written in Elixir.\n" <>
-       "My purpose here is to accompany members of Shadowmere, \n" <>
-       "offering relevant information and playful distractions.\n" <>
-       "My duties consist of fetching various content from the web,\n" <>
-       "posting notifications, updates and hosting mini-games.\n" <>
-       "I also help managing this guild with things like role management,\n" <>
-       "tracking changes and mundane maintanace tasks.\n" <>
-       "If you want to find out about all the things I can help you with,\n" <>
-       "you can use one of my commands called **#{@prefix}help**.\n" <>
-       "If you want to look at my source, you can find it here:\n" <>
-       "https://github.com/Andris0/CurieEx")
+    """
+    Heya, my name is Curie! I am a Discord bot written in Elixir.
+    My purpose here is to accompany members of Shadowmere,
+    offering relevant information and playful distractions.
+    My duties consist of fetching various content from the web,
+    posting notifications, updates and hosting mini-games.
+    I also help managing this guild with things like role management,
+    tracking changes and mundane maintanace tasks.
+    If you want to find out about all the things I can help you with,
+    you can use one of my commands called **#{@prefix}help**.
+    If you want to look at my source, you can find it here:
+    https://github.com/Andris0/CurieEx
+    """
     |> (&Curie.embed(message, &1, 0x620589)).()
   end
 
   @impl Curie.Commands
   def command({"currency", message, _args}) do
-    ("One of the things I manage here is the Currency System.\n" <>
-       "It works like this, you can ask the server owner to\n" <>
-       "whitelist your account and when approved, you will\n" <>
-       "have a balance tied to your account in form of Tempests #{@tempest}.\n" <>
-       "You can use these tempests to partake in my mini-games,\n" <>
-       "collect rewards and have your name on the leaderboard.\n" <>
-       "Current currency related mini-games are Pots and 21,\n" <>
-       "purchasable rewards are guild name color roles.\n" <>
-       "Both games need at least 2 players to reach a result.\n" <>
-       "I can fill one of the player spots, if it is needed.\n" <>
-       "(If I have any tempests myself to spend of course.)\n" <>
-       "At the start your balance will be 0, you can obtain them\n" <>
-       "from a passive gain by being online during full clock hours.\n" <>
-       "Passive gain caps at 300, so you'll actaully have to play\n" <>
-       "with some other folk if you want to have enough for a name color.\n" <>
-       "Other than that, good luck and don't spend it all in one place!")
+    """
+    One of the things I manage here is the Currency System.
+    It works like this, you can ask the server owner to
+    whitelist your account and when approved, you will
+    have a balance tied to your account in form of Tempests #{@tempest}.
+    You can use these tempests to partake in my mini-games,
+    collect rewards and have your name on the leaderboard.
+    Current currency related mini-games are Pots and 21,
+    purchasable rewards are guild name color roles.
+    Both games need at least 2 players to reach a result.
+    I can fill one of the player spots, if it is needed.
+    (If I have any tempests myself to spend of course.)
+    At the start your balance will be 0, you can obtain them
+    from a passive gain by being online during full clock hours.
+    Passive gain caps at 300, so you'll actaully have to play
+    with some other folk if you want to have enough for a name color.
+    Other than that, good luck and don't spend it all in one place!
+    """
     |> (&Curie.embed(message, &1, 0xFFD700)).()
   end
 
@@ -115,15 +119,23 @@ defmodule Curie.Help do
   def command({"help", message, []}) do
     %{commands: commands, full: full} = get_command_info()
 
-    commands
-    |> Enum.filter(&(full[&1].short != nil))
-    |> Enum.map(&"**#{@prefix <> &1}** - #{full[&1].short}")
-    |> Enum.join("\n")
-    |> (&("=> Curie's commands\n\n#{&1}\n\n" <>
-            "[+] - command requires additional values to run\n" <>
-            "[?] - command can take optional values\n\n" <>
-            "Use **#{@prefix}help command** to see additional information,\n" <>
-            "passable values, examples and subcommands\nfor a specific command.")).()
+    commands =
+      Enum.filter(commands, &(full[&1].short != nil))
+      |> Enum.map(&"**#{@prefix <> &1}** - #{full[&1].short}")
+      |> Enum.join("\n")
+
+    """
+    => Curie's commands
+
+    #{commands}
+
+    [+] - command requires additional values to run
+    [?] - command can take optional values
+
+    Use **#{@prefix}help command** to see additional information,
+    passable values, examples and subcommands
+    for a specific command.
+    """
     |> (&Curie.embed(message, &1, "green")).()
   end
 
