@@ -218,8 +218,9 @@ defmodule Curie.Leaderboard do
   @spec handler(map()) :: no_return()
   def handler(%{emoji: %{name: emoji}, message_id: message_id, user_id: user_id}) do
     lead_id = get_state().message_id
+    {:ok, curie_id} = Curie.my_id()
 
-    if Curie.my_id() != user_id and message_id == lead_id and emoji in @buttons do
+    if curie_id != user_id and message_id == lead_id and emoji in @buttons do
       interaction(@actions[emoji])
     end
   end

@@ -2,12 +2,11 @@ defmodule Curie do
   import Nostrum.Api, only: [bangify: 1]
   import Nostrum.Struct.Embed
 
-  alias Timex.AmbiguousDateTime
-
-  alias Nostrum.Struct.{Channel, Guild, Message, User, Snowflake}
+  alias Nostrum.Struct.{Channel, Guild, Message, User}
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Cache.{GuildCache, UserCache, Me}
   alias Nostrum.Error.ApiError
+  alias Nostrum.Snowflake
   alias Nostrum.Api
 
   @type message_or_error :: {:ok, Message.t()} | {:error, ApiError.t()}
@@ -16,10 +15,17 @@ defmodule Curie do
 
   @colors Application.get_env(:curie, :colors)
 
-  @spec my_id() :: User.id() | nil
+  @spec my_id() :: {:ok, User.id()} | {:error, ApiError.t() | HTTPoison.Error.t()}
   def my_id do
-    with %{id: curie} <- Me.get() do
-      curie
+    case Me.get() do
+      %User{id: id} ->
+        {:ok, id}
+
+      _not_found ->
+        case Api.get_current_user() do
+          {:ok, %User{id: id}} -> {:ok, id}
+          {:error, _reason} = error -> error
+        end
     end
   end
 
@@ -28,17 +34,9 @@ defmodule Curie do
     @colors[name]
   end
 
-  @spec local_datetime() :: DateTime.t()
-  def local_datetime do
-    case Timex.local() do
-      %DateTime{} = time -> time
-      %AmbiguousDateTime{} = time -> time.after
-    end
-  end
-
   @spec time_now(strftime_format :: String.t()) :: String.t()
   def time_now(format \\ "%H:%M:%S %d-%m-%Y") do
-    local_datetime() |> Timex.format!(format, :strftime)
+    :calendar.local_time() |> Timex.format!(format, :strftime)
   end
 
   @spec avatar_url(User.t(), String.t()) :: String.t()
@@ -56,15 +54,9 @@ defmodule Curie do
     if similarity >= 0.75, do: match
   end
 
-  @spec unix_to_amount(non_neg_integer(), atom()) :: String.t()
-  def unix_to_amount(timestamp, mode \\ :local) when is_integer(timestamp) and timestamp >= 0 do
-    datetime =
-      case mode do
-        :local -> Curie.local_datetime()
-        :utc -> Timex.now()
-      end
-
-    amount = Timex.to_unix(datetime) - timestamp
+  @spec unix_to_amount(non_neg_integer()) :: String.t()
+  def unix_to_amount(timestamp) when is_integer(timestamp) and timestamp >= 0 do
+    amount = Timex.to_unix(Timex.now()) - timestamp
     {minutes, seconds} = {div(amount, 60), rem(amount, 60)}
     {hours, minutes} = {div(minutes, 60), rem(minutes, 60)}
     {days, hours} = {div(hours, 24), rem(hours, 24)}

@@ -119,6 +119,7 @@ defmodule Curie.Currency do
   @impl Curie.Commands
   def subcommand({"curie", message, _args}) do
     Curie.my_id()
+    |> elem(1)
     |> get_balance()
     |> (&"My balance is #{&1}#{@tempest}.").()
     |> (&Curie.embed(message, &1, "lblue")).()

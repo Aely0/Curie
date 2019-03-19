@@ -69,7 +69,7 @@ defmodule Curie.Storage do
     with {:ok, %{name: channel_name}} when type == 0 <- ChannelCache.get(channel_id) do
       (Data.get(Details, id) || %Details{member: id})
       |> Details.changeset(%{
-        spoke: Curie.local_datetime() |> Timex.to_unix(),
+        spoke: Timex.to_unix(Timex.now()),
         channel: "#" <> channel_name,
         guild_id: guild_id
       })
@@ -86,13 +86,13 @@ defmodule Curie.Storage do
       |> Details.changeset(
         if status == :offline do
           %{
-            offline_since: Timex.to_unix(Curie.local_datetime()),
+            offline_since: Timex.to_unix(Timex.now()),
             last_status_change: nil,
             last_status_type: nil
           }
         else
           %{
-            last_status_change: Timex.to_unix(Curie.local_datetime()),
+            last_status_change: Timex.to_unix(Timex.now()),
             last_status_type: to_string(status)
           }
         end
@@ -163,7 +163,7 @@ defmodule Curie.Storage do
 
   @spec handler(map()) :: no_return()
   def handler(%{author: %{id: id}} = message) do
-    if Curie.my_id() != id do
+    with {:ok, curie_id} when curie_id != id <- Curie.my_id() do
       store_details(message)
     end
 

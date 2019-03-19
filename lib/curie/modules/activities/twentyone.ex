@@ -204,23 +204,27 @@ defmodule Curie.TwentyOne do
 
   @spec curie_move_logic() :: no_return()
   def curie_move_logic do
-    curie_pick_cards(Curie.my_id())
+    {:ok, curie_id} = Curie.my_id()
+    curie_pick_cards(curie_id)
   end
 
   @spec curie_join(Channel.id()) :: no_return()
   def curie_join(channel_id) do
     state = get_state()
+    {:ok, curie_id} = Curie.my_id()
 
     if state.phase == :joining and Enum.count(state.players) < 5 and
-         Currency.get_balance(Curie.my_id()) >= state.set_value do
+         Currency.get_balance(curie_id) >= state.set_value do
       Curie.send(channel_id, content: @prefix <> "21")
     end
   end
 
   @spec announce_start(map(), pos_integer()) :: no_return()
   def announce_start(message, value) do
-    ("#{Curie.get_display_name(message)} started a game of 21! " <>
-       "Join value is **#{value}**#{@tempest}\n" <> "Use **!21** to join! Join phase ends in 20s!")
+    """
+    #{Curie.get_display_name(message)} started a game of 21! Join value is **#{value}**#{@tempest}
+    Use **!21** to join! Join phase ends in 20s!
+    """
     |> (&Curie.embed(message, &1, "dblue")).()
   end
 
@@ -276,14 +280,17 @@ defmodule Curie.TwentyOne do
       |> Enum.map(&("**" <> &1 <> "**"))
       |> Enum.join(", ")
 
-    ("Starting cards have been distributed!\n" <>
-       "Players: #{names}.\n" <>
-       "Players have 2 minutes to complete their moves!\n" <>
-       "Moves have to be done by private messaging Curie.")
+    """
+    Starting cards have been distributed!
+    Players: #{names}
+    Players have 2 minutes to complete their moves!
+    Moves have to be done by private messaging Curie.
+    """
     |> (&Curie.embed(message, &1, "lblue")).()
 
     state = get_state()
-    players = List.delete(players, Curie.my_id())
+    {:ok, curie_id} = Curie.my_id()
+    players = List.delete(players, curie_id)
 
     unreachable =
       players
@@ -405,8 +412,7 @@ defmodule Curie.TwentyOne do
         change = if status == "Lost", do: -state.set_value, else: cut - state.set_value
 
         content =
-          "**#{name}** [#{cards}], **#{status}** " <>
-            "with **#{card_value}**, **#{balance}**#{@tempest}"
+          "**#{name}** [#{cards}], **#{status}** with **#{card_value}**, **#{balance}**#{@tempest}"
 
         {content, change}
       end
@@ -467,8 +473,9 @@ defmodule Curie.TwentyOne do
       create_deck()
 
       if starting_cards(message) do
+        {:ok, curie_id} = Curie.my_id()
         update_state(%{phase: :playing})
-        countdown(message, Curie.my_id())
+        countdown(message, curie_id)
         results(message)
       end
     end

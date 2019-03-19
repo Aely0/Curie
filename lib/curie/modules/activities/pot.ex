@@ -77,11 +77,14 @@ defmodule Curie.Pot do
   @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
   def announce_start(message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
+    member_name = Curie.get_display_name(message)
 
-    ("Pot started by **#{Curie.get_display_name(message)}**! " <>
-       "Join with **!add value**.\n" <>
-       "Value: **#{value}#{@tempest}**\n" <>
-       "Mode: **#{mode}**\n" <> "Rolling winner in 50-70 seconds!")
+    """
+    Pot started by **#{member_name}**! Join with **!add value**.
+    Value: **#{value}#{@tempest}**
+    Mode: **#{mode}**
+    Rolling winner in 50-70 seconds!
+    """
     |> (&Curie.embed(message, &1, "dblue")).()
   end
 
@@ -89,8 +92,11 @@ defmodule Curie.Pot do
   def announce_winner(message, winner, value, chance) do
     %{guild_id: guild_id} = get_state()
 
-    ("Winner of the Pot: **#{Curie.get_display_name(guild_id, winner)}**\n" <>
-       "Amount: **#{value}#{@tempest}**\n" <> "Chance: **#{chance}%**")
+    """
+    Winner of the Pot: **#{Curie.get_display_name(guild_id, winner)}**
+    Amount: **#{value}#{@tempest}**
+    Chance: **#{chance}%**
+    """
     |> (&Curie.embed(message, &1, "yellow")).()
   end
 
@@ -175,16 +181,16 @@ defmodule Curie.Pot do
 
   @spec curie_join(Channel.id()) :: no_return()
   def curie_join(channel_id) do
-    curie = Curie.my_id()
-    balance = Currency.get_balance(curie)
+    {:ok, curie_id} = Curie.my_id()
+    balance = Currency.get_balance(curie_id)
     %{value: value, limit: limit, players: players} = get_state()
 
     cond do
       is_integer(limit) and balance > 0 ->
-        curie_decision(channel_id, curie, balance, value, limit, players)
+        curie_decision(channel_id, curie_id, balance, value, limit, players)
 
       limit == nil and balance > 0 ->
-        curie_decision(channel_id, curie, balance, value, players)
+        curie_decision(channel_id, curie_id, balance, value, players)
 
       true ->
         nil

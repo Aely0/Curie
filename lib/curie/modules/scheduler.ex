@@ -37,19 +37,19 @@ defmodule Curie.Scheduler do
 
   @spec member_balance_gain() :: no_return()
   def member_balance_gain do
-    curie = Curie.my_id()
+    {:ok, curie_id} = Curie.my_id()
 
     Balance
     |> Data.all()
-    |> Enum.filter(&(&1.member != curie))
+    |> Enum.filter(&(&1.member != curie_id))
     |> Enum.each(&apply_gain/1)
   end
 
   @spec curie_balance_change(:gain | :decay) :: no_return()
   def curie_balance_change(action) do
-    with curie when curie != nil <- Curie.my_id(),
-         %{value: balance} <- Data.get(Balance, curie) do
-      curie_balance_change(action, curie, balance)
+    with {:ok, curie_id} <- Curie.my_id(),
+         %{value: balance} <- Data.get(Balance, curie_id) do
+      curie_balance_change(action, curie_id, balance)
     end
   end
 
@@ -164,15 +164,17 @@ defmodule Curie.Scheduler do
 
   @spec scheduler() :: no_return()
   def scheduler do
-    %{hour: hour, minute: minute, second: second} = Curie.local_datetime()
+    time = :calendar.local_time()
 
-    if minute == 0 and second == 0 do
+    # Hourly
+    if match?({_, {_, 0, 0}}, time) do
       Task.start(fn -> curie_balance_change(:decay) end)
       Task.start(&member_balance_gain/0)
       Task.start(&set_status/0)
     end
 
-    if hour == 0 and minute == 0 and second == 0 do
+    # Daily
+    if match?({_, {0, 0, 0}}, time) do
       Task.start(fn -> curie_balance_change(:gain) end)
       Task.start(&prune/0)
     end

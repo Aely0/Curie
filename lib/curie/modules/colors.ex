@@ -45,11 +45,11 @@ defmodule Curie.Colors do
   def color_preview(color_name, %{channel_id: channel_id, guild_id: guild_id}) do
     color_value = get_role_color(color_name, guild_id)
     color_id = @color_roles[color_name]
-    curie = Curie.my_id()
+    {:ok, curie_id} = Curie.my_id()
 
-    Api.add_guild_member_role(guild_id, curie, color_id)
+    Api.add_guild_member_role(guild_id, curie_id, color_id)
     Curie.embed(channel_id, color_name, color_value)
-    Api.remove_guild_member_role(guild_id, curie, color_id)
+    Api.remove_guild_member_role(guild_id, curie_id, color_id)
   end
 
   @spec confirm_transaction(String.t(), map()) :: no_return()

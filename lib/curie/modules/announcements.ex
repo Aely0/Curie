@@ -1,5 +1,5 @@
 defmodule Curie.Announcements do
-  import Nostrum.Struct.Snowflake, only: [is_snowflake: 1]
+  import Nostrum.Snowflake, only: [is_snowflake: 1]
   import Nostrum.Struct.Embed
 
   alias Nostrum.Struct.{Guild, Invite, User}
@@ -81,8 +81,8 @@ defmodule Curie.Announcements do
 
   @spec leave_log(Member.t()) :: no_return()
   def leave_log(%{user: %{username: name}}) do
-    case Curie.local_datetime() do
-      %{hour: 0, minute: 0} ->
+    case :calendar.local_time() do
+      {_, {0, 0, _}} ->
         "#{name} was pruned for 30 days of inactivity #{Curie.time_now("%d-%m-%Y")}"
 
       _time ->
@@ -93,9 +93,9 @@ defmodule Curie.Announcements do
 
   @spec has_cooldown?(User.id()) :: boolean()
   def has_cooldown?(member_id) do
-    # Returns true if timestamp is less than 6h old
+    # Cooldown of 6 hours
     case Data.get(Streams, member_id) do
-      %{time: time} -> (Curie.local_datetime() |> Timex.to_unix()) - time <= 21600
+      %{time: time} -> (Timex.now() |> Timex.to_unix()) - time <= 21600
       _no_cooldown -> false
     end
   end
@@ -103,7 +103,7 @@ defmodule Curie.Announcements do
   @spec set_cooldown(User.id()) :: no_return()
   def set_cooldown(member_id) do
     (Data.get(Streams, member_id) || %Streams{member: member_id})
-    |> Streams.changeset(%{time: Curie.local_datetime() |> Timex.to_unix()})
+    |> Streams.changeset(%{time: Timex.now() |> Timex.to_unix()})
     |> Data.insert_or_update()
   end
 
