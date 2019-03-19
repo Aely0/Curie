@@ -4,9 +4,7 @@ defmodule Curie.Generic do
 
   import Nostrum.Struct.Embed
 
-  alias Curie.Generic.Dice
-
-  alias Nostrum.Cache.{GuildCache, PresenceCache}
+  alias Curie.Generic.{Details, Dice}
   alias Nostrum.Api
 
   @check_typo ~w/felweed rally avatar details cat overwatch roll ping/
@@ -39,12 +37,12 @@ defmodule Curie.Generic do
   @impl Curie.Commands
   def command({"purge", @owner = %{id: id, channel_id: channel}, [count | option]}) do
     if option != [] and option |> hd() |> Curie.check_typo("curie") do
-      curie = Curie.my_id()
+      {:ok, curie_id} = Curie.my_id()
 
       count
       |> String.to_integer()
       |> (&Api.get_channel_messages!(channel, &1 + 1)).()
-      |> Enum.filter(&(&1.author.id == curie))
+      |> Enum.filter(&(&1.author.id == curie_id))
       |> Enum.map(& &1.id)
       |> (&[id | &1]).()
       |> (&Api.bulk_delete_messages!(channel, &1)).()
@@ -140,102 +138,10 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"details", %{guild_id: guild} = message, args}) when args != [] do
+  def command({"details", %{guild_id: guild_id} = message, args}) when args != [] do
     case Curie.get_member(message, 1) do
-      {:ok,
-       %{
-         nick: nick,
-         roles: roles,
-         joined_at: joined_at,
-         user: %{id: user_id, username: username, discriminator: disc}
-       }} ->
-        %{
-          offline_since: offline_since,
-          last_status_change: last_status_change,
-          last_status_type: last_status_type,
-          spoke: last_spoke,
-          channel: in_channel
-        } = Curie.Storage.get_details(user_id)
-
-        presence = PresenceCache.get(user_id, guild)
-
-        status =
-          case presence do
-            {:ok, %{status: :dnd}} ->
-              if last_status_change && last_status_type == "dnd",
-                do: "Do Not Disturb for " <> Curie.unix_to_amount(last_status_change),
-                else: "Do Not Disturb"
-
-            {:ok, %{status: status}} when status != :offline ->
-              status_name = status |> Atom.to_string() |> String.capitalize()
-
-              if last_status_change && last_status_type == to_string(status),
-                do: status_name <> " for " <> Curie.unix_to_amount(last_status_change),
-                else: status_name
-
-            _offline_or_not_found ->
-              if offline_since,
-                do: "Offline for #{Curie.unix_to_amount(offline_since)}",
-                else: "Never seen online"
-          end
-
-        activity =
-          case presence do
-            {:ok, %{game: %{name: name, type: type, timestamps: %{start: start}}}} ->
-              %{0 => "Playing ", 1 => "Streaming ", 2 => "Listening to "}[type] <>
-                name <> " for " <> Curie.unix_to_amount(trunc(start / 1000), :utc)
-
-            {:ok, %{status: :online}} ->
-              "Stuff and things"
-
-            _offline_idle_dnd ->
-              [
-                "Sailing the 7 seas",
-                "Furnishing their evil lair",
-                "Dreaming about cheese...",
-                "Watching paint dry",
-                "Pretending to be a potato",
-                "Praising the sun",
-                "Doing a barrel roll",
-                "Taking a 14h nap"
-              ]
-              |> Enum.random()
-          end
-
-        last_spoke =
-          if last_spoke,
-            do: Curie.unix_to_amount(last_spoke) <> " ago",
-            else: "Never"
-
-        roles =
-          GuildCache.get!(guild).roles
-          |> Map.values()
-          |> Enum.filter(&(&1.id in roles))
-          |> Enum.map_join(", ", & &1.name)
-          |> (&if(&1 == "", do: "None", else: &1)).()
-
-        account_created =
-          ((user_id >>> 22) + 1_420_070_400_000)
-          |> Timex.from_unix(:millisecond)
-          |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
-
-        guild_joined =
-          (joined_at || Api.get_guild_member!(guild, user_id).joined_at)
-          |> Timex.parse!("{ISO:Extended}")
-          |> Timex.format!("%Y-%m-%d %H:%M:%S UTC", :strftime)
-
-        description =
-          "Display Name: #{nick || username}\n" <>
-            "Member: #{username}##{disc}\n" <>
-            "Status: #{status}\n" <>
-            "Activity: #{activity}\n" <>
-            "Last spoke: #{last_spoke || "Never"}\n" <>
-            "In channel: #{in_channel || "None"}\n" <>
-            "ID: #{user_id}\n" <>
-            "Roles: #{roles}\n" <>
-            "Guild joined: #{guild_joined}\n" <> "Account created: #{account_created}"
-
-        Curie.embed(message, description, "green")
+      {:ok, member} ->
+        Curie.embed(message, Details.get(member, guild_id), "green")
 
       {:error, :member_not_found} ->
         "Member '#{Enum.join(args, " ")}' not found."
