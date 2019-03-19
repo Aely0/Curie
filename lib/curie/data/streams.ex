@@ -1,7 +1,7 @@
 defmodule Curie.Data.Streams do
   use Ecto.Schema
   import Ecto.Changeset
-  alias Nostrum.Struct.Snowflake
+  alias Nostrum.Snowflake
 
   @type t :: %__MODULE__{
           member: Snowflake.t(),

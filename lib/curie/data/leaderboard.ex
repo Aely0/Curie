@@ -1,7 +1,7 @@
 defmodule Curie.Data.Leaderboard do
   use Ecto.Schema
   import Ecto.Changeset
-  alias Nostrum.Struct.Snowflake
+  alias Nostrum.Snowflake
 
   @type t :: %__MODULE__{
           channel_id: Snowflake.t(),

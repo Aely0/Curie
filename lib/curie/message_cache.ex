@@ -1,7 +1,7 @@
 defmodule Curie.MessageCache do
   use GenServer
 
-  import Nostrum.Struct.Snowflake, only: [is_snowflake: 1]
+  import Nostrum.Snowflake, only: [is_snowflake: 1]
 
   alias Nostrum.Struct.{Channel, Guild, Message, User}
   alias Nostrum.Api
