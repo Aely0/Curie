@@ -2,7 +2,6 @@ defmodule Curie.Scheduler do
   import Nostrum.Struct.Embed
 
   alias Nostrum.Cache.PresenceCache
-  alias Nostrum.Struct.User
   alias Nostrum.Api
 
   alias Curie.Currency
@@ -45,28 +44,27 @@ defmodule Curie.Scheduler do
     |> Enum.each(&apply_gain/1)
   end
 
-  @spec curie_balance_change(:gain | :decay) :: no_return()
-  def curie_balance_change(action) do
-    with {:ok, curie_id} <- Curie.my_id(),
-         %{value: balance} <- Data.get(Balance, curie_id) do
-      curie_balance_change(action, curie_id, balance)
+  @spec curie_balance_gain() :: no_return()
+  def curie_balance_gain do
+    with {:ok, id} <- Curie.my_id(),
+         %{value: balance} <- Data.get(Balance, id) do
+      cond do
+        balance + 10 <= 200 -> Currency.change_balance(:add, id, 10)
+        balance in 191..199 -> Currency.change_balance(:replace, id, 200)
+        true -> nil
+      end
     end
   end
 
-  @spec curie_balance_change(:gain | :decay, User.id(), Balance.value()) :: no_return()
-  def curie_balance_change(:gain, id, balance) do
-    cond do
-      balance + 10 <= 200 -> Currency.change_balance(:add, id, 10)
-      balance in 191..199 -> Currency.change_balance(:replace, id, 200)
-      true -> nil
-    end
-  end
-
-  def curie_balance_change(:decay, id, balance) do
-    cond do
-      balance - 10 >= 1000 -> Currency.change_balance(:deduct, id, 10)
-      balance in 1001..1009 -> Currency.change_balance(:replace, id, 1000)
-      true -> nil
+  @spec curie_balance_decay() :: no_return()
+  def curie_balance_decay do
+    with {:ok, id} <- Curie.my_id(),
+         %{value: balance} <- Data.get(Balance, id) do
+      cond do
+        balance - 10 >= 1000 -> Currency.change_balance(:deduct, id, 10)
+        balance in 1001..1009 -> Currency.change_balance(:replace, id, 1000)
+        true -> nil
+      end
     end
   end
 
@@ -168,18 +166,18 @@ defmodule Curie.Scheduler do
 
     # Hourly
     if match?({_, {_, 0, 0}}, time) do
-      Task.start(fn -> curie_balance_change(:decay) end)
+      Task.start(&curie_balance_decay/0)
       Task.start(&member_balance_gain/0)
       Task.start(&set_status/0)
     end
 
     # Daily
     if match?({_, {0, 0, 0}}, time) do
-      Task.start(fn -> curie_balance_change(:gain) end)
+      Task.start(&curie_balance_gain/0)
       Task.start(&prune/0)
     end
 
-    Process.sleep(1000)
+    Process.sleep(1000 - (:millisecond |> System.os_time() |> rem(1000)))
     scheduler()
   end
 end
