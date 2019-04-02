@@ -7,7 +7,7 @@ defmodule Curie.Currency do
   alias Curie.Data
   alias Curie.Storage
 
-  @check_typo %{command: ~w/balance gift/, subcommand: ~w/curie/}
+  @check_typo ~w/balance gift/
 
   @spec value_parse(User.id(), String.t()) :: pos_integer() | nil
   def value_parse(member_id, value) when is_integer(member_id) and is_binary(value) do
@@ -76,8 +76,16 @@ defmodule Curie.Currency do
   end
 
   @impl Curie.Commands
-  def command({"balance", message, [call | _rest] = args}) do
-    subcommand({call, message, args})
+  def command({"balance", message, [curie | _rest]}) do
+    if Curie.check_typo(curie, "curie") do
+      Curie.my_id()
+      |> elem(1)
+      |> get_balance()
+      |> (&"My balance is #{&1}#{@tempest}.").()
+      |> (&Curie.embed(message, &1, "lblue")).()
+    else
+      command({"balance", message, []})
+    end
   end
 
   @impl Curie.Commands
@@ -113,20 +121,6 @@ defmodule Curie.Currency do
 
   @impl Curie.Commands
   def command(call) do
-    check_typo(call, @check_typo.command, &command/1)
-  end
-
-  @impl Curie.Commands
-  def subcommand({"curie", message, _args}) do
-    Curie.my_id()
-    |> elem(1)
-    |> get_balance()
-    |> (&"My balance is #{&1}#{@tempest}.").()
-    |> (&Curie.embed(message, &1, "lblue")).()
-  end
-
-  @impl Curie.Commands
-  def subcommand(call) do
-    check_typo(call, @check_typo.subcommand, &subcommand/1)
+    check_typo(call, @check_typo, &command/1)
   end
 end
