@@ -83,7 +83,7 @@ defmodule Curie.Pot do
     Pot started by **#{member_name}**! Join with **!add value**.
     Value: **#{value}#{@tempest}**
     Mode: **#{mode}**
-    Rolling winner in 50-70 seconds!
+    Rolling winner in 10-20 seconds!
     """
     |> (&Curie.embed(message, &1, "dblue")).()
   end
@@ -219,17 +219,10 @@ defmodule Curie.Pot do
 
     announce_start(message, value, limit)
 
-    time = Enum.random(50..70)
+    time = Enum.random(10..20)
 
     for remaining <- time..1 do
-      if time - 30 == remaining do
-        Curie.embed(message, "Rolling in 20-40 seconds.", "dblue")
-      end
-
-      if 1 == remaining do
-        curie_join(channel_id)
-      end
-
+      if 1 == remaining, do: curie_join(channel_id)
       Process.sleep(1000)
     end
 
