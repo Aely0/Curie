@@ -45,7 +45,7 @@ defmodule Curie.Consumer do
   @impl Nostrum.Consumer
   def handle_event({:READY, _payload, _ws_state}) do
     IO.puts("# Curie: Awake! #{Curie.time_now()}")
-    Curie.Scheduler.set_status()
+    Curie.Scheduler.Tasks.set_status()
   end
 
   @impl Nostrum.Consumer

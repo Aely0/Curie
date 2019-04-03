@@ -4,6 +4,7 @@
   "combine": {:hex, :combine, "0.10.0", "eff8224eeb56498a2af13011d142c5e7997a80c8f5b97c499f84c841032e429f", [:mix], [], "hexpm"},
   "connection": {:hex, :connection, "1.0.4", "a1cae72211f0eef17705aaededacac3eb30e6625b04a6117c1b2db6ace7d5976", [:mix], [], "hexpm"},
   "cowlib": {:git, "https://github.com/ninenines/cowlib", "ab37df9d5273ea8541dbc08f2bd0d00e1b83479a", [ref: "master"]},
+  "crontab": {:hex, :crontab, "1.1.5", "2c9439506ceb0e9045de75879e994b88d6f0be88bfe017d58cb356c66c4a5482", [:mix], [{:ecto, "~> 1.0 or ~> 2.0 or ~> 3.0", [hex: :ecto, repo: "hexpm", optional: true]}], "hexpm"},
   "db_connection": {:hex, :db_connection, "1.1.3", "89b30ca1ef0a3b469b1c779579590688561d586694a3ce8792985d4d7e575a61", [:mix], [{:connection, "~> 1.0.2", [hex: :connection, repo: "hexpm", optional: false]}, {:poolboy, "~> 1.5", [hex: :poolboy, repo: "hexpm", optional: true]}, {:sbroker, "~> 1.0", [hex: :sbroker, repo: "hexpm", optional: true]}], "hexpm"},
   "decimal": {:hex, :decimal, "1.5.0", "b0433a36d0e2430e3d50291b1c65f53c37d56f83665b43d79963684865beab68", [:mix], [], "hexpm"},
   "deque": {:hex, :deque, "1.2.0", "30404b86264be3eeb4e8331d88ef67d0fdc77e006b2fa7872be03923a47245b7", [:mix], [], "hexpm"},
