@@ -76,36 +76,45 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({role, %{author: %{id: author}, guild_id: guild} = message, args})
-      when role in ["felweed", "rally"] and args != [] do
-    if author in @roles[role].mods do
-      case Curie.get_member(message, 1) do
-        {:ok, %{nick: nick, roles: roles, user: %{id: member_id, username: username}}} ->
-          if member_id in @roles[role].mods do
-            "Cannot be used on yourself or other moderators."
-            |> (&Curie.embed(message, &1, "red")).()
-          else
-            action =
-              if @roles[role].id in roles do
-                Api.remove_guild_member_role(guild, member_id, @roles[role].id)
-                "removed from"
-              else
-                Api.add_guild_member_role(guild, member_id, @roles[role].id)
-                "added to"
-              end
+  def command({role, %{author: %{id: id}, guild_id: guild, member: member} = message, args})
+      when role in ["felweed", "rally"] and args != [] and @roles != nil do
+    with {{:ok, author}, :get_author} <-
+           {if(member, do: {:ok, member}, else: Curie.get_member({guild, :id, id})), :get_author},
+         {true, :author_is_mod} <- {@roles[role].mod_role_id in author.roles, :author_is_mod},
+         {{:ok, target}, :get_target} <-
+           {Curie.get_member(message, 1), :get_target},
+         {false, :target_is_mod} <- {@roles[role].mod_role_id in target.roles, :target_is_mod} do
+      action =
+        if @roles[role].id in target.roles do
+          Api.remove_guild_member_role(guild, target.user.id, @roles[role].id)
+          "removed from"
+        else
+          Api.add_guild_member_role(guild, target.user.id, @roles[role].id)
+          "added to"
+        end
 
-            "Role #{String.capitalize(role)} #{action} #{nick || username}."
-            |> (&Curie.embed(message, &1, "dblue")).()
-          end
+      "Role #{String.capitalize(role)} #{action} #{target.nick || target.user.username}."
+      |> (&Curie.embed(message, &1, "dblue")).()
+    else
+      {{:error, :member_not_found}, :get_author} ->
+        "Unable to validate author."
+        |> (&Curie.embed(message, &1, "red")).()
 
-        {:error, :member_not_found} ->
-          "Member '#{Enum.join(args, " ")}' not found."
-          |> (&Curie.embed(message, &1, "red")).()
+      {false, :author_is_mod} ->
+        "Usage restricted to #{String.capitalize(role)} mods."
+        |> (&Curie.embed(message, &1, "red")).()
 
-        {:error, reason} ->
-          "Unable to update roles (#{reason})."
-          |> (&Curie.embed(message, &1, "red")).()
-      end
+      {{:error, :member_not_found}, :get_target} ->
+        "Member '#{Enum.join(args, " ")}' not found."
+        |> (&Curie.embed(message, &1, "red")).()
+
+      {true, :target_is_mod} ->
+        "Cannot be used on yourself or other moderators."
+        |> (&Curie.embed(message, &1, "red")).()
+
+      {{:error, reason}, action} ->
+        "Unable to update roles (#{reason} | #{action})."
+        |> (&Curie.embed(message, &1, "red")).()
     end
   end
 
