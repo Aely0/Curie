@@ -89,8 +89,7 @@ defmodule Curie.Help do
   @impl Curie.Commands
   def command({"currency", message, _args}) do
     """
-    One of the things I manage here is the Currency System.
-    It works like this, you can ask the server owner to
+    Currency system works like this, you can ask the server owner to
     whitelist your account and when approved, you will
     have a balance tied to your account in form of Tempests #{@tempest}.
     You can use these tempests to partake in my mini-games,
@@ -102,6 +101,9 @@ defmodule Curie.Help do
     (If I have any tempests myself to spend of course.)
     At the start your balance will be 0, you can obtain them
     from a passive gain by being online during full clock hours.
+    Being online during the full hour provides 100% chance
+    to get 1 unit of currency, if idle or in dnd mode, you have
+    only a 10% chance of gaining 1 unit of currency.
     Passive gain caps at 300, so you'll actaully have to play
     with some other folk if you want to have enough for a name color.
     Other than that, good luck and don't spend it all in one place!
