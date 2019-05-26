@@ -26,6 +26,7 @@ curie-*.tar
 /.vscode/
 
 /config/
+/logs/
 
 curie.bat
 README.md

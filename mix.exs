@@ -23,6 +23,7 @@ defmodule Curie.MixProject do
   defp deps do
     [
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
+      {:logger_file_backend, "~> 0.0.10"},
       {:ecto, "~> 2.2"},
       {:postgrex, ">= 0.13.5"},
       {:floki, ">= 0.20.1"},

@@ -21,7 +21,8 @@ config :curie,
   channels: %{
     general: 99_304_946_280_701_952,
     overwatch: 169_835_616_110_903_307,
-    invisible: 141_160_537_672_122_368
+    invisible: 141_160_537_672_122_368,
+    logs: 564_656_170_304_798_740
   }
 
 config :curie,
@@ -73,7 +74,17 @@ config :curie, Curie.Data,
   database: "<removed>",
   pool_size: 4
 
-config :logger, level: :warn
+config :logger,
+  backends: [:console, {LoggerFileBackend, :logfile}]
+
+config :logger, :console,
+  format: "\n$date $time $metadata[$level] $message\n",
+  level: :warn
+
+config :logger, :logfile,
+  format: "\n$date $time $metadata[$level] $message\n",
+  path: "logs/curie_warn.log",
+  level: :warn
 
 if Mix.env() == :test, do: import_config("test.exs")
 

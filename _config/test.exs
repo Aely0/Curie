@@ -7,6 +7,11 @@ config :nostrum,
 config :curie,
   tempest: "<:tempest:473539185605869578>"
 
+config :logger, :logfile,
+  format: "\n$date $time $metadata[$level] $message\n",
+  path: "logs/curie_warn_test.log",
+  level: :warn
+
 config :curie,
   channels: %{
     general: 473_537_127_116_963_841,
