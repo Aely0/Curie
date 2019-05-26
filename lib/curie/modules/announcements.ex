@@ -13,6 +13,7 @@ defmodule Curie.Announcements do
 
   @general Application.get_env(:curie, :channels).general
   @invisible Application.get_env(:curie, :channels).invisible
+  @logs Application.get_env(:curie, :channels).logs
 
   @spec iso_to_unix(String.t()) :: non_neg_integer() | nil
   def iso_to_unix(iso) do
@@ -30,7 +31,7 @@ defmodule Curie.Announcements do
 
       _no_invites ->
         "#{invitee} joined with a one time invite. #{Curie.time_now()}"
-        |> (&Curie.embed(@invisible, &1, "dblue")).()
+        |> (&Curie.embed(@logs, &1, "dblue")).()
     end
   end
 
@@ -40,13 +41,13 @@ defmodule Curie.Announcements do
          %Invite{} = %{inviter: %{username: inviter}} <-
            Enum.max_by(used, &iso_to_unix(&1.created_at), fn -> nil end) do
       "#{inviter} invited #{invitee} to the guild. (#{length(invites)}) #{Curie.time_now()}"
-      |> (&Curie.embed(@invisible, &1, "dblue")).()
+      |> (&Curie.embed(@logs, &1, "dblue")).()
     end
   end
 
   @spec delete_log(map_with_message_id_channel_id_maybe_guild_id :: map()) :: no_return()
   def delete_log(%{guild_id: guild_id, channel_id: channel_id} = deleted_message) do
-    with true <- channel_id != @invisible and guild_id != nil,
+    with true <- channel_id not in [@invisible, @logs] and guild_id != nil,
          {:ok, [message | _] = messages} <- MessageCache.get(deleted_message),
          {:ok, %{name: channel_name}} <- Api.get_channel(channel_id) do
       %{username: name, discriminator: disc} =
@@ -62,7 +63,7 @@ defmodule Curie.Announcements do
         |> Enum.join(", edit: ")
 
       "##{channel_name} #{name}##{disc}: #{details}"
-      |> (&Curie.embed(@invisible, &1, "red")).()
+      |> (&Curie.embed(@logs, &1, "red")).()
     else
       false ->
         :ignore
@@ -71,11 +72,11 @@ defmodule Curie.Announcements do
         {:ok, %{name: channel_name}} = Api.get_channel(channel_id)
 
         "Message deleted in ##{channel_name}"
-        |> (&Curie.embed(@invisible, &1, "red")).()
+        |> (&Curie.embed(@logs, &1, "red")).()
 
       {:error, reason} ->
         "Delete log failed (#{inspect(reason)})"
-        |> (&Curie.embed(@invisible, &1, "red")).()
+        |> (&Curie.embed(@logs, &1, "red")).()
     end
   end
 
@@ -88,7 +89,7 @@ defmodule Curie.Announcements do
       _time ->
         "#{name} left the guild. #{Curie.time_now()}"
     end
-    |> (&Curie.embed(@invisible, &1, "dblue")).()
+    |> (&Curie.embed(@logs, &1, "dblue")).()
   end
 
   @spec has_cooldown?(User.id()) :: boolean()
