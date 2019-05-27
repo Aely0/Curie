@@ -3,6 +3,7 @@ defmodule Curie.Heartbeat do
   alias Curie.Data
 
   @self __MODULE__
+  @timeout 300_000
 
   @spec child_spec(term()) :: Supervisor.child_spec()
   def child_spec(_opts) do
@@ -20,7 +21,7 @@ defmodule Curie.Heartbeat do
   def heartbeat do
     time = Timex.now() |> Timex.to_unix()
 
-    (Data.one(Heartbeat) || %Heartbeat{})
+    (Data.one(Heartbeat, timeout: @timeout) || %Heartbeat{})
     |> Heartbeat.changeset(%{heartbeat: time})
     |> Data.insert_or_update()
 
@@ -30,7 +31,7 @@ defmodule Curie.Heartbeat do
 
   @spec offline_for_more_than?(non_neg_integer()) :: boolean()
   def offline_for_more_than?(threshold) when is_integer(threshold) and threshold > 0 do
-    case Data.one(Heartbeat) do
+    case Data.one(Heartbeat, timeout: @timeout) do
       %{heartbeat: heartbeat} -> Timex.to_unix(Timex.now()) - heartbeat > threshold
       nil -> false
     end
