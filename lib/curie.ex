@@ -187,7 +187,7 @@ defmodule Curie do
             nick || name
 
           {:error, _reason} ->
-            "Unknown"
+            get_username(user_id)
         end
     end
   end

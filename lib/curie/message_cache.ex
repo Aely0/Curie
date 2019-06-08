@@ -4,7 +4,6 @@ defmodule Curie.MessageCache do
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
   alias Nostrum.Struct.{Channel, Guild, Message, User}
-  alias Nostrum.Api
 
   @type get_response :: {:ok, [map()]} | {:error, :not_found}
 
@@ -19,8 +18,8 @@ defmodule Curie.MessageCache do
 
   @impl GenServer
   def init(_args) do
-    {:ok, %{id: me}} = Api.get_current_user()
-    {:ok, %{:ignore => [me | @ignore]}}
+    {:ok, curie_id} = Curie.my_id()
+    {:ok, %{:ignore => [curie_id | @ignore]}}
   end
 
   @impl GenServer
