@@ -1,124 +1,125 @@
 defmodule MessageCacheTest do
   use ExUnit.Case, async: true
-
   alias Curie.MessageCache
 
-  @guild_message %{
-    __struct__: Nostrum.Struct.Message,
-    activity: nil,
-    application: nil,
-    attachments: [],
-    author: %Nostrum.Struct.User{
-      avatar: "7c088084d173c3ab0d66fc2bd9e48dc8",
-      bot: nil,
-      discriminator: "2694",
-      email: nil,
-      id: 0,
-      mfa_enabled: nil,
-      username: "Andris",
-      verified: nil
-    },
-    channel_id: 473_537_127_116_963_841,
-    content: "Something",
-    edited_timestamp: nil,
-    embeds: [],
-    guild_id: 473_537_126_680_494_111,
-    heartbeat: %{ack: 642_000, send: 513_000},
-    id: 486_592_759_839_588_353,
-    mention_everyone: false,
-    mention_roles: [],
-    mentions: [],
-    nonce: 486_592_775_559_577_600,
-    pinned: false,
-    reactions: nil,
-    timestamp: "2018-09-04T17:45:54.402000+00:00",
-    tts: false,
-    type: 0,
-    webhook_id: nil
-  }
+  defp add_messages(map) do
+    Map.merge(map, %{
+      guild_message: %{
+        __struct__: Nostrum.Struct.Message,
+        author: %Nostrum.Struct.User{id: 0},
+        channel_id: 473_537_127_116_963_841,
+        content: "Something",
+        guild_id: 473_537_126_680_494_111,
+        id: 486_592_759_839_588_353
+      },
+      guild_message_edit: %{
+        __struct__: Nostrum.Struct.Message,
+        author: %Nostrum.Struct.User{id: 0},
+        channel_id: 473_537_127_116_963_841,
+        content: "Else",
+        guild_id: 473_537_126_680_494_111,
+        id: 486_592_759_839_588_353
+      },
+      direct_message: %{
+        __struct__: Nostrum.Struct.Message,
+        author: %Nostrum.Struct.User{id: 0},
+        channel_id: 484_381_611_979_178_026,
+        content: "Something",
+        guild_id: nil,
+        id: 486_602_766_744_027_147
+      }
+    })
+  end
 
-  @direct_message %{
-    __struct__: Nostrum.Struct.Message,
-    activity: nil,
-    application: nil,
-    attachments: [],
-    author: %Nostrum.Struct.User{
-      avatar: "7c088084d173c3ab0d66fc2bd9e48dc8",
-      bot: nil,
-      discriminator: "2694",
-      email: nil,
-      id: 0,
-      mfa_enabled: nil,
-      username: "Andris",
-      verified: nil
-    },
-    channel_id: 484_381_611_979_178_026,
-    content: "Something",
-    edited_timestamp: nil,
-    embeds: [],
-    guild_id: nil,
-    heartbeat: %{ack: 452_000, send: 306_000},
-    id: 486_602_766_744_027_147,
-    mention_everyone: false,
-    mention_roles: [],
-    mentions: [],
-    nonce: 486_602_782_262_951_936,
-    pinned: false,
-    reactions: nil,
-    timestamp: "2018-09-04T18:25:40.234000+00:00",
-    tts: false,
-    type: 0,
-    webhook_id: nil
-  }
+  defp add_delete_events(%{guild_message: guild_message, direct_message: direct_message} = map) do
+    Map.merge(map, %{
+      guild_message_delete_event: %{
+        guild_id: guild_message.guild_id,
+        channel_id: guild_message.channel_id,
+        id: guild_message.id
+      },
+      direct_message_delete_event: %{
+        channel_id: direct_message.channel_id,
+        id: direct_message.id
+      }
+    })
+  end
 
-  test "retrieve cached messages" do
-    for message <- [
-          @guild_message,
-          %{@guild_message | content: "Else"},
-          @direct_message,
-          %{@direct_message | content: "Else"}
-        ] do
+  defp add_false_retrieval_details(map) do
+    Map.merge(map, %{
+      false_details: [
+        %{guild_id: 1, channel_id: 2, id: 3},
+        %{channel_id: 2, id: 3},
+        0
+      ]
+    })
+  end
+
+  defp add_ignore_set(map) do
+    Map.merge(map, %{
+      ignore_set: [
+        {Application.get_env(:curie, :owner), true},
+        {elem(Curie.my_id(), 1), true},
+        {123_452_345_345_455, false}
+      ]
+    })
+  end
+
+  defp add_messages_to_cache(messages) do
+    for {_key, message} <- messages do
       MessageCache.handler(message)
     end
 
-    guild_message_delete_event = %{
-      guild_id: @guild_message.guild_id,
-      channel_id: @guild_message.channel_id,
-      id: @guild_message.id
-    }
-
-    direct_message_delete_event = %{
-      channel_id: @direct_message.channel_id,
-      id: @direct_message.id
-    }
-
-    # Get messages
-    {:ok, [%{id: message_id} | _]} = MessageCache.get(guild_message_delete_event)
-    assert message_id == @guild_message.id
-
-    {:ok, [%{id: message_id} | _]} = MessageCache.get(direct_message_delete_event)
-    assert message_id == @direct_message.id
-
-    {:ok, [message | _]} = MessageCache.get(@guild_message.id)
-    assert message == @guild_message
-
-    {:ok, [message | _]} = MessageCache.get(@direct_message.id)
-    assert message == @direct_message
-
-    assert MessageCache.get(%{guild_id: 1, channel_id: 2, id: 3}) == {:error, :not_found}
-    assert MessageCache.get(%{channel_id: 2, id: 3}) == {:error, :not_found}
-    assert MessageCache.get(0) == {:error, :not_found}
-
+    messages
   end
 
-  test "filter messages to ignore" do
-    owner = Application.get_env(:curie, :owner)
-    me = Nostrum.Api.get_current_user!().id
-    random_id = 123_452_345_345_455
+  setup_all do
+    Map.new()
+    |> add_messages()
+    |> add_messages_to_cache()
+    |> add_delete_events()
+    |> add_false_retrieval_details()
+    |> add_ignore_set()
+  end
 
-    for {user, ignore?} <- [{owner, true}, {me, true}, {random_id, false}] do
-      assert MessageCache.ignore?(%{author: %{id: user}}) == ignore?
-      assert MessageCache.ignore?(%{user: %{id: user}}) == ignore?
+  describe "MessageCache.get/1|/2" do
+    test "get guild message with delete payload", context do
+      {:ok, [guild_message, guild_message_edit]} =
+        MessageCache.get(context.guild_message_delete_event)
+
+      assert guild_message.id == context.guild_message.id and
+               guild_message_edit.id == context.guild_message.id
+    end
+
+    test "get direct message with delete payload", context do
+      {:ok, [direct_message]} = MessageCache.get(context.direct_message_delete_event)
+      assert direct_message.id == context.direct_message.id
+    end
+
+    test "get guild message by id", %{guild_message: %{id: message_id}} do
+      {:ok, [%{id: cached_message_id}, %{id: cached_message_edit_id}]} =
+        MessageCache.get(message_id)
+
+      assert cached_message_id == message_id and cached_message_edit_id == message_id
+    end
+
+    test "get direct message by id", %{direct_message: %{id: message_id}} do
+      {:ok, [%{id: cached_message_id}]} = MessageCache.get(message_id)
+      assert cached_message_id == message_id
+    end
+
+    test "fetch with false payloads and ids", %{false_details: false_details} do
+      for parameters <- false_details do
+        assert MessageCache.get(parameters) == {:error, :not_found}
+      end
+    end
+  end
+
+  describe "MessageCache.ignore?/1" do
+    test "check message ignoring", %{ignore_set: ignore_set} do
+      for {id, ignore?} = set <- ignore_set do
+        assert MessageCache.ignore?(%{author: %{id: id}}) == ignore?, inspect(set)
+      end
     end
   end
 end

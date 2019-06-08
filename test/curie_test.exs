@@ -3,152 +3,214 @@ defmodule CurieTest do
 
   alias Nostrum.Api
 
-  @curie 473_537_396_399_407_104
-  @general 473_537_127_116_963_841
-  @guild 473_537_126_680_494_111
-
-  test "Curie.avatar_url/2" do
-    {:ok, %{user: user}} = Curie.get_member({@guild, :id, @curie})
-
-    assert user
-           |> Curie.avatar_url()
-           |> Curie.get()
-           |> (&match?({:ok, _}, &1)).()
+  defp add_ids(map) do
+    Map.merge(map, %{
+      curie_id: elem(Curie.my_id(), 1),
+      general_id: Application.get_env(:curie, :channels).general,
+      guild_id: Application.get_env(:curie, :guild)
+    })
   end
 
-  test "Curie.check_typo/2" do
-    commands = ~w/felweed rally details cat overwatch roll ping/
-    typos = ~w/falwed raly detaisls c owervatch rol oing/
-    invalid = ~w/asdggs aly dettassasa tas weraaaa lo iogn/
-
-    assert typos |> Enum.map(&Curie.check_typo(&1, commands)) |> Enum.all?()
-
-    assert invalid
-           |> Enum.map(&Curie.check_typo(&1, commands))
-           |> Enum.reject(&(&1 == nil))
-           |> Enum.empty?()
+  defp add_typo_checks(map) do
+    Map.merge(map, %{
+      commands: ~w/felweed rally details cat overwatch roll ping/,
+      typos: ~w/falwed raly detaisls c owervatch rol oing/,
+      invalid: ~w/asdggs aly dettassasa tas weraaaa lo iogn/
+    })
   end
 
-  test "Curie.send|edit|embed" do
-    with {:ok, message} <- Curie.send(@general, "Message sent."),
-         {:ok, message} <- Curie.edit(message, content: "Message edited."),
-         {:ok, embed_message} <- Curie.embed(@general, "Embed sent.", "yellow"),
-         {:ok} <- Api.bulk_delete_messages(message.channel_id, [message.id, embed_message.id]) do
-      embed_message.embeds != []
+  defp add_member_messages(%{curie_id: curie_id, guild_id: guild_id} = map) do
+    Map.merge(map, %{
+      message_with_member: %{
+        member: %{nick: "Curie Dev"},
+        guild_id: guild_id,
+        author: %{id: curie_id, username: "Curie"}
+      },
+      message_with_member_no_nickname: %{
+        member: %{nick: nil},
+        guild_id: guild_id,
+        author: %{id: curie_id, username: "Curie"}
+      },
+      message_without_member: %{
+        member: nil,
+        guild_id: guild_id,
+        author: %{id: curie_id, username: "Curie"}
+      },
+      message_without_member_or_guild_id: %{
+        member: nil,
+        guild_id: nil,
+        author: %{id: curie_id, username: "Curie"}
+      }
+    })
+  end
+
+  defp add_message_base(%{guild_id: guild_id} = map) do
+    Map.merge(map, %{
+      base_message: %{guild_id: guild_id, content: "Message Content", mentions: []}
+    })
+  end
+
+  setup_all do
+    Map.new()
+    |> add_ids()
+    |> add_typo_checks()
+    |> add_member_messages()
+    |> add_message_base()
+  end
+
+  describe "Curie.avatar_url/2" do
+    test "check validity of formatted avatar url", %{curie_id: curie_id, guild_id: guild_id} do
+      {:ok, %{user: user}} = Curie.get_member({guild_id, :id, curie_id})
+      assert {:ok, response} = user |> Curie.avatar_url() |> Curie.get()
     end
-    |> assert
   end
 
-  test "Curie.get/3" do
-    assert match?({:ok, _}, Curie.get("google.com"))
-    assert match?({:ok, _}, Curie.get("google.com", [], 10))
-    assert match?({:error, _}, Curie.get("Random", [], 5))
+  describe "Curie.check_typo/2" do
+    test "check slight typos againts command names", %{commands: commands, typos: typos} do
+      assert typos |> Enum.map(&Curie.check_typo(&1, commands)) |> Enum.all?()
+    end
+
+    test "check invalid typos against command names", %{commands: commands, invalid: invalid} do
+      assert invalid |> Enum.map(&Curie.check_typo(&1, commands)) |> Enum.all?(&(&1 == nil))
+    end
   end
 
-  test "Curie.unix_to_amount/1" do
-    assert Timex.now()
-           |> (&(Timex.to_unix(&1) - 60)).()
-           |> Curie.unix_to_amount()
-           |> (&(&1 == "1m")).()
-
-    assert Timex.now()
-           |> (&(Timex.to_unix(&1) - 60 * 60 * 8 - 10)).()
-           |> Curie.unix_to_amount()
-           |> (&(&1 == "8h, 10s")).()
-
-    assert Timex.now()
-           |> (&(Timex.to_unix(&1) - 60 * 60 * 24 - 1)).()
-           |> Curie.unix_to_amount()
-           |> (&(&1 == "1d, 1s")).()
-
-    assert Timex.now()
-           |> (&(Timex.to_unix(&1) - 60 * 60 * 24 * 70)).()
-           |> Curie.unix_to_amount()
-           |> (&(&1 == "70d")).()
+  describe "Curie.send|edit|embed" do
+    test "send message, edit it, send embed, delete sent items", %{general_id: general_id} do
+      with {:ok, message} <- Curie.send(general_id, "Message sent."),
+           {:ok, message} <- Curie.edit(message, content: "Message edited."),
+           {:ok, embed_message} <- Curie.embed(general_id, "Embed sent.", "yellow"),
+           {:ok} <- Api.bulk_delete_messages(message.channel_id, [message.id, embed_message.id]) do
+        assert true
+      else
+        failure -> assert false, inspect(failure)
+      end
+    end
   end
 
-  test "Curie.get_display_name/1" do
-    message_with_member = %{
-      member: %{nick: "Curie Dev"},
-      guild_id: @guild,
-      author: %{id: @curie, username: "Curie"}
-    }
-
-    message_with_member_no_nickname = %{
-      member: %{nick: nil},
-      guild_id: @guild,
-      author: %{id: @curie, username: "Curie"}
-    }
-
-    message_without_member = %{
-      member: nil,
-      guild_id: @guild,
-      author: %{id: @curie, username: "Curie"}
-    }
-
-    message_without_member_or_guild_id = %{
-      member: nil,
-      guild_id: nil,
-      author: %{id: @curie, username: "Curie"}
-    }
-
-    assert Curie.get_display_name(message_with_member) == "Curie Dev"
-    assert Curie.get_display_name(message_with_member_no_nickname) == "Curie"
-    assert Curie.get_display_name(message_without_member) == "Curie Dev"
-    assert Curie.get_display_name(message_without_member_or_guild_id) == "Curie"
+  describe "Curie.get/3" do
+    test "check http get" do
+      assert match?({:ok, _}, Curie.get("google.com"))
+    end
   end
 
-  test "Curie.get_display_name/2" do
-    assert Curie.get_display_name(@guild, @curie) == "Curie Dev"
-    assert Curie.get_display_name(0, @curie) == "Unknown"
+  describe "Curie.unix_to_amount/1" do
+    test "parse minutes" do
+      assert Timex.now()
+             |> (&(Timex.to_unix(&1) - 60)).()
+             |> Curie.unix_to_amount()
+             |> (&(&1 == "1m")).()
+    end
+
+    test "parse hours and seconds" do
+      assert Timex.now()
+             |> (&(Timex.to_unix(&1) - 60 * 60 * 8 - 10)).()
+             |> Curie.unix_to_amount()
+             |> (&(&1 == "8h, 10s")).()
+    end
+
+    test "parse days and seconds" do
+      assert Timex.now()
+             |> (&(Timex.to_unix(&1) - 60 * 60 * 24 - 1)).()
+             |> Curie.unix_to_amount()
+             |> (&(&1 == "1d, 1s")).()
+    end
+
+    test "parse days" do
+      assert Timex.now()
+             |> (&(Timex.to_unix(&1) - 60 * 60 * 24 * 70)).()
+             |> Curie.unix_to_amount()
+             |> (&(&1 == "70d")).()
+    end
   end
 
-  test "Curie.get_username/1" do
-    assert Curie.get_username(@curie) == "Curie"
-    assert Curie.get_username(0) == "Unknown"
+  describe "Curie.get_display_name/1" do
+    test "with full member", %{message_with_member: message} do
+      assert Curie.get_display_name(message) == "Curie Dev"
+    end
+
+    test "with no nickname", %{message_with_member_no_nickname: message} do
+      assert Curie.get_display_name(message) == "Curie"
+    end
+
+    test "with no member field", %{message_without_member: message} do
+      assert Curie.get_display_name(message) == "Curie Dev"
+    end
+
+    test "with no member or guild_id field", %{message_without_member_or_guild_id: message} do
+      assert Curie.get_display_name(message) == "Curie"
+    end
   end
 
-  test "Curie.get_member/2" do
-    message_base = %{guild_id: @guild, content: "Message Content", mentions: []}
+  describe "Curie.get_display_name/2" do
+    test "with guild and user id", %{curie_id: curie_id, guild_id: guild_id} do
+      assert Curie.get_display_name(guild_id, curie_id) == "Curie Dev"
+    end
 
-    {:ok, %{user: %{id: with_nickname}}} =
-      Curie.get_member(%{message_base | content: "!test Curie Dev"}, 1)
+    test "with invalid guild id and user id", %{curie_id: curie_id} do
+      assert Curie.get_display_name(0, curie_id) == "Curie"
+    end
 
-    assert with_nickname == @curie
+    test "with invalid details" do
+      assert Curie.get_display_name(0, 0) == "Unknown"
+    end
+  end
 
-    {:ok, %{user: %{id: with_name}}} =
-      Curie.get_member(%{message_base | content: "!test Curie"}, 1)
+  describe "Curie.get_username/1" do
+    test "wuth valid user id", %{curie_id: curie_id} do
+      assert Curie.get_username(curie_id) == "Curie"
+    end
 
-    assert with_name == @curie
+    test "with invalid user id" do
+      assert Curie.get_username(0) == "Unknown"
+    end
+  end
 
-    {:ok, %{user: %{id: with_tag}}} =
-      Curie.get_member(%{message_base | content: "!test Curie#4848"}, 1)
+  describe "Curie.get_member/2" do
+    test "with nickname", %{curie_id: curie_id, base_message: base} do
+      {:ok, %{user: %{id: id}}} = Curie.get_member(%{base | content: "!test Curie Dev"}, 1)
+      assert id == curie_id
+    end
 
-    assert with_tag == @curie
+    test "with username", %{curie_id: curie_id, base_message: base} do
+      {:ok, %{user: %{id: id}}} = Curie.get_member(%{base | content: "!test Curie"}, 1)
+      assert id == curie_id
+    end
 
-    {:ok, %{user: %{id: with_mention}}} =
-      Curie.get_member(%{message_base | mentions: [%{id: @curie}]}, 1)
+    test "with tag", %{curie_id: curie_id, base_message: base} do
+      {:ok, %{user: %{id: id}}} = Curie.get_member(%{base | content: "!test Curie#4848"}, 1)
+      assert id == curie_id
+    end
 
-    assert with_mention == @curie
+    test "with mention", %{curie_id: curie_id, base_message: base} do
+      {:ok, %{user: %{id: id}}} = Curie.get_member(%{base | mentions: [%{id: curie_id}]}, 1)
+      assert id == curie_id
+    end
 
-    {:ok, %{user: %{id: with_id}}} =
-      Curie.get_member(%{message_base | content: "!test #{@curie}"}, 1)
+    test "with id", %{curie_id: curie_id, base_message: base} do
+      {:ok, %{user: %{id: id}}} = Curie.get_member(%{base | content: "!test #{curie_id}"}, 1)
+      assert id == curie_id
+    end
 
-    assert with_id == @curie
+    test "non matches", %{base_message: base} do
+      no_match = Curie.get_member(%{base | content: "!test 1234455566777"}, 1)
+      assert no_match == {:error, :member_not_found}
 
-    no_match = Curie.get_member(%{message_base | content: "!test 1234455566777"}, 1)
-    assert no_match == {:error, :member_not_found}
+      no_match = Curie.get_member(%{base | content: "!test Curie#1234#1234"}, 1)
+      assert no_match == {:error, :member_not_found}
 
-    no_match = Curie.get_member(%{message_base | content: "!test Curie#1234#1234"}, 1)
-    assert no_match == {:error, :member_not_found}
+      no_match = Curie.get_member(%{base | content: "!test ###############"}, 1)
+      assert no_match == {:error, :member_not_found}
+    end
 
-    no_match = Curie.get_member(%{message_base | content: "!test ###############"}, 1)
-    assert no_match == {:error, :member_not_found}
+    test "without guild", %{base_message: base} do
+      error = Curie.get_member(%{base | guild_id: nil, content: "!test Curie"}, 1)
+      assert error == {:error, :requires_guild_context}
+    end
 
-    without_guild = %{guild_id: nil, content: "!test Curie", mentions: []}
-    assert Curie.get_member(without_guild, 1) == {:error, :requires_guild_context}
-
-    without_member = %{guild_id: @guild, content: "!test", mentions: []}
-    assert Curie.get_member(without_member, 1) == {:error, :no_identifier_given}
+    test "without member", %{base_message: base} do
+      error = Curie.get_member(%{base | content: "!test"}, 1)
+      assert error == {:error, :no_identifier_given}
+    end
   end
 end
