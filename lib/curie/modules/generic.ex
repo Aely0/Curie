@@ -38,20 +38,19 @@ defmodule Curie.Generic do
   def command({"purge", @owner = %{id: id, channel_id: channel}, [count | option]}) do
     if option != [] and option |> hd() |> Curie.check_typo("curie") do
       {:ok, curie_id} = Curie.my_id()
+      {amount, _rest} = Integer.parse(count)
+      {:ok, messages} = Api.get_channel_messages(channel, amount)
 
-      count
-      |> String.to_integer()
-      |> (&Api.get_channel_messages!(channel, &1 + 1)).()
-      |> Enum.filter(&(&1.author.id == curie_id))
-      |> Enum.map(& &1.id)
-      |> (&[id | &1]).()
-      |> (&Api.bulk_delete_messages!(channel, &1)).()
+      messages =
+        Enum.reduce(messages, [id], fn message, acc ->
+          if message.author.id == curie_id, do: [message.id | acc], else: acc
+        end)
+
+      Api.bulk_delete_messages(channel, messages)
     else
-      count
-      |> String.to_integer()
-      |> (&Api.get_channel_messages!(channel, &1 + 1)).()
-      |> Enum.map(& &1.id)
-      |> (&Api.bulk_delete_messages!(channel, &1)).()
+      {amount, _rest} = Integer.parse(count)
+      {:ok, messages} = Api.get_channel_messages(channel, amount + 1)
+      Api.bulk_delete_messages(channel, Enum.map(messages, & &1.id))
     end
   end
 
@@ -233,11 +232,8 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"ping", %{heartbeat: %{send: send, ack: ack}} = message, _args}) do
-    (ack - send)
-    |> Integer.to_string()
-    |> String.trim_trailing("0")
-    |> (&Curie.send(message, content: &1 <> "ms")).()
+  def command({"ping", message, _args}) do
+    Curie.send(message, content: Curie.Latency.get())
   end
 
   @impl Curie.Commands
