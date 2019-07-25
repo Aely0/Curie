@@ -17,15 +17,15 @@ defmodule CommandsTest do
       {%{content: @prefix <> "call"}, "call"},
       {%{content: @prefix <> "CALL"}, "call"},
       {%{content: @prefix <> "valls"}, "call"},
-      {%{content: @prefix <> "something"}, nil},
-      {%{content: Enum.random(~w/! ? . - ~/ -- [@prefix]) <> "call"}, nil},
+      {%{content: @prefix <> "something"}, :pass},
+      {%{content: Enum.random(~w/! ? . - ~/ -- [@prefix]) <> "call"}, :pass},
       {%{content: @prefix <> "args list of args"}, ~w/list of args/},
       {%{content: @prefix <> "args something"}, ~w/something/},
       {%{content: @prefix <> "args"}, []},
       {%{content: @prefix <> "message", a: 1, b: 2},
        %{content: @prefix <> "message", a: 1, b: 2}},
-      {%{content: @prefix, a: 1, c: 3}, nil},
-      {%{content: "", d: 4}, nil}
+      {%{content: @prefix, a: 1, c: 3}, :pass},
+      {%{content: "", d: 4}, :pass}
     ]
   end
 

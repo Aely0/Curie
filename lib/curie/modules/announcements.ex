@@ -3,6 +3,7 @@ defmodule Curie.Announcements do
   import Nostrum.Struct.Embed
 
   alias Nostrum.Struct.{Guild, Invite, User}
+  alias Nostrum.Struct.Event.MessageDelete
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Cache.UserCache
   alias Nostrum.Api
@@ -11,11 +12,13 @@ defmodule Curie.Announcements do
   alias Curie.Data.Streams
   alias Curie.Data
 
+  @type stream_result :: Curie.message_result() | {:error, any} | :pass
+
   @general Application.get_env(:curie, :channels).general
   @invisible Application.get_env(:curie, :channels).invisible
   @logs Application.get_env(:curie, :channels).logs
 
-  @spec iso_to_unix(String.t()) :: non_neg_integer() | nil
+  @spec iso_to_unix(String.t()) :: non_neg_integer | nil
   def iso_to_unix(iso) do
     case Timex.parse(iso, "{ISO:Extended}") do
       {:ok, datetime} -> Timex.to_unix(datetime)
@@ -23,7 +26,7 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec join_log(Guild.id(), Member.t()) :: no_return()
+  @spec join_log(Guild.id() | [Invite.t()], Member.t()) :: Curie.message_result() | []
   def join_log(guild_id, %{user: %{username: invitee}} = member) when is_snowflake(guild_id) do
     case Api.get_guild_invites(guild_id) do
       {:ok, invites} when invites != [] ->
@@ -35,7 +38,6 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec join_log([Invite.t()], Member.t()) :: no_return()
   def join_log(invites, %{user: %{username: invitee}}) when is_list(invites) do
     with used when used != [] <- Enum.filter(invites, &(&1.uses > 0)),
          %Invite{} = %{inviter: %{username: inviter}} <-
@@ -45,7 +47,7 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec delete_log(map_with_message_id_channel_id_maybe_guild_id :: map()) :: no_return()
+  @spec delete_log(MessageDelete.t()) :: Curie.message_result() | :ignore | {:error, any}
   def delete_log(%{guild_id: guild_id, channel_id: channel_id} = deleted_message) do
     with true <- channel_id not in [@invisible, @logs] and guild_id != nil,
          {:ok, [message | _] = messages} <- MessageCache.get(deleted_message),
@@ -80,7 +82,7 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec leave_log(Member.t()) :: no_return()
+  @spec leave_log(Member.t()) :: Curie.message_result()
   def leave_log(%{user: %{username: name}}) do
     case :calendar.local_time() do
       {_, {0, 0, _}} ->
@@ -92,7 +94,7 @@ defmodule Curie.Announcements do
     |> (&Curie.embed(@logs, &1, "dblue")).()
   end
 
-  @spec has_cooldown?(User.id()) :: boolean()
+  @spec has_cooldown?(User.id()) :: boolean
   def has_cooldown?(member_id) do
     # Cooldown of 6 hours
     case Data.get(Streams, member_id) do
@@ -101,14 +103,14 @@ defmodule Curie.Announcements do
     end
   end
 
-  @spec set_cooldown(User.id()) :: no_return()
+  @spec set_cooldown(User.id()) :: {:ok, Ecto.Schema.t()} | {:error, Ecto.Changeset.t()}
   def set_cooldown(member_id) do
     (Data.get(Streams, member_id) || %Streams{member: member_id})
     |> Streams.changeset(%{time: Timex.now() |> Timex.to_unix()})
     |> Data.insert_or_update()
   end
 
-  @spec stream({Guild.id(), map(), %{game: String.t(), user: %{id: User.id()}}}) :: no_return()
+  @spec stream({Guild.id(), map, %{game: String.t(), user: %{id: User.id()}}}) :: stream_result
   def stream({guild_id, _old, %{game: game, user: %{id: member_id}}}) do
     if game != nil and game.type == 1 and not has_cooldown?(member_id) do
       twitch_id = Application.get_env(:curie, :twitch)
@@ -119,7 +121,7 @@ defmodule Curie.Announcements do
            {:ok, details} <- Poison.decode(body),
            {:ok, %{id: user_id} = user} <- UserCache.get(member_id),
            name = Curie.get_display_name(guild_id, user_id),
-           {:ok, _entry} <- set_cooldown(member_id) do
+           {:ok, _} <- set_cooldown(member_id) do
         %Nostrum.Struct.Embed{}
         |> put_author("#{name} started streaming!", nil, Curie.avatar_url(user))
         |> put_description("[#{game.name}](#{game.url})")
@@ -129,6 +131,8 @@ defmodule Curie.Announcements do
         |> put_thumbnail(details["logo"])
         |> (&Curie.send(@general, embed: &1)).()
       end
+    else
+      :pass
     end
   end
 end

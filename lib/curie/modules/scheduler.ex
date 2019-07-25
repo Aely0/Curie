@@ -5,17 +5,19 @@ defmodule Curie.Scheduler do
   alias Crontab.CronExpression
   alias Crontab.Scheduler
 
-  @spec start_link(term) :: GenServer.on_start()
+  @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(__MODULE__, [], name: __MODULE__)
   end
 
   @impl GenServer
+  @spec init(any) :: {:ok, nil, {:continue, :schedule_tasks}}
   def init(_args) do
     {:ok, nil, {:continue, :schedule_tasks}}
   end
 
   @impl GenServer
+  @spec handle_continue(:schedule_tasks, any) :: {:noreply, any}
   def handle_continue(:schedule_tasks, state) do
     Enum.each(Tasks.get(), &schedule_tasks/1)
     {:noreply, state}
@@ -32,7 +34,7 @@ defmodule Curie.Scheduler do
     {:noreply, state}
   end
 
-  @spec schedule_tasks({CronExpression.t(), [function()] | function()}) :: reference()
+  @spec schedule_tasks({CronExpression.t(), [function] | function}) :: reference
   def schedule_tasks({run_time, _work} = batch) do
     naive_current_time = NaiveDateTime.from_erl!(:calendar.local_time())
 

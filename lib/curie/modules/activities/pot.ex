@@ -9,29 +9,28 @@ defmodule Curie.Pot do
   alias Curie.Data.Balance
 
   @self __MODULE__
+
   @check_typo ~w/pot add/
 
-  @spec start_link(term) :: GenServer.on_start()
+  @defaults %{
+    guild_id: nil,
+    status: :idle,
+    allow_add: false,
+    value: 0,
+    channel_name: nil,
+    players: [],
+    limit: nil
+  }
+
+  @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
-  @spec defaults() :: map()
-  def defaults do
-    %{
-      guild_id: nil,
-      status: :idle,
-      allow_add: false,
-      value: 0,
-      channel_name: nil,
-      players: [],
-      limit: nil
-    }
-  end
-
   @impl GenServer
+  @spec init(any) :: {:ok, map}
   def init(_args) do
-    {:ok, defaults()}
+    {:ok, @defaults}
   end
 
   @impl GenServer
@@ -51,7 +50,7 @@ defmodule Curie.Pot do
 
   @impl GenServer
   def handle_cast(:reset, _state) do
-    {:noreply, defaults()}
+    {:noreply, @defaults}
   end
 
   @spec get_state() :: map()
@@ -59,22 +58,22 @@ defmodule Curie.Pot do
     GenServer.call(@self, :get)
   end
 
-  @spec update_state(map()) :: no_return()
+  @spec update_state(map) :: :ok
   def update_state(new_state) do
     GenServer.cast(@self, {:update, new_state})
   end
 
-  @spec add_player({User.id(), non_neg_integer()}) :: no_return()
+  @spec add_player({User.id(), non_neg_integer}) :: :ok
   def add_player(player) do
     GenServer.cast(@self, {:player, player})
   end
 
-  @spec reset_state() :: no_return()
+  @spec reset_state :: :ok
   def reset_state do
     GenServer.cast(@self, :reset)
   end
 
-  @spec announce_start(map(), pos_integer(), pos_integer() | nil) :: no_return()
+  @spec announce_start(Message.t(), pos_integer, pos_integer | nil) :: :ok
   def announce_start(message, value, limit) do
     mode = if limit == nil, do: "Regular", else: "Limit"
     member_name = Curie.get_display_name(message)
@@ -86,9 +85,11 @@ defmodule Curie.Pot do
     Rolling winner in 10-20 seconds!
     """
     |> (&Curie.embed(message, &1, "dblue")).()
+
+    :ok
   end
 
-  @spec announce_winner(map(), User.id(), pos_integer(), number()) :: no_return()
+  @spec announce_winner(Message.t(), User.id(), pos_integer, number) :: :ok
   def announce_winner(message, winner, value, chance) do
     %{guild_id: guild_id} = get_state()
 
@@ -98,9 +99,11 @@ defmodule Curie.Pot do
     Chance: **#{chance}%**
     """
     |> (&Curie.embed(message, &1, "yellow")).()
+
+    :ok
   end
 
-  @spec not_enough_players(map()) :: no_return()
+  @spec not_enough_players(Message.t()) :: :ok
   def not_enough_players(message) do
     [
       "Hey guys! Want to... no...? Ok, I'm used to it... \:(",
@@ -115,16 +118,18 @@ defmodule Curie.Pot do
     |> Enum.random()
     |> (&(&1 <> "\nNot enough players, value refunded.")).()
     |> (&Curie.embed(message, &1, "green")).()
+
+    :ok
   end
 
   @spec curie_decision(
           Channel.id(),
           User.id(),
           Balance.value(),
-          value :: pos_integer(),
-          limit :: pos_integer(),
-          [{User.id(), pos_integer()}]
-        ) :: no_return()
+          value :: pos_integer,
+          limit :: pos_integer,
+          [{User.id(), pos_integer}]
+        ) :: :ok
   def curie_decision(channel_id, curie, balance, value, limit, players) do
     # Decision branch called for limit mode
     cond do
@@ -146,15 +151,17 @@ defmodule Curie.Pot do
       true ->
         nil
     end
+
+    :ok
   end
 
   @spec curie_decision(
           Channel.id(),
           User.id(),
           Balance.value(),
-          value :: pos_integer(),
-          [{User.id(), pos_integer()}]
-        ) :: no_return()
+          value :: pos_integer,
+          [{User.id(), pos_integer}]
+        ) :: :ok
   def curie_decision(channel_id, curie, balance, value, [{player, _} | _] = players) do
     # Decision branch called for regular mode
     cond do
@@ -177,9 +184,11 @@ defmodule Curie.Pot do
       true ->
         nil
     end
+
+    :ok
   end
 
-  @spec curie_join(Channel.id()) :: no_return()
+  @spec curie_join(Channel.id()) :: :ok
   def curie_join(channel_id) do
     {:ok, curie_id} = Curie.my_id()
     balance = Currency.get_balance(curie_id)
@@ -195,15 +204,13 @@ defmodule Curie.Pot do
       true ->
         nil
     end
+
+    :ok
   end
 
-  @spec pot(Message.t(), User.id(), pos_integer(), pos_integer() | nil) :: no_return()
+  @spec pot(Message.t(), User.id(), pos_integer, pos_integer | nil) :: :ok
   def pot(%{guild_id: guild_id, channel_id: channel_id} = message, member_id, value, limit \\ nil) do
-    channel_name =
-      case ChannelCache.get(channel_id) do
-        {:ok, %{name: name}} -> "#" <> name
-        _not_found -> "an unknown channel"
-      end
+    channel_name = ChannelCache.get!(channel_id)
 
     update_state(%{
       guild_id: guild_id,
@@ -255,23 +262,29 @@ defmodule Curie.Pot do
 
     Currency.change_balance(:add, winner, state.value)
     reset_state()
+
+    :ok
   end
 
-  @spec handle_event({String.t(), map(), map(), list()}) :: no_return()
+  @spec handle_event({String.t(), Message.t(), map, list | tuple}) :: :ok
   def handle_event({"pot", message, %{status: :playing, channel_name: channel_name}, _args}) do
     Curie.embed(message, "Game already started in #{channel_name}.", "red")
+    :ok
   end
 
   def handle_event({"add", message, %{status: :idle}, _args}) do
     Curie.embed(message, "No game in progress.", "red")
+    :ok
   end
 
   def handle_event({_event, %{guild_id: nil} = message, _state, _args}) do
     Curie.embed(message, "Really...? No...", "red")
+    :ok
   end
 
   def handle_event({_event, message, _state, {nil, _args}}) do
     Curie.embed(message, "Invalid amount.", "red")
+    :ok
   end
 
   def handle_event({"pot", %{author: %{id: member_id}} = message, _state, {value, args}}) do
@@ -301,6 +314,8 @@ defmodule Curie.Pot do
          "Current amount **(#{member_total}/#{state.limit})**.")
       |> (&Curie.embed(message, &1, "red")).()
     end
+
+    :ok
   end
 
   @impl Curie.Commands

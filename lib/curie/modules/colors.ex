@@ -1,7 +1,7 @@
 defmodule Curie.Colors do
   use Curie.Commands
 
-  alias Nostrum.Struct.{Guild, User}
+  alias Nostrum.Struct.{Guild, User, Message}
   alias Nostrum.Struct.Guild.Role
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Api
@@ -19,17 +19,17 @@ defmodule Curie.Colors do
       else: Curie.check_typo(color_name, Map.keys(@color_roles))
   end
 
-  @spec get_member_roles(User.id(), Guild.id()) :: [Role.t()]
+  @spec get_member_roles(User.id(), Guild.id()) :: [Role.t()] | no_return
   def get_member_roles(member_id, guild_id) do
     GuildCache.select!(guild_id, & &1.members[member_id].roles)
   end
 
-  @spec get_role_color(String.t(), Guild.id()) :: Role.color()
+  @spec get_role_color(String.t(), Guild.id()) :: Role.color() | no_return
   def get_role_color(color_name, guild_id) do
     GuildCache.select!(guild_id, & &1.roles[@color_roles[color_name]].color)
   end
 
-  @spec remove_all_color_roles(User.id(), Guild.id()) :: no_return()
+  @spec remove_all_color_roles(User.id(), Guild.id()) :: :ok
   def remove_all_color_roles(member_id, guild_id) do
     member_roles = get_member_roles(member_id, guild_id)
     color_roles = Map.values(@color_roles)
@@ -39,9 +39,11 @@ defmodule Curie.Colors do
         Api.remove_guild_member_role(guild_id, member_id, role)
       end
     end
+
+    :ok
   end
 
-  @spec color_preview(String.t(), map()) :: no_return()
+  @spec color_preview(String.t(), Message.t()) :: :ok
   def color_preview(color_name, %{channel_id: channel_id, guild_id: guild_id}) do
     color_value = get_role_color(color_name, guild_id)
     color_id = @color_roles[color_name]
@@ -50,17 +52,23 @@ defmodule Curie.Colors do
     Api.add_guild_member_role(guild_id, curie_id, color_id)
     Curie.embed(channel_id, color_name, color_value)
     Api.remove_guild_member_role(guild_id, curie_id, color_id)
+
+    :ok
   end
 
-  @spec confirm_transaction(String.t(), map()) :: no_return()
+  @spec confirm_transaction(String.t(), Message.t()) :: :ok
   def confirm_transaction(color_name, %{author: %{id: member_id}, guild_id: guild_id} = message) do
     color = get_role_color(color_name, guild_id)
     member_name = Curie.get_display_name(message)
+
     remove_all_color_roles(member_id, guild_id)
     Api.add_guild_member_role(guild_id, member_id, @color_roles[color_name])
     Api.add_guild_member_role(guild_id, member_id, @snowflakes)
+
     Currency.change_balance(:deduct, member_id, 500)
     Curie.embed(message, "#{member_name} acquired #{color_name}!", color)
+
+    :ok
   end
 
   @impl Curie.Commands
@@ -103,5 +111,5 @@ defmodule Curie.Colors do
   end
 
   @impl Curie.Commands
-  def subcommand(_invalid_arguments), do: nil
+  def subcommand(_invalid_arguments), do: :pass
 end

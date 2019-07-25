@@ -226,7 +226,7 @@ defmodule AnnouncementsTest do
       assert embed.description == "[#{game.name}](#{game.url})"
 
       # Set cooldown on first occurance prevents announcement spam
-      assert Announcements.stream(presence) == nil
+      assert Announcements.stream(presence) == :pass
 
       Api.delete_message(message)
     end

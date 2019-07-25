@@ -1,25 +1,25 @@
 defmodule Curie.Generic.Dice do
-  @type dice_count :: pos_integer()
-  @type side_count :: pos_integer()
+  @type dice_count :: pos_integer
+  @type side_count :: pos_integer
   @type display_mode :: String.t()
   @type dice_type :: String.t()
-  @type parsed_dice_count :: {:ok, dice_count()} | {:error, atom()}
-  @type parsed_side_count :: {:ok, side_count()} | {:error, atom()}
-  @type parsed_display_mode :: {:ok, display_mode()} | {:error, atom()}
+  @type parsed_dice_count :: {:ok, dice_count} | {:error, atom}
+  @type parsed_side_count :: {:ok, side_count} | {:error, atom}
+  @type parsed_display_mode :: {:ok, display_mode} | {:error, atom}
   @type successful_component_parse ::
-          {:ok, {dice_count(), side_count(), display_mode(), dice_type()}}
+          {:ok, {dice_count, side_count, display_mode, dice_type}}
   @type unsuccessful_component_parse ::
-          {parsed_dice_count(), parsed_side_count(), parsed_display_mode()}
+          {parsed_dice_count, parsed_side_count, parsed_display_mode}
   @type component_parsing_result ::
-          successful_component_parse()
-          | unsuccessful_component_parse()
-          | (early_failure :: {:error, atom()})
+          successful_component_parse
+          | unsuccessful_component_parse
+          | (early_failure :: {:error, atom})
 
   @dice_regex_pattern ~r/^(\d*)[dD](\d*)(\w?)$/
   @dice_count_limit 1000
   @dice_side_limit 1_000_000
 
-  @spec parse_error({:error, atom()} | unsuccessful_component_parse()) :: String.t()
+  @spec parse_error({:error, atom} | unsuccessful_component_parse) :: String.t()
   defp parse_error({:error, reason}) do
     reason
     |> Atom.to_string()
@@ -35,7 +35,7 @@ defmodule Curie.Generic.Dice do
     |> Enum.join("\n")
   end
 
-  @spec parse_count(String.t()) :: parsed_dice_count()
+  @spec parse_count(String.t()) :: parsed_dice_count
   defp parse_count(""), do: {:ok, 1}
 
   defp parse_count(count) do
@@ -46,7 +46,7 @@ defmodule Curie.Generic.Dice do
     end
   end
 
-  @spec parse_sides(String.t()) :: parsed_side_count()
+  @spec parse_sides(String.t()) :: parsed_side_count
   defp parse_sides(sides) do
     case Integer.parse(sides) do
       {sides, _rest} when sides in 1..@dice_side_limit -> {:ok, sides}
@@ -55,12 +55,12 @@ defmodule Curie.Generic.Dice do
     end
   end
 
-  @spec parse_mode(String.t()) :: parsed_display_mode()
+  @spec parse_mode(String.t()) :: parsed_display_mode
   defp parse_mode(mode) when mode in ["", "r", "R"], do: {:ok, "R"}
   defp parse_mode(mode) when mode in ["e", "E"], do: {:ok, "E"}
   defp parse_mode(_invalid), do: {:error, :invalid_display_mode}
 
-  @spec parse_type(nil | [String.t()]) :: component_parsing_result()
+  @spec parse_type(nil | [String.t()]) :: component_parsing_result
   defp parse_type(nil), do: {:error, :invalid_dice_type}
 
   defp parse_type([count, sides, mode]) do
@@ -76,7 +76,7 @@ defmodule Curie.Generic.Dice do
     end
   end
 
-  @spec parse_dice(String.t()) :: component_parsing_result()
+  @spec parse_dice(String.t()) :: component_parsing_result
   defp parse_dice(dice) do
     @dice_regex_pattern
     |> Regex.run(dice, capture: :all_but_first)

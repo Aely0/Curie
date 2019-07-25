@@ -4,13 +4,13 @@ defmodule Curie.Data.Leaderboard do
   alias Nostrum.Snowflake
 
   @type t :: %__MODULE__{
-          channel_id: Snowflake.t(),
-          guild_id: Snowflake.t(),
-          message_id: Snowflake.t(),
-          last_refresh: pos_integer(),
-          page_count: pos_integer(),
-          current_page: pos_integer(),
-          entries: [String.t()]
+          channel_id: Snowflake.t() | nil,
+          guild_id: Snowflake.t() | nil,
+          message_id: Snowflake.t() | nil,
+          last_refresh: pos_integer | nil,
+          page_count: pos_integer | nil,
+          current_page: pos_integer | nil,
+          entries: [String.t()] | nil
         }
 
   @primary_key {:channel_id, :integer, []}
@@ -23,7 +23,7 @@ defmodule Curie.Data.Leaderboard do
     field(:entries, {:array, :string})
   end
 
-  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [

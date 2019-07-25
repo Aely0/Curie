@@ -15,14 +15,14 @@ defmodule Curie.Weather do
             Application.get_env(:curie, :googlemaps) <> "&address=" <> &1)).()
   end
 
-  @spec darkskies_url(%{String.t() => float(), String.t() => float()}) :: String.t()
+  @spec darkskies_url(%{String.t() => float}) :: String.t()
   def darkskies_url(%{"lat" => lat, "lng" => lng}) do
     "https://api.darksky.net/forecast/" <>
       Application.get_env(:curie, :darkskies) <>
       "/#{lat},#{lng}?units=si&exclude=minutely,hourly,daily,alerts,flags"
   end
 
-  @spec get_location(map(), Channel.id()) :: {:ok, {map(), String.t()}} | {:error, String.t()}
+  @spec get_location(map, Channel.id()) :: {:ok, {map, String.t()}} | {:error, String.t()}
   def get_location(response, channel) when is_map(response) do
     case response do
       %{"status" => "OK", "results" => [first | _rest]} ->
@@ -35,7 +35,7 @@ defmodule Curie.Weather do
   end
 
   @spec get_location([String.t()], Channel.id()) ::
-          {:ok, {map(), String.t()}} | {:error, String.t()}
+          {:ok, {map, String.t()}} | {:error, String.t()}
   def get_location(location, channel) when is_list(location) do
     case Curie.get(google_url(location)) do
       {:ok, %{body: body}} ->
@@ -52,8 +52,7 @@ defmodule Curie.Weather do
     timezone |> Timex.now() |> Timex.format!("%H:%M, %B %d", :strftime)
   end
 
-  @spec format_forecast(%{String.t() => map(), String.t() => String.t()}, String.t()) ::
-          String.t()
+  @spec format_forecast(%{String.t() => map | String.t()}, String.t()) :: String.t()
   def format_forecast(%{"currently" => weather, "timezone" => timezone}, address) do
     """
     Location: #{address}
@@ -77,7 +76,7 @@ defmodule Curie.Weather do
     |> put_description(description)
   end
 
-  @spec get_forecast({map(), String.t()}, Channel.id()) ::
+  @spec get_forecast({map, String.t()}, Channel.id()) ::
           {:ok, String.t()} | {:error, String.t()}
   def get_forecast({coords, address}, channel) do
     case Curie.get(darkskies_url(coords)) do

@@ -3,20 +3,23 @@ defmodule Curie.MessageCache do
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
-  alias Nostrum.Struct.{Channel, Guild, Message, User}
+  alias Nostrum.Struct.{Message, User}
+  alias Nostrum.Struct.Event.MessageDelete
 
-  @type get_response :: {:ok, [map()]} | {:error, :not_found}
+  @type get_response :: {:ok, [Message.t()]} | {:error, :not_found}
 
   @self __MODULE__
+
   @ignore [Application.get_env(:curie, :owner)]
   @limit 500
 
-  @spec start_link(term) :: GenServer.on_start()
+  @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
   @impl GenServer
+  @spec init(any) :: {:ok, %{ignore: [User.id()]}}
   def init(_args) do
     {:ok, curie_id} = Curie.my_id()
     {:ok, %{:ignore => [curie_id | @ignore]}}
@@ -71,40 +74,33 @@ defmodule Curie.MessageCache do
     {:reply, ignore_list, state}
   end
 
-  @spec add(Message.t()) :: no_return()
+  @spec add(%{author: %{id: User.id()}}) :: :ok
   defp add(message) do
     GenServer.cast(@self, {:add, message})
   end
 
-  @spec ignore?(%{author: %{id: User.id()}}) :: boolean()
+  @spec ignore?(%{author: %{id: User.id()}}) :: boolean
   def ignore?(%{author: %{id: user_id}}) do
     user_id in GenServer.call(@self, :ignore)
   end
 
-  @spec ignore?(%{user: %{id: User.id()}}) :: boolean()
-  def ignore?(%{user: %{id: user_id}}) do
-    user_id in GenServer.call(@self, :ignore)
-  end
-
-  @spec get(%{guild_id: Guild.id(), id: Message.id()}) :: get_response()
+  @spec get(MessageDelete.t() | Message.id()) :: get_response
   def get(%{guild_id: guild_id, id: message_id}) when guild_id != nil do
     GenServer.call(@self, {:get, guild_id, message_id})
   end
 
-  @spec get(%{channel_id: Channel.id(), id: Message.id()}) :: get_response()
   def get(%{channel_id: channel_id, id: message_id}) do
     GenServer.call(@self, {:get, channel_id, message_id})
   end
 
-  @spec get(Message.id()) :: get_response()
   def get(message_id) when is_snowflake(message_id) do
     GenServer.call(@self, {:get, message_id})
   end
 
-  @spec handler(map()) :: no_return()
+  @spec handler(%{author: %{id: User.id()}}) :: :ok | :pass
   def handler(message) do
-    unless ignore?(message) do
-      add(message)
-    end
+    unless ignore?(message),
+      do: add(message),
+      else: :pass
   end
 end

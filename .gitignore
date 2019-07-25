@@ -29,4 +29,6 @@ curie-*.tar
 /logs/
 
 curie.bat
+curie.lnk
+
 README.md

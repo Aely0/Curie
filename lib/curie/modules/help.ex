@@ -11,14 +11,17 @@ defmodule Curie.Help do
         }
 
   @self __MODULE__
-  @check_typo ~w/curie currency help/
 
-  @spec start_link(term) :: GenServer.on_start()
+  @check_typo ~w/curie currency help/
+  @timeout 300_000
+
+  @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
   @impl GenServer
+  @spec init(any) :: {:ok, command_info}
   def init(_args) do
     {:ok, get_stored_commands()}
   end
@@ -33,12 +36,12 @@ defmodule Curie.Help do
     {:noreply, get_stored_commands()}
   end
 
-  @spec get_command_info() :: command_info()
+  @spec get_command_info :: command_info
   def get_command_info do
     GenServer.call(@self, :get)
   end
 
-  @spec refresh_help_state() :: no_return()
+  @spec refresh_help_state :: :ok
   def refresh_help_state do
     GenServer.cast(@self, :reload)
   end
@@ -54,9 +57,9 @@ defmodule Curie.Help do
     {command, %{description: parse(description), short: short}}
   end
 
-  @spec get_stored_commands() :: command_info()
+  @spec get_stored_commands :: command_info
   def get_stored_commands do
-    case Data.all(Help) do
+    case Data.all(Help, timeout: @timeout) do
       [] ->
         %{commands: [], full: %{}}
 

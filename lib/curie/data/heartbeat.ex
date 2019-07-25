@@ -2,12 +2,12 @@ defmodule Curie.Data.Heartbeat do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @type t :: %__MODULE__{heartbeat: pos_integer()}
+  @type t :: %__MODULE__{heartbeat: pos_integer}
 
   @primary_key {:heartbeat, :integer, []}
   schema "heartbeat" do end
 
-  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:heartbeat])

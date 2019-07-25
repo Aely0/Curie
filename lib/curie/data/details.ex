@@ -7,7 +7,7 @@ defmodule Curie.Data.Details do
           member: Snowflake.t(),
           offline_since: pos_integer() | nil,
           last_status_change: pos_integer() | nil,
-          last_status_type: String | nil,
+          last_status_type: String.t() | nil,
           spoke: pos_integer() | nil,
           guild_id: Snowflake.t() | nil,
           channel: String.t() | nil

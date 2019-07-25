@@ -5,7 +5,7 @@ defmodule Curie.Data.Balance do
 
   @type t :: %__MODULE__{
           member: Snowflake.t(),
-          value: pos_integer(),
+          value: pos_integer,
           guild: Snowflake.t()
         }
 
@@ -15,7 +15,7 @@ defmodule Curie.Data.Balance do
     field(:guild, :integer)
   end
 
-  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:member, :value, :guild])

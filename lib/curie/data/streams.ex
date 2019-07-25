@@ -5,7 +5,7 @@ defmodule Curie.Data.Streams do
 
   @type t :: %__MODULE__{
           member: Snowflake.t(),
-          time: pos_integer()
+          time: pos_integer
         }
 
   @primary_key {:member, :integer, []}
@@ -13,7 +13,7 @@ defmodule Curie.Data.Streams do
     field(:time, :integer)
   end
 
-  @spec changeset(%__MODULE__{}, map()) :: Ecto.Changeset.t()
+  @spec changeset(%__MODULE__{}, map) :: Ecto.Changeset.t()
   def changeset(struct, params) do
     struct
     |> cast(params, [:member, :time])

@@ -13,24 +13,26 @@ defmodule Curie.Leaderboard do
   @type action :: :forward | :backward | :refresh | :new
 
   @self __MODULE__
+
   @actions %{"◀" => :backward, "▶" => :forward, "🔄" => :refresh}
   @buttons ["◀", "▶", "🔄"]
   @check_typo ~w/lead/
   @page_length 5
 
-  @spec start_link(term) :: GenServer.on_start()
+  @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do
     GenServer.start_link(@self, [], name: @self)
   end
 
   @impl GenServer
+  @spec init(any) :: {:ok, Leaderboard.t()}
   def init(_args) do
     with %Leaderboard{channel_id: channel_id, message_id: message_id} = state
          when channel_id != nil and message_id != nil <- load_state(),
          {:ok, _message} <- Api.get_channel_message(channel_id, message_id) do
       {:ok, state}
     else
-      _no_recoverable_state -> {:ok, %{channel_id: nil, guild_id: nil, message_id: nil}}
+      _no_recoverable_state -> {:ok, struct(Leaderboard)}
     end
   end
 
@@ -70,32 +72,32 @@ defmodule Curie.Leaderboard do
     {:noreply, state}
   end
 
-  @spec get_state() :: Leaderboard.t()
+  @spec get_state :: Leaderboard.t()
   def get_state do
     GenServer.call(@self, :get)
   end
 
-  @spec update_and_get_state(map()) :: Leaderboard.t()
+  @spec update_and_get_state(map) :: Leaderboard.t()
   def update_and_get_state(new_state) do
     GenServer.call(@self, {:update_and_get, new_state})
   end
 
-  @spec update_state(map()) :: no_return()
+  @spec update_state(map) :: :ok
   def update_state(new_state) do
     GenServer.cast(@self, {:update, new_state})
   end
 
-  @spec save_state() :: no_return()
+  @spec save_state :: :ok
   def save_state do
     GenServer.cast(@self, :save)
   end
 
-  @spec load_state() :: Leaderboard.t()
+  @spec load_state :: Leaderboard.t()
   def load_state do
     Data.one(Leaderboard)
   end
 
-  @spec create_new() :: Leaderboard.t()
+  @spec create_new :: Leaderboard.t()
   def create_new do
     entries = create_entries()
 
@@ -109,7 +111,7 @@ defmodule Curie.Leaderboard do
     update_and_get_state(state)
   end
 
-  @spec create_entries() :: [String.t()]
+  @spec create_entries :: [String.t()]
   def create_entries do
     %{guild_id: guild_id} = get_state()
 
@@ -126,7 +128,7 @@ defmodule Curie.Leaderboard do
     |> Enum.map(fn {entry, index} -> "**#{index}.** taken by " <> entry end)
   end
 
-  @spec format_entry({non_neg_integer(), [String.t()]}) :: String.t()
+  @spec format_entry({non_neg_integer, [String.t()]}) :: String.t()
   def format_entry({value, list}) do
     {first, rest} = Enum.split(list, 3)
     members = Enum.join(first, ", ")
@@ -134,7 +136,7 @@ defmodule Curie.Leaderboard do
     "**#{members <> overflow}** with **#{value}**#{@tempest}"
   end
 
-  @spec format_output(action()) :: Embed.t()
+  @spec format_output(action) :: Embed.t()
   def format_output(action) do
     %{
       current_page: current_page,
@@ -162,7 +164,7 @@ defmodule Curie.Leaderboard do
     |> put_timestamp(last_refresh)
   end
 
-  @spec interaction(action()) :: no_return()
+  @spec interaction(action) :: :ok
   def interaction(:backward) do
     state = get_state()
 
@@ -171,6 +173,8 @@ defmodule Curie.Leaderboard do
       Curie.edit!(state.channel_id, state.message_id, embed: format_output(:backward))
       save_state()
     end
+
+    :ok
   end
 
   def interaction(:forward) do
@@ -181,12 +185,15 @@ defmodule Curie.Leaderboard do
       Curie.edit!(state.channel_id, state.message_id, embed: format_output(:forward))
       save_state()
     end
+
+    :ok
   end
 
   def interaction(:refresh) do
     state = get_state()
     Curie.edit!(state.channel_id, state.message_id, embed: format_output(:refresh))
     save_state()
+    :ok
   end
 
   @impl Curie.Commands
@@ -215,19 +222,18 @@ defmodule Curie.Leaderboard do
     check_typo(call, @check_typo, &command/1)
   end
 
-  @spec handler(map()) :: no_return()
   def handler(%{emoji: %{name: emoji}, message_id: message_id, user_id: user_id}) do
     lead_id = get_state().message_id
     {:ok, curie_id} = Curie.my_id()
 
-    if curie_id != user_id and message_id == lead_id and emoji in @buttons do
-      interaction(@actions[emoji])
-    end
+    if curie_id != user_id and message_id == lead_id and emoji in @buttons,
+      do: interaction(@actions[emoji]),
+      else: :pass
   end
 
   def handler(%{guild_id: guild_id} = message) do
-    if guild_id do
-      super(message)
-    end
+    if guild_id,
+      do: super(message),
+      else: :pass
   end
 end
