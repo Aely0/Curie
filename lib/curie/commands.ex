@@ -9,7 +9,7 @@ defmodule Curie.Commands do
   @optional_callbacks command: 1, subcommand: 1
 
   defmacro __using__(_opts) do
-    quote do
+    quote location: :keep do
       @behaviour unquote(__MODULE__)
       @super unquote(__MODULE__)
 
