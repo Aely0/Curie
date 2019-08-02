@@ -1,9 +1,11 @@
 defmodule Curie.Scheduler.Tasks do
   import Crontab.CronExpression
+  import Ecto.Query, only: [from: 2]
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Cache.PresenceCache
   alias Nostrum.Api
+  alias Nostrum.Cache.PresenceCache
+  alias Nostrum.Struct.{Guild, User}
 
   alias Curie.Currency
   alias Curie.Data.{Balance, Overwatch, Status}
@@ -14,7 +16,7 @@ defmodule Curie.Scheduler.Tasks do
   @overwatch Application.get_env(:curie, :channels)[:overwatch]
   @shadowmere 90_579_372_049_723_392
 
-  @spec get() :: %{CronExpression.t() => [function()] | function()}
+  @spec get :: %{CronExpression.t() => [function] | function}
   def get do
     %{
       ~e[0] => [
@@ -29,27 +31,34 @@ defmodule Curie.Scheduler.Tasks do
     }
   end
 
-  @spec apply_gain(Balance.t()) :: no_return()
-  def apply_gain(%{member: member, value: balance, guild: guild}) do
-    with {:ok, %{status: status}} <- PresenceCache.get(member, guild) do
-      if (status == :online and balance < 300) or
-           (status in [:idle, :dnd] and balance < 300 and Enum.random(1..10) == 10) do
-        Currency.change_balance(:add, member, 1)
-      end
+  @spec apply_gain({User.id(), Guild.id()}) :: :ok
+  def apply_gain({id, guild}) do
+    with {:ok, %{status: status}} <- PresenceCache.get(id, guild) do
+      if status == :online or (status != :offline and Enum.random(1..10) == 10),
+        do: Currency.change_balance(:add, id, 1)
     end
+
+    :ok
   end
 
-  @spec member_balance_gain() :: no_return()
+  @spec member_balance_gain :: :ok
   def member_balance_gain do
     {:ok, curie_id} = Curie.my_id()
 
-    Balance
+    query =
+      from(b in "balance",
+        select: {b.member, b.guild},
+        where: b.value < 300 and b.member != ^curie_id
+      )
+
+    query
     |> Data.all()
-    |> Enum.filter(&(&1.member != curie_id))
     |> Enum.each(&apply_gain/1)
+
+    :ok
   end
 
-  @spec curie_balance_gain() :: no_return()
+  @spec curie_balance_gain :: :ok
   def curie_balance_gain do
     with {:ok, id} <- Curie.my_id(),
          %{value: balance} <- Data.get(Balance, id) do
@@ -59,9 +68,11 @@ defmodule Curie.Scheduler.Tasks do
         true -> nil
       end
     end
+
+    :ok
   end
 
-  @spec curie_balance_decay() :: no_return()
+  @spec curie_balance_decay :: :ok
   def curie_balance_decay do
     with {:ok, id} <- Curie.my_id(),
          %{value: balance} <- Data.get(Balance, id) do
@@ -71,25 +82,31 @@ defmodule Curie.Scheduler.Tasks do
         true -> nil
       end
     end
+
+    :ok
   end
 
-  @spec set_status() :: no_return()
+  @spec set_status :: :ok
   def set_status do
     case Data.all(Status) do
       [] -> nil
       entries -> Api.update_status(:online, Enum.random(entries).message)
     end
+
+    :ok
   end
 
-  @spec prune() :: no_return()
+  @spec prune :: :ok
   def prune do
     with {:ok, %{pruned: count}} when count > 0 <- Api.get_guild_prune_count(@shadowmere, 30) do
       Api.begin_guild_prune(@shadowmere, 30)
     end
+
+    :ok
   end
 
   # Disabled
-  @spec overwatch_patch() :: no_return()
+  @spec overwatch_patch :: :ok
   def overwatch_patch when @overwatch != nil do
     with {:ok, %{body: body, request_url: url}} <-
            Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
@@ -124,10 +141,12 @@ defmodule Curie.Scheduler.Tasks do
         |> Data.update()
       end
     end
+
+    :ok
   end
 
   # Disabled
-  @spec overwatch_twitter() :: no_return()
+  @spec overwatch_twitter :: :ok
   def overwatch_twitter when @overwatch != nil do
     auth = [{"Authorization", "Bearer " <> Application.get_env(:curie, :twitter)}]
     base = "https://api.twitter.com/1.1/statuses/user_timeline.json"
@@ -165,5 +184,7 @@ defmodule Curie.Scheduler.Tasks do
         |> Data.update()
       end
     end
+
+    :ok
   end
 end
