@@ -46,7 +46,7 @@ defmodule Curie.Scheduler.Tasks do
     {:ok, curie_id} = Curie.my_id()
 
     query =
-      from(b in "balance",
+      from(b in Balance,
         select: {b.member, b.guild},
         where: b.value < 300 and b.member != ^curie_id
       )
@@ -88,9 +88,10 @@ defmodule Curie.Scheduler.Tasks do
 
   @spec set_status :: :ok
   def set_status do
-    case Data.all(Status) do
+    # /!\ Given ecto query contains fragment specific to PostgreSQL
+    case Data.all(from(s in Status, select: s.message, order_by: fragment("RANDOM()"), limit: 1)) do
       [] -> nil
-      entries -> Api.update_status(:online, Enum.random(entries).message)
+      [message] -> Api.update_status(:online, message)
     end
 
     :ok
