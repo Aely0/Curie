@@ -3,7 +3,7 @@
 use Mix.Config
 
 config :nostrum,
-  token: "<removed>",
+  token: "DISCORD_API_TOKEN",
   num_shards: :auto
 
 config :curie,
@@ -12,10 +12,10 @@ config :curie,
   prefix: "!"
 
 config :curie,
-  darkskies: "<removed>",
-  googlemaps: "<removed>",
-  twitch: "<removed>",
-  twitter: "<removed>"
+  darkskies: "DARKSKIES_TOKEN",
+  googlemaps: "GOOGLEMAPS_TOKEN",
+  twitch: "TWITCH_TOKEN",
+  twitter: "TWITTER_TOKEN"
 
 config :curie,
   channels: %{
@@ -68,10 +68,10 @@ config :curie, ecto_repos: [Curie.Data]
 
 config :curie, Curie.Data,
   adapter: Ecto.Adapters.Postgres,
-  hostname: "<removed>",
-  username: "<removed>",
-  password: "<removed>",
-  database: "<removed>",
+  hostname: "HOSTNAME",
+  username: "USERNAME",
+  password: "PASSWORD",
+  database: "DATABASE",
   pool_size: 4
 
 config :logger,
@@ -83,10 +83,8 @@ config :logger, :console,
 
 config :logger, :logfile,
   format: "\n$date $time $metadata[$level] $message\n",
-  path: "logs/curie_warn.log",
-  level: :warn
-
-if Mix.env() == :test, do: import_config("test.exs")
+  path: "LOGFILE_PATH",
+  level: :info
 
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
@@ -113,4 +111,4 @@ if Mix.env() == :test, do: import_config("test.exs")
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-# import_config "#{Mix.env}.exs"
+import_config "#{Mix.env}.exs"
