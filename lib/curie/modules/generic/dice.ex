@@ -94,8 +94,7 @@ defmodule Curie.Generic.Dice do
         dice =
           1..count
           |> Enum.map(fn _die -> Enum.random(1..sides) end)
-          |> Enum.split(200)
-          |> elem(0)
+          |> Enum.take(200)
 
         {:ok, "#{type}: [#{Enum.join(dice, ", ")}, ...] → **#{Enum.sum(dice)}**"}
 
