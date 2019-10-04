@@ -306,12 +306,12 @@ defmodule Curie.Pot do
       Currency.change_balance(:deduct, member_id, value)
       update_state(%{value: state.value + value})
 
-      "**#{Curie.get_display_name(message)}** added **#{value}#{@tempest}**.\
-       Pot value is now **#{state.value + value}#{@tempest}**."
+      ("**#{Curie.get_display_name(message)}** added **#{value}#{@tempest}**. " <>
+         "Pot value is now **#{state.value + value}#{@tempest}**.")
       |> (&Curie.embed(message, &1, "lblue")).()
     else
-      "Exceeding limit **#{state.limit}#{@tempest}**.\
-       Current amount **(#{member_total}/#{state.limit})**."
+      ("Exceeding limit **#{state.limit}#{@tempest}**. " <>
+         "Current amount **(#{member_total}/#{state.limit})**.")
       |> (&Curie.embed(message, &1, "red")).()
     end
 

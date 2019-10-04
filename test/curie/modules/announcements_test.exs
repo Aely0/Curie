@@ -88,10 +88,11 @@ defmodule AnnouncementsTest do
           | id: 579_283_247_691_989_003,
             channel_id: map.test1_id
         },
-        logged_description: "#test1 Curie#4848: Something [\"1.txt\"]\
-           [%Nostrum.Struct.Embed{author: nil, color: 6570405, description: \"Embed\",\
-           fields: nil, footer: nil, image: nil, provider: nil, thumbnail: nil,\
-           timestamp: nil, title: nil, type: \"rich\", url: nil, video: nil}]"
+        logged_description:
+          "#test1 Curie#4848: Something [\"1.txt\"] " <>
+            "[%Nostrum.Struct.Embed{author: nil, color: 6570405, description: \"Embed\", " <>
+            "fields: nil, footer: nil, image: nil, provider: nil, thumbnail: nil, " <>
+            "timestamp: nil, title: nil, type: \"rich\", url: nil, video: nil}]"
       }
     })
   end
