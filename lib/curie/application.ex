@@ -1,6 +1,5 @@
 defmodule Curie.Application do
   use Application
-  require Logger
 
   @spec header :: String.t()
   def header do
@@ -20,7 +19,6 @@ defmodule Curie.Application do
       else: "  == Curie - Nostrum ==\n"
   end
 
-  @impl Application
   @spec start(any, any) :: {:error, any} | {:ok, pid}
   def start(_type, _args) do
     children = [
@@ -38,11 +36,5 @@ defmodule Curie.Application do
 
     IO.puts(header())
     Supervisor.start_link(children, strategy: :one_for_one, name: Curie.Supervisor)
-  rescue
-    error ->
-      Logger.error(inspect(error))
-      Process.sleep(10_000)
-      System.restart()
-      Process.sleep(:infinity)
   end
 end

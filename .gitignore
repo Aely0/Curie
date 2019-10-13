@@ -30,7 +30,7 @@ curie-*.tar
 
 /priv/logs/
 
-curie.bat
 curie.lnk
+curie.ps1
 
 README.md
