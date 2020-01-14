@@ -83,23 +83,26 @@ defmodule Curie.Generic.Dice do
     |> parse_type()
   end
 
+  @spec roll_dice(side_count, dice_count) :: [pos_integer]
+  defp roll_dice(sides, count) do
+    fn -> Enum.random(1..sides) end
+    |> Stream.repeatedly()
+    |> Enum.take(count)
+  end
+
   @spec roll(String.t()) :: {:ok, String.t()} | {:error, String.t()}
   def roll(dice) do
     case parse_dice(dice) do
       {:ok, {count, sides, "R", type}} ->
-        dice = Enum.map(1..count, fn _die -> Enum.random(1..sides) end)
-        {:ok, "#{type}: **#{Enum.sum(dice)}**"}
+        {:ok, "#{type}: **#{Enum.sum(roll_dice(sides, count))}**"}
 
       {:ok, {count, sides, "E", type}} when count > 200 ->
-        dice =
-          1..count
-          |> Enum.map(fn _die -> Enum.random(1..sides) end)
-          |> Enum.take(200)
-
-        {:ok, "#{type}: [#{Enum.join(dice, ", ")}, ...] → **#{Enum.sum(dice)}**"}
+        dice = roll_dice(sides, count)
+        dice_for_display = Enum.take(dice, 200)
+        {:ok, "#{type}: [#{Enum.join(dice_for_display, ", ")}, ...] → **#{Enum.sum(dice)}**"}
 
       {:ok, {count, sides, "E", type}} ->
-        dice = Enum.map(1..count, fn _die -> Enum.random(1..sides) end)
+        dice = roll_dice(sides, count)
         {:ok, "#{type}: [#{Enum.join(dice, ", ")}] → **#{Enum.sum(dice)}**"}
 
       error ->
