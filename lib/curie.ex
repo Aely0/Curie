@@ -12,7 +12,7 @@ defmodule Curie do
   @type message_error :: {:error, ApiError.t() | HTTPoison.Error.t()}
   @type message_result :: {:ok, Message.t()} | message_error
   @type destination :: Channel.id() | Message.t()
-  @type options :: keyword | map
+  @type options :: keyword | map | String.t()
 
   @colors Application.get_env(:curie, :colors)
 
@@ -69,41 +69,38 @@ defmodule Curie do
 
   @spec embed!(destination, String.t(), String.t() | non_neg_integer) ::
           Message.t() | no_return()
-  def embed!(channel, description, color) do
-    embed(channel, description, color) |> bangify()
+  def embed!(channel_or_message, description, color) do
+    embed(channel_or_message, description, color) |> bangify()
   end
 
   @spec embed(destination, String.t(), String.t() | non_neg_integer) :: message_result
-  def embed(channel, description, color) do
-    channel = if is_map(channel), do: channel.channel_id, else: channel
+  def embed(channel_or_message, description, color) do
     color = if is_integer(color), do: color, else: color(color)
 
     %Nostrum.Struct.Embed{}
     |> put_color(color)
     |> put_description(description)
-    |> (&Curie.send(channel, embed: &1)).()
+    |> (&Curie.send(channel_or_message, embed: &1)).()
   end
 
   @spec send!(destination, options) :: Message.t() | no_return
-  def send!(channel, options) do
-    Curie.send(channel, options) |> bangify()
+  def send!(channel_or_message, options) do
+    Curie.send(channel_or_message, options) |> bangify()
   end
 
   @spec send(destination, options, non_neg_integer) :: message_result
-  def send(channel, options, retries \\ 0) do
-    channel = if is_map(channel), do: channel.channel_id, else: channel
-
-    case Nostrum.Api.create_message(channel, options) do
+  def send(channel_or_message, options, retries \\ 0) do
+    case Nostrum.Api.create_message(channel_or_message, options) do
       {:ok, _message} = result ->
         result
 
       {:error, %{status_code: code}} when code >= 500 and retries <= 10 ->
         Process.sleep(500)
-        Curie.send(channel, options, retries + 1)
+        Curie.send(channel_or_message, options, retries + 1)
 
       {:error, _error} when retries <= 5 ->
         Process.sleep(500)
-        Curie.send(channel, options, retries + 1)
+        Curie.send(channel_or_message, options, retries + 1)
 
       error ->
         error

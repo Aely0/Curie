@@ -137,16 +137,16 @@ defmodule Curie.Pot do
         nil
 
       balance >= limit and trunc(limit / (limit + value) * 100) >= 50 ->
-        Curie.send(channel_id, content: @prefix <> "add #{limit}")
+        Curie.send(channel_id, @prefix <> "add #{limit}")
 
       balance >= limit and trunc(limit / (limit + value) * 100) >= 20 and length(players) > 1 ->
-        Curie.send(channel_id, content: @prefix <> "add #{limit}")
+        Curie.send(channel_id, @prefix <> "add #{limit}")
 
       trunc(balance / (balance + value) * 100) >= 50 ->
-        Curie.send(channel_id, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, @prefix <> "add #{balance}")
 
       trunc(balance / (balance + value) * 100) >= 50 and length(players) > 1 ->
-        Curie.send(channel_id, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, @prefix <> "add #{balance}")
 
       true ->
         nil
@@ -169,16 +169,16 @@ defmodule Curie.Pot do
         nil
 
       trunc(balance / (balance + value) * 100) in 30..80 ->
-        Curie.send(channel_id, content: @prefix <> "add #{balance}")
+        Curie.send(channel_id, @prefix <> "add #{balance}")
 
       trunc(balance / (balance + value) * 100) >= 80 and trunc(balance / 100 * 50) > 0 ->
         amount = trunc(balance / 100 * 50)
-        Curie.send(channel_id, content: @prefix <> "add #{amount}")
+        Curie.send(channel_id, @prefix <> "add #{amount}")
 
       trunc(balance / (balance + value) * 100) <= 30 and trunc(balance / 100 * 20) > 0 ->
         if Enum.random(1..5) == 5 do
           amount = trunc(balance / 100 * 20)
-          Curie.send(channel_id, content: @prefix <> "add #{amount}")
+          Curie.send(channel_id, @prefix <> "add #{amount}")
         end
 
       true ->

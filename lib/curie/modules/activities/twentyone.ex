@@ -218,7 +218,7 @@ defmodule Curie.TwentyOne do
 
     if state.phase == :joining and Enum.count(state.players) < 5 and
          Currency.get_balance(curie_id) >= state.set_value do
-      Curie.send(channel_id, content: @prefix <> "21")
+      Curie.send(channel_id, @prefix <> "21")
     end
 
     :ok
