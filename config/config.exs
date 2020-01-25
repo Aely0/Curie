@@ -33,7 +33,7 @@ config :curie,
     "dblue" => 0xB3F93,
     "yellow" => 0xFFC107,
     "purple" => 0x6441A5,
-    "white" => 0xFFFFFF
+    "white" => 0xFFFFFE
   },
   color_roles: %{
     "Haunted" => 165_474_974_092_623_873,
@@ -111,4 +111,4 @@ config :logger, :logfile,
 # Configuration from the imported file will override the ones defined
 # here (which is why it is important to import them last).
 #
-import_config "#{Mix.env}.exs"
+import_config "#{Mix.env()}.exs"
