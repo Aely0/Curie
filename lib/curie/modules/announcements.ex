@@ -113,12 +113,20 @@ defmodule Curie.Announcements do
   @spec stream({Guild.id(), map, %{game: String.t(), user: %{id: User.id()}}}) :: stream_result
   def stream({guild_id, _old, %{game: game, user: %{id: member_id}}}) do
     if game != nil and game.type == 1 and not has_cooldown?(member_id) do
-      twitch_id = Application.get_env(:curie, :twitch)
-      channel_name = game.url |> String.split("/") |> List.last()
-      url = "https://api.twitch.tv/kraken/channels/#{channel_name}/?client_id=#{twitch_id}"
+      auth = [{"Client-ID", Application.get_env(:curie, :twitch)}]
+      channel = game.url |> String.split("/") |> List.last()
 
-      with {:ok, %{body: body}} <- Curie.get(url),
-           {:ok, details} <- Poison.decode(body),
+      with channel_url = "https://api.twitch.tv/helix/streams?user_login=#{channel}",
+           {:ok, %{body: body}} <- Curie.get(channel_url, auth),
+           {:ok, %{"data" => [%{"user_name" => channel_name} = channel | _]}} <-
+             Poison.decode(body),
+           game_url = "https://api.twitch.tv/helix/games?id=#{channel["game_id"]}",
+           {:ok, %{body: body}} <- Curie.get(game_url, auth),
+           {:ok, %{"data" => [%{"name" => stream_game} | _]}} <- Poison.decode(body),
+           user_url = "https://api.twitch.tv/helix/users?id=#{channel["user_id"]}",
+           {:ok, %{body: body}} <- Curie.get(user_url, auth),
+           {:ok, %{"data" => [%{"profile_image_url" => profile_image} | _]}} <-
+             Poison.decode(body),
            {:ok, %{id: user_id} = user} <- UserCache.get(member_id),
            name = Curie.get_display_name(guild_id, user_id),
            {:ok, _} <- set_cooldown(member_id) do
@@ -126,9 +134,9 @@ defmodule Curie.Announcements do
         |> put_author("#{name} started streaming!", nil, Curie.avatar_url(user))
         |> put_description("[#{game.name}](#{game.url})")
         |> put_color(Curie.color("purple"))
-        |> put_field("Playing:", details["game"], true)
-        |> put_field("Channel:", "Twitch.tv/" <> details["display_name"], true)
-        |> put_thumbnail(details["logo"])
+        |> put_field("Playing:", stream_game, true)
+        |> put_field("Channel:", "Twitch.tv/" <> channel_name, true)
+        |> put_thumbnail(profile_image)
         |> (&Curie.send(@general, embed: &1)).()
       end
     else

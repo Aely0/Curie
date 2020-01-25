@@ -98,14 +98,19 @@ defmodule AnnouncementsTest do
   end
 
   defp add_stream_presence(%{guild_id: guild_id, member_id: member_id} = map) do
+    auth = [{"Client-ID", Application.get_env(:curie, :twitch)}]
+    channel_url = "https://api.twitch.tv/helix/streams?first=1"
+    {:ok, %{body: body}} = Curie.get(channel_url, auth)
+    {:ok, %{"data" => [channel | _]}} = Poison.decode(body)
+
     Map.merge(map, %{
       stream_presence:
         {guild_id, %{},
          %{
            game: %{
              type: 1,
-             url: "https://www.twitch.tv/twitch",
-             name: "Stream announcement test..."
+             url: "https://www.twitch.tv/" <> channel["user_name"],
+             name: channel["title"],
            },
            user: %{id: member_id}
          }}
