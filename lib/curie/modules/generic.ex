@@ -7,7 +7,7 @@ defmodule Curie.Generic do
   alias Curie.Generic.{Details, Dice}
   alias Nostrum.Api
 
-  @check_typo ~w/felweed rally avatar details cat overwatch roll ping/
+  @check_typo ~w/felweed rally avatar details cat overwatch rust roll ping/
   @roles Application.get_env(:curie, :roles)
 
   @impl Curie.Commands
@@ -28,9 +28,9 @@ defmodule Curie.Generic do
       String.split_at(result, 1984)
       |> elem(0)
       |> (&"```elixir\n#{&1}...```").()
-      |> (&Curie.send(message, content: &1)).()
+      |> (&Curie.send(message, &1)).()
     else
-      Curie.send(message, content: "```elixir\n#{result}```")
+      Curie.send(message, "```elixir\n#{result}```")
     end
   end
 
@@ -196,13 +196,17 @@ defmodule Curie.Generic do
           |> Enum.map(fn patch ->
             build = patch |> Floki.find("h3") |> Floki.text()
             id = patch |> Floki.find("a") |> Floki.attribute("href") |> hd()
+            date = patch |> Floki.find("p") |> Floki.text()
 
             date =
-              patch
-              |> Floki.find("p")
-              |> Floki.text()
-              |> Timex.parse!("{M}/{D}/{YYYY}")
-              |> Timex.format!("%B %d, %Y", :strftime)
+              case Timex.parse(date, "{M}/{D}/{YYYY}") do
+                {:ok, _} = ok -> ok
+                {:error, _} -> Timex.parse(date, "{YYYY}.{M}.{D}.")
+              end
+              |> case do
+                {:ok, date} -> Timex.format!(date, "%B %d, %Y", :strftime)
+                {:error, _} -> "#{date} (?)"
+              end
 
             "[#{build} - #{date}](#{url <> id})"
           end)
@@ -221,6 +225,53 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
+  def command({"rust", %{channel_id: channel, content: @prefix <> "rust " <> code}, _args}) do
+    Api.start_typing(channel)
+
+    code = ~s/fn main(){println!("{:?}", { #{code} });}/
+
+    payload =
+      %{
+        "channel" => "stable",
+        "edition" => "2018",
+        "code" => code,
+        "crateType" => "bin",
+        "mode" => "debug",
+        "tests" => false
+      }
+      |> Poison.encode!()
+
+    case HTTPoison.post("https://play.rust-lang.org/execute", payload, [], recv_timeout: 20_000) do
+      {:ok, %{status_code: 200, body: body}} ->
+        %{"success" => success, "stdout" => stdout, "stderr" => stderr} = Poison.decode!(body)
+
+        output =
+          cond do
+            success -> stdout
+            String.contains?(stderr, "timeout --signal=KILL") -> "timeout"
+            :error -> stderr |> String.split("\n", parts: 2) |> List.last()
+          end
+
+        output =
+          if String.length(output) > 2000,
+            do: (output |> String.split_at(1986) |> elem(0)) <> "...",
+            else: output
+
+        case output do
+          "timeout" -> Curie.embed(channel, "Task took too long and was killed", "red")
+          "()\n" -> Curie.embed(channel, "Success, but result has no output", "green")
+          output -> Curie.send(channel, "```rust\n#{output}```")
+        end
+
+      {:ok, %{status_code: status_code}} ->
+        Curie.embed(channel, "Unsuccessful request (#{status_code})", "red")
+
+      {:error, %{reason: reason}} ->
+        Curie.embed(channel, "Failed request (#{inspect(reason)})", "red")
+    end
+  end
+
+  @impl Curie.Commands
   def command({"roll", message, args}) do
     case Dice.roll(Enum.at(args, 0, "D100")) do
       {:ok, roll} ->
@@ -233,7 +284,7 @@ defmodule Curie.Generic do
 
   @impl Curie.Commands
   def command({"ping", message, _args}) do
-    Curie.send(message, content: Curie.Latency.get())
+    Curie.send(message, Curie.Latency.get())
   end
 
   @impl Curie.Commands
