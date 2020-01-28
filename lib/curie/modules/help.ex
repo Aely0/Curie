@@ -74,17 +74,8 @@ defmodule Curie.Help do
   @impl Curie.Commands
   def command({"curie", message, _args}) do
     """
-    Heya, my name is Curie! I am a Discord bot written in Elixir.
-    My purpose here is to accompany members of Shadowmere,
-    offering relevant information and playful distractions.
-    My duties consist of fetching various content from the web,
-    posting notifications, updates and hosting mini-games.
-    I also help managing this guild with things like role management,
-    tracking changes and mundane maintanace tasks.
-    If you want to find out about all the things I can help you with,
-    you can use one of my commands called **#{@prefix}help**.
-    If you want to look at my source, you can find it here:
-    https://github.com/Andris0/CurieEx
+    This is Curie, a Discord bot written in Elixir.
+    Source: https://github.com/Andris0/Curie
     """
     |> (&Curie.embed(message, &1, 0x620589)).()
   end
@@ -100,15 +91,15 @@ defmodule Curie.Help do
     Current currency related mini-games are Pots and 21,
     purchasable rewards are guild name color roles.
     Both games need at least 2 players to reach a result.
-    I can fill one of the player spots, if it is needed.
-    (If I have any tempests myself to spend of course.)
+    Curie can fill one of the player spots if it is needed,
+    while having enough currency to take the slot.
     At the start your balance will be 0, you can obtain them
     from a passive gain by being online during full clock hours.
-    Being online during the full hour provides 100% chance
+    Being online during full hours provides 100% chance
     to get 1 unit of currency, if idle or in dnd mode, you have
     only a 10% chance of gaining 1 unit of currency.
     Passive gain caps at 300, so you'll actaully have to play
-    with some other folk if you want to have enough for a name color.
+    with others if you want to have enough for a name color.
     Other than that, good luck and don't spend it all in one place!
     """
     |> (&Curie.embed(message, &1, 0xFFD700)).()
