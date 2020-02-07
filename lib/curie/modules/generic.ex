@@ -187,37 +187,38 @@ defmodule Curie.Generic do
   def command({"overwatch", %{channel_id: channel} = message, _args}) do
     Api.start_typing(channel)
 
-    case Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
-      {:ok, %{body: body, request_url: url}} ->
-        patches =
-          body
-          |> Floki.find(".PatchNotesSideNav-listItem")
-          |> Enum.take(5)
-          |> Enum.map(fn patch ->
-            build = patch |> Floki.find("h3") |> Floki.text()
-            id = patch |> Floki.find("a") |> Floki.attribute("href") |> hd()
-            date = patch |> Floki.find("p") |> Floki.text()
+    with {:ok, %{body: body, request_url: url}} <-
+           Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc"),
+         {:ok, html} <- Floki.parse_document(body) do
+      patches =
+        html
+        |> Floki.find(".PatchNotesSideNav-listItem")
+        |> Enum.take(5)
+        |> Enum.map(fn patch ->
+          build = patch |> Floki.find("h3") |> Floki.text()
+          id = patch |> Floki.find("a") |> Floki.attribute("href") |> hd()
+          date = patch |> Floki.find("p") |> Floki.text()
 
-            date =
-              case Timex.parse(date, "{M}/{D}/{YYYY}") do
-                {:ok, _} = ok -> ok
-                {:error, _} -> Timex.parse(date, "{YYYY}.{M}.{D}.")
-              end
-              |> case do
-                {:ok, date} -> Timex.format!(date, "%B %d, %Y", :strftime)
-                {:error, _} -> "#{date} (?)"
-              end
+          date =
+            case Timex.parse(date, "{M}/{D}/{YYYY}") do
+              {:ok, _} = ok -> ok
+              {:error, _} -> Timex.parse(date, "{YYYY}.{M}.{D}.")
+            end
+            |> case do
+              {:ok, date} -> Timex.format!(date, "%B %d, %Y", :strftime)
+              {:error, _} -> "#{date} (?)"
+            end
 
-            "[#{build} - #{date}](#{url <> id})"
-          end)
-          |> Enum.join("\n")
+          "[#{build} - #{date}](#{url <> id})"
+        end)
+        |> Enum.join("\n")
 
-        %Nostrum.Struct.Embed{}
-        |> put_author("Latest patches:", nil, "https://i.imgur.com/6NBYBSS.png")
-        |> put_description(patches)
-        |> put_color(Curie.color("white"))
-        |> (&Curie.send(message, embed: &1)).()
-
+      %Nostrum.Struct.Embed{}
+      |> put_author("Latest patches:", nil, "https://i.imgur.com/6NBYBSS.png")
+      |> put_description(patches)
+      |> put_color(Curie.color("white"))
+      |> (&Curie.send(message, embed: &1)).()
+    else
       {:error, reason} ->
         "Unable to retrieve patch notes. (#{reason})"
         |> (&Curie.embed(message, &1, "red")).()

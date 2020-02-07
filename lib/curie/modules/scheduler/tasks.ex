@@ -110,25 +110,24 @@ defmodule Curie.Scheduler.Tasks do
   @spec overwatch_patch :: :ok
   def overwatch_patch when @overwatch != nil do
     with {:ok, %{body: body, request_url: url}} <-
-           Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc") do
-      {build, id, date} =
-        body
-        |> Floki.find(".PatchNotesSideNav-listItem")
-        |> (fn [latest | _rest] ->
-              build = latest |> Floki.find("h3") |> Floki.text()
-              id = latest |> Floki.find("a") |> Floki.attribute("href") |> hd()
+           Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc"),
+         {:ok, html} <- Floki.parse_document(body),
+         [latest | _rest] <- Floki.find(html, ".PatchNotesSideNav-listItem") do
+      build = latest |> Floki.find("h3") |> Floki.text()
+      id = latest |> Floki.find("a") |> Floki.attribute("href") |> hd()
+      date = latest |> Floki.find("p") |> Floki.text()
 
-              date =
-                latest
-                |> Floki.find("p")
-                |> Floki.text()
-                |> Timex.parse!("{M}/{D}/{YYYY}")
-                |> Timex.format!("%B %d, %Y", :strftime)
+      date =
+        case Timex.parse(date, "{M}/{D}/{YYYY}") do
+          {:ok, _} = ok -> ok
+          {:error, _} -> Timex.parse(date, "{YYYY}.{M}.{D}.")
+        end
+        |> case do
+          {:ok, date} -> Timex.format!(date, "%B %d, %Y", :strftime)
+          {:error, _} -> "#{date} (?)"
+        end
 
-              {build, id, date}
-            end).()
-
-      stored = Data.one(Overwatch)
+      stored = Data.one(Overwatch) || %Overwatch{}
 
       if build != stored.build and !(build =~ ~r/\D\.\D/) do
         %Nostrum.Struct.Embed{}
@@ -139,7 +138,7 @@ defmodule Curie.Scheduler.Tasks do
 
         stored
         |> Overwatch.changeset(%{build: build})
-        |> Data.update()
+        |> Data.insert_or_update()
       end
     end
 
@@ -156,7 +155,7 @@ defmodule Curie.Scheduler.Tasks do
     with {:ok, %{body: body}} <- Curie.get(base <> params, auth) do
       %{"id_str" => tweet} = body |> Poison.decode!() |> Enum.take(1) |> hd()
       tweet_url = "https://twitter.com/PlayOverwatch/status/" <> tweet
-      stored = Data.one(Overwatch)
+      stored = Data.one(Overwatch) || %Overwatch{}
 
       with true <- tweet != stored.tweet,
            {:ok, %{body: body}} <- Curie.get(tweet_url) do
@@ -182,7 +181,7 @@ defmodule Curie.Scheduler.Tasks do
 
         stored
         |> Overwatch.changeset(%{tweet: tweet})
-        |> Data.update()
+        |> Data.insert_or_update()
       end
     end
 
