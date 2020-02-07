@@ -25,8 +25,8 @@ defmodule Curie.MixProject do
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
       {:logger_file_backend, "~> 0.0.10"},
       {:ecto, "~> 2.2"},
-      {:postgrex, ">= 0.13.5"},
-      {:floki, ">= 0.20.1"},
+      {:postgrex, "~> 0.13.5"},
+      {:floki, "~> 0.25.0"},
       {:timex, "~> 3.4"},
       {:deque, "~> 1.2"},
       {:crontab, "~> 1.1"}
