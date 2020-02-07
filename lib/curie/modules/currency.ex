@@ -79,10 +79,12 @@ defmodule Curie.Currency do
   end
 
   @impl Curie.Commands
-  def command({"balance", message, [curie | _rest]}) do
-    if Curie.check_typo(curie, "curie") do
-      Curie.my_id()
-      |> elem(1)
+  def command({"balance", %{mentions: mentions} = message, [curie | _rest]}) do
+    {:ok, curie_id} = Curie.my_id()
+
+    if Enum.any?(mentions, fn %{id: user_id} -> user_id == curie_id end) or
+         Curie.check_typo(curie, "curie") do
+      curie_id
       |> get_balance()
       |> (&"My balance is #{&1}#{@tempest}.").()
       |> (&Curie.embed(message, &1, "lblue")).()
