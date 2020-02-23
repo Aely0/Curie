@@ -8,7 +8,7 @@ defmodule Curie.Colors do
 
   alias Curie.{Currency, Storage}
 
-  @check_typo %{command: ~w/color/, subcommand: ~w/remove preview/}
+  @check_typo ~w/color color_preview color_remove/
   @color_roles Application.get_env(:curie, :color_roles)
   @snowflakes @color_roles["snowflakes"]
 
@@ -72,13 +72,10 @@ defmodule Curie.Colors do
   end
 
   @impl Curie.Commands
-  def command({"color", message, [color_name | rest]}) do
+  def command({"color", message, [color_name | _rest]}) do
     case parse_color_name(color_name) do
       nil ->
-        case Curie.check_typo(color_name, @check_typo.subcommand) do
-          nil -> Curie.embed(message, "Color not recognized.", "red")
-          subcall -> subcommand({subcall, message, rest})
-        end
+        Curie.embed(message, "Color not recognized.", "red")
 
       color ->
         if Storage.whitelisted?(message),
@@ -88,12 +85,7 @@ defmodule Curie.Colors do
   end
 
   @impl Curie.Commands
-  def command(call) do
-    check_typo(call, @check_typo.command, &command/1)
-  end
-
-  @impl Curie.Commands
-  def subcommand({"preview", message, [color_name | _rest]}) do
+  def command({"color_preview", message, [color_name | _rest]}) do
     case parse_color_name(color_name) do
       nil -> Curie.embed(message, "Color not recognized.", "red")
       color -> color_preview(color, message)
@@ -101,7 +93,7 @@ defmodule Curie.Colors do
   end
 
   @impl Curie.Commands
-  def subcommand({"remove", %{author: %{id: member_id}, guild_id: guild_id} = message, _args}) do
+  def command({"color_remove", %{author: %{id: member_id}, guild_id: guild_id} = message, _args}) do
     if Storage.whitelisted?(message) do
       remove_all_color_roles(member_id, guild_id)
       Curie.embed(message, "Color associated roles were removed.", "green")
@@ -111,5 +103,7 @@ defmodule Curie.Colors do
   end
 
   @impl Curie.Commands
-  def subcommand(_invalid_arguments), do: :pass
+  def command(call) do
+    Commands.check_typo(call, @check_typo, &command/1)
+  end
 end

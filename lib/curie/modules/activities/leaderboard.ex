@@ -197,6 +197,11 @@ defmodule Curie.Leaderboard do
   end
 
   @impl Curie.Commands
+  def command({"lead", %{guild_id: nil} = message, _args}) do
+    Curie.embed(message, "Not allowed in DMs", "red")
+  end
+
+  @impl Curie.Commands
   def command({"lead", %{guild_id: guild_id} = message, _args}) do
     %{message_id: old_message_id, channel_id: old_channel_id} =
       update_and_get_state(%{guild_id: guild_id})
@@ -219,7 +224,7 @@ defmodule Curie.Leaderboard do
 
   @impl Curie.Commands
   def command(call) do
-    check_typo(call, @check_typo, &command/1)
+    Commands.check_typo(call, @check_typo, &command/1)
   end
 
   def handler(%{emoji: %{name: emoji}, message_id: message_id, user_id: user_id}) do
@@ -228,12 +233,6 @@ defmodule Curie.Leaderboard do
 
     if curie_id != user_id and message_id == lead_id and emoji in @buttons,
       do: interaction(@actions[emoji]),
-      else: :pass
-  end
-
-  def handler(%{guild_id: guild_id} = message) do
-    if guild_id,
-      do: super(message),
       else: :pass
   end
 end

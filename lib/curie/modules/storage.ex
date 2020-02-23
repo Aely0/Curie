@@ -181,7 +181,5 @@ defmodule Curie.Storage do
     with {:ok, curie_id} when curie_id != id <- Curie.my_id() do
       store_details(message)
     end
-
-    super(message)
   end
 end

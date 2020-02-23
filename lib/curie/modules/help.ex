@@ -151,6 +151,6 @@ defmodule Curie.Help do
 
   @impl Curie.Commands
   def command(call) do
-    check_typo(call, @check_typo, &command/1)
+    Commands.check_typo(call, @check_typo, &command/1)
   end
 end

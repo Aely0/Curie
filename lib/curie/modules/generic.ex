@@ -226,10 +226,10 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"rust", %{channel_id: channel, content: @prefix <> "rust " <> code}, _args}) do
+  def command({"rust", %{channel_id: channel, content: @prefix <> "rust" <> code}, _args}) do
     Api.start_typing(channel)
 
-    code = ~s/fn main(){println!("{:?}", { #{code} });}/
+    code = ~s/fn main(){println!("{:?}",{#{String.trim(code)}});}/
 
     payload =
       %{
@@ -290,6 +290,6 @@ defmodule Curie.Generic do
 
   @impl Curie.Commands
   def command(call) do
-    check_typo(call, @check_typo, &command/1)
+    Commands.check_typo(call, @check_typo, &command/1)
   end
 end

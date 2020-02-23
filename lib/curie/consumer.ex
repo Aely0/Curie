@@ -4,20 +4,27 @@ defmodule Curie.Consumer do
   alias Nostrum.Struct.Message
   alias Nostrum.Consumer
 
+  alias Curie.Commands
+
   @self __MODULE__
+
+  @commands [
+    &Curie.Generic.command/1,
+    &Curie.Help.command/1,
+    &Curie.Images.command/1,
+    &Curie.Storage.command/1,
+    &Curie.Currency.command/1,
+    &Curie.Colors.command/1,
+    &Curie.Weather.command/1,
+    &Curie.Pot.command/1,
+    &Curie.TwentyOne.command/1,
+    &Curie.Leaderboard.command/1
+  ]
 
   @handlers %{
     message: [
-      &Curie.Generic.handler/1,
-      &Curie.Help.handler/1,
       &Curie.Images.handler/1,
       &Curie.Storage.handler/1,
-      &Curie.Currency.handler/1,
-      &Curie.Colors.handler/1,
-      &Curie.Weather.handler/1,
-      &Curie.Pot.handler/1,
-      &Curie.TwentyOne.handler/1,
-      &Curie.Leaderboard.handler/1,
       &Curie.MessageCache.handler/1
     ],
     presence: [
@@ -30,6 +37,13 @@ defmodule Curie.Consumer do
   @spec start_link :: no_return
   def start_link do
     Consumer.start_link(@self, name: @self)
+  end
+
+  @spec call_commands(Message.t()) :: {:ok, pid} | :pass
+  def call_commands(message) do
+    if Commands.command?(message),
+      do: message |> Commands.parse() |> call_handlers(@commands),
+      else: :pass
   end
 
   @spec call_handlers(Message.t() | tuple, [function]) :: {:ok, pid}
@@ -46,6 +60,7 @@ defmodule Curie.Consumer do
   @impl Nostrum.Consumer
   def handle_event({:MESSAGE_CREATE, message, ws_state}) do
     Curie.Latency.update(ws_state)
+    call_commands(message)
     call_handlers(message, @handlers.message)
   end
 
@@ -53,6 +68,7 @@ defmodule Curie.Consumer do
   def handle_event({:MESSAGE_UPDATE, %{content: content} = updated, ws_state})
       when content != nil do
     Curie.Latency.update(ws_state)
+    call_commands(updated)
     call_handlers(updated, @handlers.message)
   end
 

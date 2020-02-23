@@ -9,7 +9,7 @@ defmodule CommandsTest do
   def command({"call", _message, _args} = {call, _, _}), do: call
   def command({"args", _message, args}), do: args
   def command({"message", message, _args}), do: message
-  def command(call), do: check_typo(call, @check_typos, &command/1)
+  def command(call), do: Commands.check_typo(call, @check_typos, &command/1)
 
   # The testing itself
   defp test_scenarios do
@@ -31,8 +31,12 @@ defmodule CommandsTest do
 
   test "comparing parsed command calls with expected results" do
     for {message, desired_result} <- test_scenarios() do
-      handler_result = handler(message)
-      assert handler_result == desired_result
+      command_call =
+        if Commands.command?(message),
+          do: message |> Commands.parse() |> command(),
+          else: :pass
+
+      assert command_call == desired_result
     end
   end
 end

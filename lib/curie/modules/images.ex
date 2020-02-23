@@ -65,23 +65,22 @@ defmodule Curie.Images do
   end
 
   @impl Curie.Commands
-  def command({"images", @owner = message, [call]}) when call == "r" do
+  def command({"images", @owner = message, ["r"]}) do
     refresh_image_state()
-    Curie.embed(message, "Image directory state refreshed.", "green")
+    Curie.embed(message, "Image directory state refreshed", "green")
   end
 
   @impl Curie.Commands
   def command({"images", message, []}) do
-    Curie.embed(message, (get_images() |> Map.keys() |> Enum.join(", ")) <> ".", "green")
+    Curie.embed(message, get_images() |> Map.keys() |> Enum.join(", "), "green")
   end
 
   @impl Curie.Commands
   def command(call) do
-    check_typo(call, @check_typo, &command/1)
+    Commands.check_typo(call, @check_typo, &command/1)
   end
 
   def handler(message) do
     send_match(message)
-    super(message)
   end
 end
