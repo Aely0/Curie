@@ -118,7 +118,7 @@ defmodule Curie.Announcements do
 
       with channel_url = "https://api.twitch.tv/helix/streams?user_login=#{channel}",
            {:ok, %{body: body}} <- Curie.get(channel_url, auth),
-           {:ok, %{"data" => [%{"user_name" => channel_name} = channel | _]}} <-
+           {:ok, %{"data" => [%{"user_name" => channel_name, "title" => title} = channel | _]}} <-
              Poison.decode(body),
            game_url = "https://api.twitch.tv/helix/games?id=#{channel["game_id"]}",
            {:ok, %{body: body}} <- Curie.get(game_url, auth),
@@ -132,7 +132,7 @@ defmodule Curie.Announcements do
            {:ok, _} <- set_cooldown(member_id) do
         %Nostrum.Struct.Embed{}
         |> put_author("#{name} started streaming!", nil, Curie.avatar_url(user))
-        |> put_description("[#{game.name}](#{game.url})")
+        |> put_description("[#{title}](#{game.url})")
         |> put_color(Curie.color("purple"))
         |> put_field("Playing:", stream_game, true)
         |> put_field("Channel:", "Twitch.tv/" <> channel_name, true)
