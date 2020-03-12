@@ -12,8 +12,6 @@ defmodule Curie.Announcements do
   alias Curie.Data.Streams
   alias Curie.Data
 
-  @type stream_result :: Curie.message_result() | {:error, any} | :pass
-
   @general Application.get_env(:curie, :channels).general
   @invisible Application.get_env(:curie, :channels).invisible
   @logs Application.get_env(:curie, :channels).logs
@@ -110,8 +108,9 @@ defmodule Curie.Announcements do
     |> Data.insert_or_update()
   end
 
-  @spec stream({Guild.id(), map, %{game: String.t(), user: %{id: User.id()}}}) :: stream_result
-  def stream({guild_id, _old, %{game: game, user: %{id: member_id}}}) do
+  @spec stream({Guild.id(), map, %{game: String.t(), user: %{id: User.id()}}}, 0..5) ::
+          Curie.message_result() | :pass
+  def stream({guild_id, _old, %{game: game, user: %{id: member_id}}} = presence, retries \\ 0) do
     if game != nil and game.type == 1 and not has_cooldown?(member_id) do
       auth = [{"Client-ID", Application.get_env(:curie, :twitch)}]
       channel = game.url |> String.split("/") |> List.last()
@@ -138,6 +137,15 @@ defmodule Curie.Announcements do
         |> put_field("Channel:", "Twitch.tv/" <> channel_name, true)
         |> put_thumbnail(profile_image)
         |> (&Curie.send(@general, embed: &1)).()
+      else
+        _ when retries <= 5 ->
+          Task.start(fn ->
+            Process.sleep(20000)
+            stream(presence, retries + 1)
+          end)
+
+        _ ->
+          :pass
       end
     else
       :pass
