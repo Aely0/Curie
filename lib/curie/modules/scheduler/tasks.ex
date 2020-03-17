@@ -8,11 +8,12 @@ defmodule Curie.Scheduler.Tasks do
   alias Nostrum.Struct.{Guild, User}
 
   alias Curie.Currency
-  alias Curie.Data.{Balance, Overwatch, Status}
+  alias Curie.Data.{Balance, Overwatch, Status, Streams}
   alias Curie.Data
 
   alias Crontab.CronExpression
 
+  @stream_message_cooldown Application.get_env(:curie, :stream_message_cooldown)
   @overwatch Application.get_env(:curie, :channels)[:overwatch]
   @shadowmere 90_579_372_049_723_392
 
@@ -25,6 +26,7 @@ defmodule Curie.Scheduler.Tasks do
         &set_status/0
       ],
       ~e[0 0] => [
+        &clear_stored_stream_messages/0,
         &curie_balance_gain/0,
         &prune/0
       ]
@@ -88,7 +90,7 @@ defmodule Curie.Scheduler.Tasks do
 
   @spec set_status :: :ok
   def set_status do
-    # /!\ Given ecto query contains fragment specific to PostgreSQL
+    # ! PostgreSQL fragment
     case Data.all(from(s in Status, select: s.message, order_by: fragment("RANDOM()"), limit: 1)) do
       [] -> nil
       [message] -> Api.update_status(:online, message)
@@ -106,6 +108,14 @@ defmodule Curie.Scheduler.Tasks do
     :ok
   end
 
+  @spec clear_stored_stream_messages :: :ok
+  def clear_stored_stream_messages do
+    time_difference = (Timex.now() |> Timex.to_unix()) - @stream_message_cooldown
+    from(s in Streams, where: ^time_difference > s.time) |> Data.delete_all()
+
+    :ok
+  end
+
   # Disabled
   @spec overwatch_patch :: :ok
   def overwatch_patch when @overwatch != nil do
@@ -113,9 +123,9 @@ defmodule Curie.Scheduler.Tasks do
            Curie.get("https://playoverwatch.com/en-us/news/patch-notes/pc"),
          {:ok, html} <- Floki.parse_document(body),
          [latest | _rest] <- Floki.find(html, ".PatchNotesSideNav-listItem") do
-      build = latest |> Floki.find("h3") |> Floki.text()
-      id = latest |> Floki.find("a") |> Floki.attribute("href") |> hd()
-      date = latest |> Floki.find("p") |> Floki.text()
+      build = [latest] |> Floki.find("h3") |> Floki.text()
+      id = [latest] |> Floki.find("a") |> Floki.attribute("href") |> hd()
+      date = [latest] |> Floki.find("p") |> Floki.text()
 
       date =
         case Timex.parse(date, "{M}/{D}/{YYYY}") do

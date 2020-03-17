@@ -30,7 +30,7 @@ defmodule Curie.Consumer do
     presence: [
       &Curie.Storage.store_details/1,
       &Curie.Storage.status_gather/1,
-      &Curie.Announcements.stream/1
+      &Curie.Stream.stream/1
     ]
   }
 
@@ -79,7 +79,7 @@ defmodule Curie.Consumer do
 
   @impl Nostrum.Consumer
   def handle_event({:MESSAGE_DELETE, message, _ws_state}) do
-    Curie.Announcements.delete_log(message)
+    Curie.Log.delete(message)
   end
 
   @impl Nostrum.Consumer
@@ -94,12 +94,12 @@ defmodule Curie.Consumer do
 
   @impl Nostrum.Consumer
   def handle_event({:GUILD_MEMBER_ADD, {guild_id, member}, _ws_state}) do
-    Curie.Announcements.join_log(guild_id, member)
+    Curie.Log.join(guild_id, member)
   end
 
   @impl Nostrum.Consumer
   def handle_event({:GUILD_MEMBER_REMOVE, {_guild_id, member}, _ws_state}) do
-    Curie.Announcements.leave_log(member)
+    Curie.Log.leave(member)
     Curie.Storage.remove(member.user.id)
   end
 

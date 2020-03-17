@@ -9,7 +9,8 @@ config :nostrum,
 config :curie,
   tempest: "<:tempest:408292279154114570>",
   owner: 90_575_330_862_972_928,
-  prefix: "!"
+  prefix: "!",
+  stream_message_cooldown: 21600
 
 config :curie,
   darkskies: "DARKSKIES_TOKEN",
