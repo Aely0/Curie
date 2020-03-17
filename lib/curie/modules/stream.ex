@@ -28,7 +28,7 @@ defmodule Curie.Stream do
 
   @spec set_cooldown(Curie.message_result(), User.id()) :: Curie.message_result()
   def set_cooldown({:ok, %{channel_id: channel_id, id: message_id}} = message, user_id) do
-    %Streams{member: user_id}
+    (Data.get(Streams, user_id) || %Streams{member: user_id})
     |> Streams.changeset(%{
       time: Timex.now() |> Timex.to_unix(),
       channel_id: channel_id,
