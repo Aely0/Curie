@@ -215,9 +215,10 @@ defmodule Curie.TwentyOne do
   def curie_join(channel_id) do
     state = get_state()
     {:ok, curie_id} = Curie.my_id()
+    {:ok, balance} = Currency.get_balance(curie_id)
 
     if state.phase == :joining and Enum.count(state.players) < 5 and
-         Currency.get_balance(curie_id) >= state.set_value do
+         balance >= state.set_value do
       Curie.send(channel_id, @prefix <> "21")
     end
 
@@ -356,7 +357,7 @@ defmodule Curie.TwentyOne do
 
     cond do
       Enum.count(state.players) == length(ready_check) ->
-        Curie.embed(message, "All players have made their moves.", "dblue")
+        Curie.embed(message, "All players have made their moves", "dblue")
         Process.sleep(1000)
 
       timer <= 0 ->
@@ -444,10 +445,10 @@ defmodule Curie.TwentyOne do
 
     cond do
       member_id in players ->
-        Curie.embed(message, "You are already in.", "red")
+        Curie.embed(message, "You are already in", "red")
 
       length(players) >= 10 ->
-        Curie.embed(message, "All spots are taken.", "red")
+        Curie.embed(message, "All spots are taken", "red")
 
       true ->
         update_state(%{total_value: total_value + set_value})
@@ -495,7 +496,7 @@ defmodule Curie.TwentyOne do
   @spec has_aces?(Message.t(), map) :: boolean
   def has_aces?(%{author: %{id: id}} = message, state) do
     if state.players[id].aces > 0 do
-      Curie.embed(message, "Choose your Ace value before continuing.", "red")
+      Curie.embed(message, "Choose your Ace value before continuing", "red")
     end
     |> (&(!!&1)).()
   end
@@ -507,17 +508,17 @@ defmodule Curie.TwentyOne do
 
   @spec handle_event({Message.t(), map, pos_integer | nil}) :: :ok
   def handle_event({message, %{phase: :playing, channel_name: channel_name}, _value}) do
-    Curie.embed(message, "Game already started in #{channel_name}.", "red")
+    Curie.embed(message, "Game already started in #{channel_name}", "red")
     :ok
   end
 
   def handle_event({%{guild_id: nil} = message, _state, _value}) do
-    Curie.embed(message, "Uhuh... that's a no.", "red")
+    Curie.embed(message, "Uhuh... that's a no", "red")
     :ok
   end
 
   def handle_event({message, %{phase: :idle}, nil}) do
-    Curie.embed(message, "Invalid amount.", "red")
+    Curie.embed(message, "Invalid amount", "red")
     :ok
   end
 
@@ -549,10 +550,10 @@ defmodule Curie.TwentyOne do
     if can_continue?(message, state) do
       cond do
         state.players[member_id].aces <= 0 ->
-          Curie.embed(message, "No Aces to convert.", "red")
+          Curie.embed(message, "No Aces to convert", "red")
 
         value not in ["1", "11"] ->
-          Curie.embed(message, "Ace can be converted to 1 or 11.", "red")
+          Curie.embed(message, "Ace can be converted to 1 or 11", "red")
 
         true ->
           card_type = String.to_integer(value)

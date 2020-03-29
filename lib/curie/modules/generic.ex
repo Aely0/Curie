@@ -64,7 +64,7 @@ defmodule Curie.Generic do
         |> Kernel.<>(Base.encode64(file))
         |> (&Api.modify_current_user!(avatar: &1)).()
 
-        Curie.embed(message, "Avatar changed.", "green")
+        Curie.embed(message, "Avatar changed", "green")
 
       {:error, reason} ->
         :file.format_error(reason)
@@ -135,13 +135,13 @@ defmodule Curie.Generic do
     else
       {:error, :member_not_found} ->
         name = if format, do: Enum.join(rest, " "), else: Enum.join(args, " ")
-        Curie.embed(message, "Member '#{name}' not found.", "red")
+        Curie.embed(message, "Member '#{name}' not found", "red")
 
       {:error, "415"} ->
-        Curie.embed(message, "Invalid format for member's avatar.", "red")
+        Curie.embed(message, "Invalid format for member's avatar", "red")
 
       {:error, reason} ->
-        Curie.embed(message, "Unable to fetch member's avatar (#{reason}).", "red")
+        Curie.embed(message, "Unable to fetch member's avatar (#{reason})", "red")
     end
   end
 

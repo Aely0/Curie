@@ -1,6 +1,8 @@
 defmodule Curie.Currency do
   use Curie.Commands
 
+  import Nostrum.Snowflake, only: [is_snowflake: 1]
+
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Struct.{Message, User}
 
@@ -10,17 +12,8 @@ defmodule Curie.Currency do
 
   @check_typo ~w/balance gift/
 
-  @spec value_parse(User.id(), String.t()) :: pos_integer | nil
-  def value_parse(member_id, value) when is_integer(member_id) and is_binary(value) do
-    value_parse(value, get_balance(member_id))
-  end
-
-  @spec value_parse(String.t(), integer | nil) :: pos_integer | nil
-  def value_parse(_value, 0), do: nil
-
-  def value_parse(_value, nil), do: nil
-
-  def value_parse(value, balance) when is_binary(value) and is_integer(balance) do
+  @spec parse(String.t(), integer | nil) :: pos_integer | nil
+  defp parse(value, balance) when is_binary(value) and is_integer(balance) do
     cond do
       Curie.check_typo(value, "all") -> balance
       Curie.check_typo(value, "half") && balance > 0 -> trunc(balance / 2)
@@ -28,19 +21,31 @@ defmodule Curie.Currency do
       value =~ ~r/^\d+/ -> Integer.parse(value) |> elem(0)
       true -> nil
     end
-    |> (&if(&1 in 1..balance, do: &1)).()
+    |> (&if(balance > 0 and &1 in 1..balance, do: &1)).()
   end
 
-  @spec get_balance(User.id()) :: Balance.value() | nil
-  def get_balance(member_id) do
-    with %{value: value} <- Data.get(Balance, member_id) do
-      value
+  @spec value_parse(User.id(), String.t()) :: pos_integer | nil
+  def value_parse(user_id, value) when is_snowflake(user_id) and is_binary(value) do
+    case get_balance(user_id) do
+      {:ok, balance} -> parse(value, balance)
+      {:error, _error} -> nil
     end
   end
 
+  @spec get_balance(User.id() | Message.t()) ::
+          {:ok, Balance.value()} | {:error, :no_existing_balance}
+  def get_balance(user_id) when is_snowflake(user_id) do
+    case Data.get(Balance, user_id) do
+      %Balance{value: value} -> {:ok, value}
+      nil -> {:error, :no_existing_balance}
+    end
+  end
+
+  def get_balance(%Message{author: %User{id: user_id}}), do: get_balance(user_id)
+
   @spec change_balance(:add | :deduct | :replace, User.id(), integer) :: :ok
-  def change_balance(action, member_id, value) do
-    balance = Data.get(Balance, member_id)
+  def change_balance(action, user_id, value) do
+    balance = Data.get(Balance, user_id)
 
     case action do
       :add -> balance.value + value
@@ -67,12 +72,16 @@ defmodule Curie.Currency do
   end
 
   @impl Curie.Commands
-  def command({"balance", %{author: %{id: member_id}} = message, []}) do
+  def command({"balance", %{author: %{id: user_id}} = message, []}) do
     if Storage.whitelisted?(message) do
-      member_id
-      |> get_balance()
-      |> (&"#{Curie.get_display_name(message)} has #{&1}#{@tempest}.").()
-      |> (&Curie.embed(message, &1, "lblue")).()
+      case get_balance(user_id) do
+        {:ok, balance} ->
+          response = "#{Curie.get_display_name(message)} has #{balance}#{@tempest}."
+          Curie.embed(message, response, "lblue")
+
+        {:error, _error} ->
+          Curie.embed(message, "No balance seems to exist?", "red")
+      end
     else
       Storage.whitelist_message(message)
     end
@@ -81,13 +90,11 @@ defmodule Curie.Currency do
   @impl Curie.Commands
   def command({"balance", %{mentions: mentions} = message, [curie | _rest]}) do
     {:ok, curie_id} = Curie.my_id()
+    curie_mentioned = fn %{id: user_id} -> user_id == curie_id end
 
-    if Enum.any?(mentions, fn %{id: user_id} -> user_id == curie_id end) or
-         Curie.check_typo(curie, "curie") do
-      curie_id
-      |> get_balance()
-      |> (&"My balance is #{&1}#{@tempest}.").()
-      |> (&Curie.embed(message, &1, "lblue")).()
+    if Enum.any?(mentions, curie_mentioned) or Curie.check_typo(curie, "curie") do
+      {:ok, balance} = get_balance(curie_id)
+      Curie.embed(message, "My balance is #{balance}#{@tempest}", "lblue")
     else
       command({"balance", message, []})
     end
@@ -98,15 +105,17 @@ defmodule Curie.Currency do
     if Storage.whitelisted?(message) do
       case validate_recipient(message) do
         nil ->
-          Curie.embed(message, "Invalid recipient.", "red")
+          Curie.embed(message, "Invalid recipient", "red")
 
         %{user: %{id: giftee}} when giftee == gifter ->
           Curie.embed(message, "Really...?", "red")
 
         %{nick: nick, user: %{id: giftee, username: username}} ->
-          case value_parse(value, get_balance(gifter)) do
+          {:ok, balance} = get_balance(gifter)
+
+          case value_parse(value, balance) do
             nil ->
-              Curie.embed(message, "Invalid amount.", "red")
+              Curie.embed(message, "Invalid amount", "red")
 
             amount ->
               change_balance(:deduct, gifter, amount)

@@ -11,6 +11,7 @@ defmodule Curie.Colors do
   @check_typo ~w/color color_preview color_remove/
   @color_roles Application.get_env(:curie, :color_roles)
   @snowflakes @color_roles["snowflakes"]
+  @color_cost 500
 
   @spec parse_color_name(String.t()) :: String.t() | nil
   def parse_color_name(color_name) do
@@ -65,29 +66,39 @@ defmodule Curie.Colors do
     Api.add_guild_member_role(guild_id, member_id, @color_roles[color_name])
     Api.add_guild_member_role(guild_id, member_id, @snowflakes)
 
-    Currency.change_balance(:deduct, member_id, 500)
+    Currency.change_balance(:deduct, member_id, @color_cost)
     Curie.embed(message, "#{member_name} acquired #{color_name}!", color)
 
     :ok
   end
 
   @impl Curie.Commands
-  def command({"color", message, [color_name | _rest]}) do
+  def command({"color", %{author: %{id: member_id}} = message, [color_name | _rest]}) do
     case parse_color_name(color_name) do
       nil ->
-        Curie.embed(message, "Color not recognized.", "red")
+        Curie.embed(message, "Color not recognized", "red")
 
       color ->
-        if Storage.whitelisted?(message),
-          do: confirm_transaction(color, message),
-          else: Storage.whitelist_message(message)
+        with true <- Storage.whitelisted?(member_id),
+             {:ok, balance} when balance >= @color_cost <- Currency.get_balance(member_id) do
+          confirm_transaction(color, message)
+        else
+          false ->
+            Storage.whitelist_message(message)
+
+          {:ok, _balance} ->
+            Curie.embed(message, "Color change costs #{@color_cost}#{@tempest}", "red")
+
+          {:error, _error} ->
+            Curie.embed(message, "No balance seems to exist?", "red")
+        end
     end
   end
 
   @impl Curie.Commands
   def command({"color_preview", message, [color_name | _rest]}) do
     case parse_color_name(color_name) do
-      nil -> Curie.embed(message, "Color not recognized.", "red")
+      nil -> Curie.embed(message, "Color not recognized", "red")
       color -> color_preview(color, message)
     end
   end
@@ -96,7 +107,7 @@ defmodule Curie.Colors do
   def command({"color_remove", %{author: %{id: member_id}, guild_id: guild_id} = message, _args}) do
     if Storage.whitelisted?(message) do
       remove_all_color_roles(member_id, guild_id)
-      Curie.embed(message, "Color associated roles were removed.", "green")
+      Curie.embed(message, "Color associated roles were removed", "green")
     else
       Storage.whitelist_message(message)
     end

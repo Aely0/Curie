@@ -108,7 +108,7 @@ defmodule Curie.Help do
   @impl Curie.Commands
   def command({"help", @owner = message, [call]}) when call == "r" do
     refresh_help_state()
-    Curie.embed(message, "Help module state reloaded.", "green")
+    Curie.embed(message, "Help module state reloaded", "green")
   end
 
   @impl Curie.Commands
@@ -141,7 +141,7 @@ defmodule Curie.Help do
 
     case Curie.check_typo(command, commands) do
       nil ->
-        Curie.embed(message, "Command not recognized.", "red")
+        Curie.embed(message, "Command not recognized", "red")
 
       match ->
         "Command → **#{@prefix <> match}**\n\n#{full[match].description}"

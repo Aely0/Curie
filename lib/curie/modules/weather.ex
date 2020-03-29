@@ -29,7 +29,7 @@ defmodule Curie.Weather do
         {:ok, {first["geometry"]["location"], first["formatted_address"]}}
 
       %{"status" => "ZERO_RESULTS"} ->
-        Curie.embed!(channel, "Location not found.", "red")
+        Curie.embed!(channel, "Location not found", "red")
         {:error, "Location not found."}
     end
   end

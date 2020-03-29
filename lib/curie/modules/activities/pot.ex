@@ -191,7 +191,7 @@ defmodule Curie.Pot do
   @spec curie_join(Channel.id()) :: :ok
   def curie_join(channel_id) do
     {:ok, curie_id} = Curie.my_id()
-    balance = Currency.get_balance(curie_id)
+    {:ok, balance} = Currency.get_balance(curie_id)
     %{value: value, limit: limit, players: players} = get_state()
 
     cond do
@@ -268,22 +268,22 @@ defmodule Curie.Pot do
 
   @spec handle_event({String.t(), Message.t(), map, list | tuple}) :: :ok
   def handle_event({"pot", message, %{status: :playing, channel_name: channel_name}, _args}) do
-    Curie.embed(message, "Game already started in #{channel_name}.", "red")
+    Curie.embed(message, "Game already started in #{channel_name}", "red")
     :ok
   end
 
   def handle_event({"add", message, %{status: :idle}, _args}) do
-    Curie.embed(message, "No game in progress.", "red")
+    Curie.embed(message, "No game in progress", "red")
     :ok
   end
 
   def handle_event({_event, %{guild_id: nil} = message, _state, _args}) do
-    Curie.embed(message, "Really...? No...", "red")
+    Curie.embed(message, "Really...? No..", "red")
     :ok
   end
 
   def handle_event({_event, message, _state, {nil, _args}}) do
-    Curie.embed(message, "Invalid amount.", "red")
+    Curie.embed(message, "Invalid amount", "red")
     :ok
   end
 

@@ -18,6 +18,11 @@ defmodule Curie.Commands do
       @owner %{author: %{id: Application.get_env(:curie, :owner)}}
       @tempest Application.get_env(:curie, :tempest)
       @prefix Application.get_env(:curie, :prefix)
+
+      @spec command(@super.command_call) :: any
+      def command(_command_call), do: :pass
+
+      defoverridable command: 1
     end
   end
 
