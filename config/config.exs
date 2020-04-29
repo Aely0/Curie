@@ -15,8 +15,11 @@ config :curie,
 config :curie,
   darkskies: "DARKSKIES_TOKEN",
   googlemaps: "GOOGLEMAPS_TOKEN",
-  twitch: "TWITCH_TOKEN",
   twitter: "TWITTER_TOKEN"
+
+config :curie,
+  twitch_client_id: "TWITCH_CLIENT_ID",
+  twitch_client_secret: "TWITCH_CLIENT_SECRET"
 
 config :curie,
   channels: %{

@@ -29,6 +29,7 @@ defmodule Curie.Application do
       Curie.Images,
       Curie.Help,
       Curie.Latency,
+      Curie.Stream,
       Curie.ActivitySupervisor,
       Curie.Consumer,
       Curie.Heartbeat

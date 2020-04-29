@@ -21,7 +21,7 @@ defmodule Curie.Currency do
       value =~ ~r/^\d+/ -> Integer.parse(value) |> elem(0)
       true -> nil
     end
-    |> (&if(balance > 0 and &1 in 1..balance, do: &1)).()
+    |> (&if(&1 > 0 and &1 <= balance, do: &1)).()
   end
 
   @spec value_parse(User.id(), String.t()) :: pos_integer | nil

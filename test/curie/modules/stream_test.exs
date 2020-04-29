@@ -16,14 +16,14 @@ defmodule StreamTest do
   end
 
   defp add_stream_presence(%{guild_id: guild_id, member_id: member_id} = map) do
-    auth = [{"Client-ID", Application.get_env(:curie, :twitch)}]
+    {:ok, headers} = Stream.create_headers()
 
     channel_url = "https://api.twitch.tv/helix/streams?first=1"
-    {:ok, %{body: body}} = Curie.get(channel_url, auth)
+    {:ok, %{body: body}} = Curie.get(channel_url, headers)
     {:ok, %{"data" => [channel | _]}} = Poison.decode(body)
 
     game_url = "https://api.twitch.tv/helix/games?id=#{channel["game_id"]}"
-    {:ok, %{body: body}} = Curie.get(game_url, auth)
+    {:ok, %{body: body}} = Curie.get(game_url, headers)
     {:ok, %{"data" => [%{"name" => stream_game} | _]}} = Poison.decode(body)
 
     Map.merge(map, %{
@@ -58,7 +58,7 @@ defmodule StreamTest do
     test "set cooldown and check for it", %{member_id: member_id} do
       clear_stream_cooldown(member_id)
 
-      Stream.set_cooldown({:ok, %{channel_id: 0, id: 0}}, member_id)
+      Stream.set_cooldown(%{channel_id: 0, id: 0}, member_id)
 
       {:ok, stream} = Stream.stored_stream_message(member_id)
 
@@ -87,7 +87,7 @@ defmodule StreamTest do
          %{member_id: member_id, stream_presence: {guild_id, old, %{game: game} = new} = presence} do
       clear_stream_cooldown(member_id)
 
-      {:ok, %{embeds: [embed]}} = Stream.stream(presence)
+      %{embeds: [embed]} = Stream.stream(presence)
 
       # Embed title "#{member_name} started streaming!"
       assert String.contains?(embed.author.name, "started streaming!")
@@ -98,7 +98,7 @@ defmodule StreamTest do
       # Stream message getting updated
       new_presence = {guild_id, old, put_in(new.game.details, "New Title")}
 
-      {:ok, %{embeds: [embed]} = message} = Stream.stream(new_presence)
+      %{embeds: [embed]} = message = Stream.stream(new_presence)
 
       assert embed.description == "[New Title](#{game.url})"
 
