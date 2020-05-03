@@ -10,7 +10,8 @@ config :curie,
   tempest: "<:tempest:408292279154114570>",
   owner: 90_575_330_862_972_928,
   prefix: "!",
-  stream_message_cooldown: 21600
+  # 16h in seconds
+  stream_message_cooldown: 57600
 
 config :curie,
   darkskies: "DARKSKIES_TOKEN",
