@@ -7,7 +7,7 @@ defmodule Curie.Generic do
   alias Curie.Generic.{Details, Dice}
   alias Nostrum.Api
 
-  @check_typo ~w/felweed rally avatar details cat overwatch rust roll ping/
+  @check_typo ~w/felweed rally avatar details cat dog overwatch rust roll ping/
   @roles Application.get_env(:curie, :roles)
 
   @impl Curie.Commands
@@ -178,6 +178,33 @@ defmodule Curie.Generic do
         else
           reason_two ->
             "Oh no, I was unable to get your kitteh... (#{reason_one}, #{inspect(reason_two)})"
+            |> (&Curie.embed(message, &1, "red")).()
+        end
+    end
+  end
+
+  @impl Curie.Commands
+  def command({"dog", %{channel_id: channel} = message, _args} = call) do
+    Api.start_typing(channel)
+
+    with {:ok, %{body: body}} <- Curie.get("https://random.dog/woof.json"),
+         {:ok, %{"fileSizeBytes" => size, "url" => url}} when size < 800_000 <-
+           Poison.decode(body),
+         {:ok, %{body: body}} <- Curie.get(url) do
+      Curie.send(message, file: %{name: "dog" <> Path.extname(url), body: body})
+    else
+      {:ok, %{"fileSizeBytes" => _}} ->
+        command(call)
+
+      reason_one ->
+        with {:ok, %{body: body}} <- Curie.get("https://dog.ceo/api/breeds/image/random"),
+             {:ok, %{"message" => url, "status" => "success"}} <- Poison.decode(body),
+             {:ok, %{body: body}} <- Curie.get(url) do
+          Curie.send(message, file: %{name: "dog" <> Path.extname(url), body: body})
+        else
+          reason_two ->
+            ("Oh no, I was unable to get your doggo... " <>
+               "(#{inspect(reason_one)}, #{inspect(reason_two)})")
             |> (&Curie.embed(message, &1, "red")).()
         end
     end
