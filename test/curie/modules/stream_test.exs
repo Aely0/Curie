@@ -15,6 +15,10 @@ defmodule StreamTest do
     })
   end
 
+  defp add_stream_cooldown(map) do
+    Map.merge(map, %{stream_cooldown: Application.get_env(:curie, :stream_message_cooldown)})
+  end
+
   defp add_stream_presence(%{guild_id: guild_id, member_id: member_id} = map) do
     {:ok, headers} = Stream.create_headers()
 
@@ -51,6 +55,7 @@ defmodule StreamTest do
   setup_all do
     Map.new()
     |> add_ids()
+    |> add_stream_cooldown()
     |> add_stream_presence()
   end
 
@@ -65,12 +70,12 @@ defmodule StreamTest do
       assert Stream.has_cooldown?(stream)
     end
 
-    test "set and check for expired cooldown", %{member_id: member_id} do
+    test "set and check for expired cooldown", %{member_id: member_id, stream_cooldown: stream_cooldown} do
       clear_stream_cooldown(member_id)
 
       %Streams{member: member_id}
       |> Streams.changeset(%{
-        time: Timex.to_unix(Timex.now()) - 30_000,
+        time: Timex.to_unix(Timex.now()) - (stream_cooldown + 1),
         channel_id: 0,
         message_id: 0
       })

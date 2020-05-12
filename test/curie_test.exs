@@ -14,7 +14,7 @@ defmodule CurieTest do
   defp add_typo_checks(map) do
     Map.merge(map, %{
       commands: ~w/felweed rally details cat overwatch roll ping/,
-      typos: ~w/falwed raly detaisls c owervatch rol oing/,
+      typos: ~w/falwed raly detaisls ca owervatch rol oing/,
       invalid: ~w/asdggs aly dettassasa tas weraaaa lo iogn/
     })
   end
