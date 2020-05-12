@@ -52,7 +52,7 @@ defmodule Curie do
       |> Enum.map(&{&1, call |> String.downcase() |> String.jaro_distance(&1)})
       |> Enum.max_by(fn {_call, similarity} -> similarity end)
 
-    if similarity >= 0.75, do: match
+    if similarity > 0.75, do: match
   end
 
   @spec unix_to_amount(non_neg_integer) :: String.t()
