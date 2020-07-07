@@ -76,7 +76,7 @@ defmodule Curie.Stream do
          headers = [{"Authorization", "OAuth " <> token}],
          {:ok, %{body: body}} <- Curie.get("https://id.twitch.tv/oauth2/validate", headers),
          {:expiration, {:ok, %{"expires_in" => time}}} when time >= @token_refresh_threshold <-
-           {:expiration, Poison.decode(body)} do
+           {:expiration, Jason.decode(body)} do
       token_ok
     else
       {:expiration, {:ok, _expiring_soon}} -> refresh_token()
@@ -92,7 +92,7 @@ defmodule Curie.Stream do
     |> HTTPoison.post("")
     |> case do
       {:ok, %{body: body, status_code: 200}} ->
-        %{"access_token" => token} = Poison.decode!(body)
+        %{"access_token" => token} = Jason.decode!(body)
         {:ok, token}
 
       {:ok, %{body: body, status_code: code}} when code >= 500 and retries < 10 ->
@@ -101,7 +101,7 @@ defmodule Curie.Stream do
         fetch_token(retries + 1)
 
       {:ok, %{body: body, status_code: code}} ->
-        response = body |> Poison.decode!() |> inspect()
+        response = body |> Jason.decode!() |> inspect()
         Logger.warn("Twitch API #{code}: #{response}")
         {:error, response}
 
@@ -148,11 +148,11 @@ defmodule Curie.Stream do
     with {:ok, headers} <- create_headers(),
          channel_url = "https://api.twitch.tv/helix/streams?user_login=#{login}",
          {:ok, %{body: body}} <- Curie.get(channel_url, headers),
-         {:ok, %{"data" => [%{"user_name" => user} | _]}} <- Poison.decode(body),
+         {:ok, %{"data" => [%{"user_name" => user} | _]}} <- Jason.decode(body),
          user_url = "https://api.twitch.tv/helix/users?login=#{login}",
          {:ok, %{body: body}} <- Curie.get(user_url, headers),
          {:ok, %{"data" => [%{"profile_image_url" => image} | _]}} <-
-           Poison.decode(body),
+           Jason.decode(body),
          {:ok, cached_user} <- UserCache.get(user_id) do
       name = Curie.get_display_name(guild_id, user_id)
       avatar = Curie.avatar_url(cached_user)

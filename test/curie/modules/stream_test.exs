@@ -24,11 +24,11 @@ defmodule StreamTest do
 
     channel_url = "https://api.twitch.tv/helix/streams?first=1"
     {:ok, %{body: body}} = Curie.get(channel_url, headers)
-    {:ok, %{"data" => [channel | _]}} = Poison.decode(body)
+    {:ok, %{"data" => [channel | _]}} = Jason.decode(body)
 
     game_url = "https://api.twitch.tv/helix/games?id=#{channel["game_id"]}"
     {:ok, %{body: body}} = Curie.get(game_url, headers)
-    {:ok, %{"data" => [%{"name" => stream_game} | _]}} = Poison.decode(body)
+    {:ok, %{"data" => [%{"name" => stream_game} | _]}} = Jason.decode(body)
 
     Map.merge(map, %{
       stream_presence:
@@ -70,7 +70,10 @@ defmodule StreamTest do
       assert Stream.has_cooldown?(stream)
     end
 
-    test "set and check for expired cooldown", %{member_id: member_id, stream_cooldown: stream_cooldown} do
+    test "set and check for expired cooldown", %{
+      member_id: member_id,
+      stream_cooldown: stream_cooldown
+    } do
       clear_stream_cooldown(member_id)
 
       %Streams{member: member_id}

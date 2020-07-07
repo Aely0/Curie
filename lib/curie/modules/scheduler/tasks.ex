@@ -163,7 +163,7 @@ defmodule Curie.Scheduler.Tasks do
     params = "?screen_name=PlayOverwatch&count=50&include_rts=false&exclude_replies=true"
 
     with {:ok, %{body: body}} <- Curie.get(base <> params, auth) do
-      %{"id_str" => tweet} = body |> Poison.decode!() |> Enum.take(1) |> hd()
+      %{"id_str" => tweet} = body |> Jason.decode!() |> Enum.take(1) |> hd()
       tweet_url = "https://twitter.com/PlayOverwatch/status/" <> tweet
       stored = Data.one(Overwatch) || %Overwatch{}
 
