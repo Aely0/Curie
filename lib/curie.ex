@@ -9,8 +9,7 @@ defmodule Curie do
   alias Nostrum.Snowflake
   alias Nostrum.Api
 
-  @type message_error :: {:error, ApiError.t() | HTTPoison.Error.t()}
-  @type message_result :: {:ok, Message.t()} | message_error
+  @type message_result :: {:ok, Message.t()} | Api.error()
   @type destination :: Channel.id() | Message.t()
   @type options :: keyword | map | String.t()
 
@@ -68,7 +67,7 @@ defmodule Curie do
   end
 
   @spec embed!(destination, String.t(), String.t() | non_neg_integer) ::
-          Message.t() | no_return()
+          Message.t() | no_return
   def embed!(channel_or_message, description, color) do
     embed(channel_or_message, description, color) |> bangify()
   end
