@@ -24,10 +24,12 @@ defmodule Curie.MixProject do
     [
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
       {:logger_file_backend, "~> 0.0.10"},
-      {:ecto, "~> 2.2"},
-      {:postgrex, "~> 0.13.5"},
-      {:floki, "~> 0.25.0"},
-      {:timex, "~> 3.4"},
+      {:ecto, "~> 3.4"},
+      {:ecto_sql, "~> 3.4"},
+      {:jason, "~> 1.2"},
+      {:postgrex, "~> 0.15.5"},
+      {:floki, "~> 0.26.0"},
+      {:timex, "~> 3.6"},
       {:deque, "~> 1.2"},
       {:crontab, "~> 1.1"}
       # {:dep_from_hexpm, "~> 0.3.0"},

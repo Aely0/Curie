@@ -72,7 +72,6 @@ config :curie,
 config :curie, ecto_repos: [Curie.Data]
 
 config :curie, Curie.Data,
-  adapter: Ecto.Adapters.Postgres,
   hostname: "HOSTNAME",
   username: "USERNAME",
   password: "PASSWORD",
