@@ -4,18 +4,19 @@ defmodule Curie.Generic do
 
   import Nostrum.Struct.Embed
 
-  alias Curie.Generic.{Details, Dice}
+  alias Curie.Generic.{Details, Dice, Purge}
   alias Nostrum.Api
 
   @check_typo ~w/felweed rally avatar details cat dog overwatch rust roll ping/
   @roles Application.get_env(:curie, :roles)
 
   @impl Curie.Commands
-  def command({"eval", @owner = message, code}) do
+  def command({"eval", @owner = message = %{content: @prefix <> "eval" <> code}, _args}) do
     result =
       try do
         code
-        |> Enum.join(" ")
+        |> String.trim()
+        |> String.replace(~r/^```.*\s|```$/, "")
         |> (&("import IEx.Helpers;" <> &1)).()
         |> Code.eval_string([message: message], __ENV__)
         |> elem(0)
@@ -35,23 +36,8 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"purge", @owner = %{id: id, channel_id: channel}, [count | option]}) do
-    if option != [] and option |> hd() |> Curie.check_typo("curie") do
-      {:ok, curie_id} = Curie.my_id()
-      {amount, _rest} = Integer.parse(count)
-      {:ok, messages} = Api.get_channel_messages(channel, amount)
-
-      messages =
-        Enum.reduce(messages, [id], fn message, acc ->
-          if message.author.id == curie_id, do: [message.id | acc], else: acc
-        end)
-
-      Api.bulk_delete_messages(channel, messages)
-    else
-      {amount, _rest} = Integer.parse(count)
-      {:ok, messages} = Api.get_channel_messages(channel, amount + 1)
-      Api.bulk_delete_messages(channel, Enum.map(messages, & &1.id))
-    end
+  def command({"purge", @owner = message, options}) do
+    Purge.clear(message, options)
   end
 
   @impl Curie.Commands
@@ -172,7 +158,7 @@ defmodule Curie.Generic do
 
       {:error, reason_one} ->
         with {:ok, %{body: body}} <- Curie.get("http://aws.random.cat/meow"),
-             {:ok, %{"file" => link}} <- Poison.decode(body),
+             {:ok, %{"file" => link}} <- Jason.decode(body),
              {:ok, %{body: body}} <- Curie.get(link) do
           Curie.send(message, file: %{name: "cat" <> Path.extname(link), body: body})
         else
@@ -189,7 +175,7 @@ defmodule Curie.Generic do
 
     with {:ok, %{body: body}} <- Curie.get("https://random.dog/woof.json"),
          {:ok, %{"fileSizeBytes" => size, "url" => url}} when size < 800_000 <-
-           Poison.decode(body),
+           Jason.decode(body),
          {:ok, %{body: body}} <- Curie.get(url) do
       Curie.send(message, file: %{name: "dog" <> Path.extname(url), body: body})
     else
@@ -198,7 +184,7 @@ defmodule Curie.Generic do
 
       reason_one ->
         with {:ok, %{body: body}} <- Curie.get("https://dog.ceo/api/breeds/image/random"),
-             {:ok, %{"message" => url, "status" => "success"}} <- Poison.decode(body),
+             {:ok, %{"message" => url, "status" => "success"}} <- Jason.decode(body),
              {:ok, %{body: body}} <- Curie.get(url) do
           Curie.send(message, file: %{name: "dog" <> Path.extname(url), body: body})
         else
@@ -256,22 +242,24 @@ defmodule Curie.Generic do
   def command({"rust", %{channel_id: channel, content: @prefix <> "rust" <> code}, _args}) do
     Api.start_typing(channel)
 
-    code = ~s/fn main(){println!("{:?}",{#{String.trim(code)}});}/
-
     payload =
       %{
         "channel" => "stable",
         "edition" => "2018",
-        "code" => code,
+        "code" =>
+          code
+          |> String.trim()
+          |> String.replace(~r/^```.*\s|```$/, "")
+          |> (&~s/fn main(){println!("{:?}",{#{&1}});}/).(),
         "crateType" => "bin",
         "mode" => "debug",
         "tests" => false
       }
-      |> Poison.encode!()
+      |> Jason.encode!()
 
     case HTTPoison.post("https://play.rust-lang.org/execute", payload, [], recv_timeout: 20_000) do
       {:ok, %{status_code: 200, body: body}} ->
-        %{"success" => success, "stdout" => stdout, "stderr" => stderr} = Poison.decode!(body)
+        %{"success" => success, "stdout" => stdout, "stderr" => stderr} = Jason.decode!(body)
 
         output =
           cond do
