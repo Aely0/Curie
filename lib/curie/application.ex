@@ -27,7 +27,6 @@ defmodule Curie.Application do
       Curie.MessageCache,
       Curie.Scheduler,
       Curie.Images,
-      Curie.Help,
       Curie.Latency,
       Curie.Stream,
       Curie.ActivitySupervisor,
