@@ -11,7 +11,7 @@ defmodule Curie.Generic do
   @roles Application.get_env(:curie, :roles)
 
   @impl Curie.Commands
-  def command({"eval", @owner = message = %{content: @prefix <> "eval" <> code}, _args}) do
+  def command({"eval", @owner = message = %{content: @prefix <> "eval" <> code}, [_ | _]}) do
     result =
       try do
         code
@@ -239,7 +239,7 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"rust", %{channel_id: channel, content: @prefix <> "rust" <> code}, _args}) do
+  def command({"rust", %{channel_id: channel, content: @prefix <> "rust" <> code}, [_ | _]}) do
     Api.start_typing(channel)
 
     payload =
