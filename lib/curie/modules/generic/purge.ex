@@ -14,7 +14,7 @@ defmodule Curie.Generic.Purge do
     Enum.find_value(
       options,
       &case Integer.parse(&1) do
-        {amount, _} when 0 < amount and amount < 100_000 -> amount + 1
+        {amount, _} when 0 < amount and amount < 100_000 -> amount
         _invalid_value -> nil
       end
     )
@@ -96,7 +96,7 @@ defmodule Curie.Generic.Purge do
 
     case {!!amount, !!snowflake, !!curie} do
       {true, false, curie} ->
-        delete_messages(message, channel, amount, curie)
+        delete_messages(message, channel, amount + 1, curie)
 
       {_amount, true, curie} ->
         delete_messages(message, channel, amount || @limit, curie, {locator, snowflake})
