@@ -94,7 +94,7 @@ defmodule Curie.Leaderboard do
 
   @spec load_state :: Leaderboard.t()
   def load_state do
-    Data.one(Leaderboard)
+    Data.one(Leaderboard, timeout: :infinity)
   end
 
   @spec create_new :: Leaderboard.t()
