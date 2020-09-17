@@ -75,7 +75,8 @@ config :curie, Curie.Data,
   hostname: "HOSTNAME",
   username: "USERNAME",
   password: "PASSWORD",
-  database: "DATABASE"
+  database: "DATABASE",
+  queue_target: 5000
 
 config :logger,
   backends: [:console, {LoggerFileBackend, :logfile}]

@@ -3,20 +3,16 @@ defmodule Curie.Application do
 
   @spec header :: String.t()
   def header do
-    version =
-      case File.read("mix.lock") do
-        {:ok, binary} ->
-          ~r/nostrum.git", "(\w{7})/
-          |> Regex.run(binary, capture: :all_but_first)
-          |> List.first()
+    case File.read("mix.lock") do
+      {:ok, binary} ->
+        ~r/nostrum.git", "(\w{7})/
+        |> Regex.run(binary, capture: :all_but_first)
+        |> List.first()
+        |> (&"  == Curie - Nostrum #{&1} ==\n").()
 
-        _no_file ->
-          nil
-      end
-
-    if version,
-      do: "  == Curie - Nostrum #{version} ==\n",
-      else: "  == Curie - Nostrum ==\n"
+      _no_file ->
+        "  == Curie - Nostrum ==\n"
+    end
   end
 
   @spec start(any, any) :: {:error, any} | {:ok, pid}
