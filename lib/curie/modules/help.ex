@@ -80,7 +80,7 @@ defmodule Curie.Help do
         Curie.embed(message, "Command not recognized", "red")
 
       match ->
-        "Command → **#{@prefix <> match}**\n\n" <> Info.command(match).long
+        ("Command → **#{@prefix <> match}**\n\n" <> Info.command(match).long)
         |> (&Curie.embed(message, &1, "green")).()
     end
   end

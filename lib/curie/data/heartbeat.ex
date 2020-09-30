@@ -5,7 +5,7 @@ defmodule Curie.Data.Heartbeat do
   @type t :: %__MODULE__{heartbeat: pos_integer}
 
   @primary_key {:heartbeat, :integer, []}
-  schema "heartbeat" do end
+  schema("heartbeat", do: [])
 
   @spec changeset(%__MODULE__{}, map) :: Ecto.Changeset.t()
   def changeset(struct, params) do
