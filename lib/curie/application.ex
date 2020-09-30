@@ -1,7 +1,7 @@
 defmodule Curie.Application do
   use Application
 
-  @spec header :: String.t()
+  @spec header :: :ok
   def header do
     case File.read("mix.lock") do
       {:ok, binary} ->
@@ -13,10 +13,13 @@ defmodule Curie.Application do
       _no_file ->
         "  == Curie - Nostrum ==\n"
     end
+    |> IO.puts()
   end
 
   @spec start(any, any) :: {:error, any} | {:ok, pid}
   def start(_type, _args) do
+    header()
+
     children = [
       Curie.Data,
       Curie.Storage,
@@ -30,7 +33,6 @@ defmodule Curie.Application do
       Curie.Heartbeat
     ]
 
-    IO.puts(header())
     Supervisor.start_link(children, strategy: :one_for_one, name: Curie.Supervisor)
   end
 end

@@ -22,6 +22,7 @@ defmodule Curie.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
+      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
       {:logger_file_backend, "~> 0.0.10"},
       {:ecto, "~> 3.4"},
