@@ -7,15 +7,15 @@ defmodule Curie.Scheduler.Tasks do
   import Ecto.Query, only: [from: 2]
   import Nostrum.Struct.Embed
 
+  alias Crontab.CronExpression
+
+  alias Curie.Currency
+  alias Curie.Data
+  alias Curie.Data.{Balance, Overwatch, Status, Streams}
+
   alias Nostrum.Api
   alias Nostrum.Cache.PresenceCache
   alias Nostrum.Struct.{Guild, User}
-
-  alias Curie.Currency
-  alias Curie.Data.{Balance, Overwatch, Status, Streams}
-  alias Curie.Data
-
-  alias Crontab.CronExpression
 
   @stream_message_cooldown Application.get_env(:curie, :stream_message_cooldown)
   @overwatch Application.get_env(:curie, :channels)[:overwatch]

@@ -5,9 +5,10 @@ defmodule Curie.Scheduler do
 
   use GenServer
 
-  alias Curie.Scheduler.Tasks
   alias Crontab.CronExpression
   alias Crontab.Scheduler
+
+  alias Curie.Scheduler.Tasks
 
   @spec start_link(any) :: GenServer.on_start()
   def start_link(_args) do

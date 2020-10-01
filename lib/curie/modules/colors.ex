@@ -5,10 +5,10 @@ defmodule Curie.Colors do
 
   use Curie.Commands
 
-  alias Nostrum.Struct.{Guild, User, Message}
-  alias Nostrum.Struct.Guild.Role
-  alias Nostrum.Cache.GuildCache
   alias Nostrum.Api
+  alias Nostrum.Cache.GuildCache
+  alias Nostrum.Struct.Guild.Role
+  alias Nostrum.Struct.{Guild, Message, User}
 
   alias Curie.{Currency, Storage}
 

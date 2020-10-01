@@ -8,10 +8,10 @@ defmodule Curie.TwentyOne do
 
   import Curie.Pot, only: [not_enough_players: 1]
 
+  alias Nostrum.Api
+  alias Nostrum.Cache.ChannelCache
   alias Nostrum.Struct.{Channel, Message, User}
   alias Nostrum.Struct.Guild.Member
-  alias Nostrum.Cache.ChannelCache
-  alias Nostrum.Api
 
   alias Curie.{Currency, Storage}
 

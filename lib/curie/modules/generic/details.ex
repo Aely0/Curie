@@ -7,10 +7,10 @@ defmodule Curie.Generic.Details do
 
   alias Data.Details, as: StoredDetails
 
+  alias Nostrum.Api
   alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Struct.{Guild, User}
   alias Nostrum.Struct.Guild.Member
-  alias Nostrum.Api
 
   defstruct [
     :id,

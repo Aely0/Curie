@@ -7,11 +7,11 @@ defmodule Curie.Stream do
 
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Struct.{Embed, Guild, Message, User}
   alias Nostrum.Cache.UserCache
+  alias Nostrum.Struct.{Embed, Guild, Message, User}
 
-  alias Curie.Data.Streams
   alias Curie.Data
+  alias Curie.Data.Streams
 
   require Logger
 

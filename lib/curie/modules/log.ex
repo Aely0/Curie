@@ -5,10 +5,10 @@ defmodule Curie.Log do
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
-  alias Nostrum.Struct.{Guild, Invite}
-  alias Nostrum.Struct.Event.MessageDelete
-  alias Nostrum.Struct.Guild.Member
   alias Nostrum.Api
+  alias Nostrum.Struct.Event.MessageDelete
+  alias Nostrum.Struct.{Guild, Invite}
+  alias Nostrum.Struct.Guild.Member
 
   alias Curie.MessageCache
 

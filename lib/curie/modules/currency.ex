@@ -10,8 +10,8 @@ defmodule Curie.Currency do
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Struct.{Message, User}
 
-  alias Curie.Data.Balance
   alias Curie.Data
+  alias Curie.Data.Balance
   alias Curie.Storage
 
   @check_typo ~w/balance gift/

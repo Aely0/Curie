@@ -6,11 +6,11 @@ defmodule Curie.Storage do
   use Curie.Commands
 
   alias Nostrum.Cache.{ChannelCache, GuildCache}
-  alias Nostrum.Struct.{Message, User}
   alias Nostrum.Struct.Guild.Member
+  alias Nostrum.Struct.{Message, User}
 
-  alias Curie.Data.{Balance, Details, Status}
   alias Curie.Data
+  alias Curie.Data.{Balance, Details, Status}
 
   alias Curie.Heartbeat
 

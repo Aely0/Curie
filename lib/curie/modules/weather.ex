@@ -7,8 +7,8 @@ defmodule Curie.Weather do
 
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Struct.{Channel, Embed}
   alias Nostrum.Api
+  alias Nostrum.Struct.{Channel, Embed}
 
   @check_typo ~w/weather/
 

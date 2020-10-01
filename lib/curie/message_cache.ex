@@ -7,8 +7,8 @@ defmodule Curie.MessageCache do
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
-  alias Nostrum.Struct.{Message, User}
   alias Nostrum.Struct.Event.MessageDelete
+  alias Nostrum.Struct.{Message, User}
 
   @type get_response :: {:ok, [Message.t()]} | {:error, :not_found}
 

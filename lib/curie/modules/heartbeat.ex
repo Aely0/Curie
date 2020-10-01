@@ -3,8 +3,8 @@ defmodule Curie.Heartbeat do
   DB synced heartbeat for validating data integrity.
   """
 
-  alias Curie.Data.Heartbeat
   alias Curie.Data
+  alias Curie.Data.Heartbeat
 
   @self __MODULE__
 

@@ -6,12 +6,12 @@ defmodule Curie do
   import Nostrum.Api, only: [bangify: 1]
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Struct.{Channel, Guild, Message, User}
-  alias Nostrum.Struct.Guild.Member
-  alias Nostrum.Cache.{GuildCache, UserCache, Me}
+  alias Nostrum.Api
+  alias Nostrum.Cache.{GuildCache, Me, UserCache}
   alias Nostrum.Error.ApiError
   alias Nostrum.Snowflake
-  alias Nostrum.Api
+  alias Nostrum.Struct.{Channel, Guild, Message, User}
+  alias Nostrum.Struct.Guild.Member
 
   @type message_result :: {:ok, Message.t()} | Api.error()
   @type destination :: Channel.id() | Message.t()

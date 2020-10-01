@@ -3,9 +3,8 @@ defmodule StreamTest do
 
   alias Nostrum.Api
 
-  alias Curie.Data.Streams
   alias Curie.Data
-
+  alias Curie.Data.Streams
   alias Curie.Stream
 
   defp add_ids(map) do

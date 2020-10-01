@@ -5,10 +5,11 @@ defmodule Curie.Consumer do
 
   use Nostrum.Consumer
 
-  alias Nostrum.Struct.Message
   alias Nostrum.Consumer
+  alias Nostrum.Struct.Message
 
   alias Curie.Commands
+  alias Curie.Scheduler.Tasks
 
   @self __MODULE__
 
@@ -58,7 +59,7 @@ defmodule Curie.Consumer do
   @impl Nostrum.Consumer
   def handle_event({:READY, _payload, _ws_state}) do
     IO.puts("# Curie: Awake! #{Curie.time_now()}")
-    Curie.Scheduler.Tasks.set_status()
+    Tasks.set_status()
   end
 
   @impl Nostrum.Consumer
