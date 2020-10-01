@@ -33,6 +33,7 @@ defmodule Curie.Scheduler do
     cond do
       is_list(work) -> Enum.each(work, &Task.start/1)
       is_function(work) -> Task.start(work)
+      true -> raise "Invalid workset"
     end
 
     schedule_tasks(batch)

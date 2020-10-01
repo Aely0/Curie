@@ -54,10 +54,10 @@ defmodule Curie.Storage do
 
   @spec whitelist_message(Message.t()) :: :ok
   def whitelist_message(%{guild_id: guild_id} = message) do
-    with {:ok, %{owner_id: owner_id}} <- GuildCache.get(guild_id),
-         owner_name = Curie.get_display_name(guild_id, owner_id) do
-      "Whitelisting required, ask #{owner_name}."
-      |> (&Curie.embed(message, &1, "red")).()
+    with {:ok, %{owner_id: owner_id}} <- GuildCache.get(guild_id) do
+      owner_name = Curie.get_display_name(guild_id, owner_id)
+      content = "Whitelisting required, ask #{owner_name}."
+      Curie.embed(message, content, "red")
     end
 
     :ok

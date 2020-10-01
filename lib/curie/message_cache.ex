@@ -101,10 +101,8 @@ defmodule Curie.MessageCache do
     GenServer.call(@self, {:get, message_id})
   end
 
-  @spec handler(%{author: %{id: User.id()}}) :: :ok | :pass
+  @spec handler(%{author: %{id: User.id()}}) :: :ok
   def handler(message) do
-    unless ignore?(message),
-      do: add(message),
-      else: :pass
+    unless ignore?(message), do: add(message)
   end
 end

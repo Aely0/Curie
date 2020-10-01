@@ -12,6 +12,7 @@ defmodule Curie.Commands do
 
   @prefix Application.get_env(:curie, :prefix)
 
+  @spec __using__(any) :: any
   defmacro __using__(_opts) do
     quote location: :keep do
       alias unquote(__MODULE__)
@@ -43,9 +44,8 @@ defmodule Curie.Commands do
 
   @spec check_typo(command_call, words_to_check, function) :: any
   def check_typo({call, message, args}, check, caller) do
-    with match when match not in [call, nil] <- Curie.check_typo(call, check) do
-      caller.({match, message, args})
-    else
+    case Curie.check_typo(call, check) do
+      match when match not in [call, nil] -> caller.({match, message, args})
       _no_match -> :pass
     end
   end
