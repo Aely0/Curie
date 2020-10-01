@@ -1,4 +1,8 @@
 defmodule Curie.Storage do
+  @moduledoc """
+  DB utility and member whitelisting.
+  """
+
   use Curie.Commands
 
   alias Nostrum.Cache.{ChannelCache, GuildCache}

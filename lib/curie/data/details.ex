@@ -1,4 +1,6 @@
 defmodule Curie.Data.Details do
+  @moduledoc false
+
   use Ecto.Schema
   import Ecto.Changeset
   alias Nostrum.Snowflake

@@ -1,4 +1,8 @@
 defmodule Curie.Scheduler.Tasks do
+  @moduledoc """
+  Scheduled tasks.
+  """
+
   import Crontab.CronExpression
   import Ecto.Query, only: [from: 2]
   import Nostrum.Struct.Embed

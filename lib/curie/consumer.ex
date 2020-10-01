@@ -1,4 +1,8 @@
 defmodule Curie.Consumer do
+  @moduledoc """
+  Discord event consumer.
+  """
+
   use Nostrum.Consumer
 
   alias Nostrum.Struct.Message

@@ -1,4 +1,8 @@
 defmodule Curie.Generic.Purge do
+  @moduledoc """
+  Message purging command for moderators.
+  """
+
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
   alias Nostrum.Api

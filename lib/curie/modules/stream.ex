@@ -1,4 +1,8 @@
 defmodule Curie.Stream do
+  @moduledoc """
+  Member Twitch stream notification.
+  """
+
   use GenServer
 
   import Nostrum.Struct.Embed
@@ -160,7 +164,7 @@ defmodule Curie.Stream do
       {:ok, {name, avatar, title, url, game, user, image}}
     else
       _ when retries < 10 ->
-        Process.sleep(20000)
+        Process.sleep(20_000)
         stream_data_gather(params, retries + 1)
 
       error ->

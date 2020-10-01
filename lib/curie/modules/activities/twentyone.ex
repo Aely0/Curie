@@ -1,4 +1,8 @@
 defmodule Curie.TwentyOne do
+  @moduledoc """
+  '21' game module.
+  """
+
   use Curie.Commands
   use GenServer
 

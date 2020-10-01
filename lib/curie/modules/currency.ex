@@ -1,4 +1,8 @@
 defmodule Curie.Currency do
+  @moduledoc """
+  Guild game currency system.
+  """
+
   use Curie.Commands
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]

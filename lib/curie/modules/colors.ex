@@ -1,4 +1,8 @@
 defmodule Curie.Colors do
+  @moduledoc """
+  Color roles as guild currency purchasable reward.
+  """
+
   use Curie.Commands
 
   alias Nostrum.Struct.{Guild, User, Message}

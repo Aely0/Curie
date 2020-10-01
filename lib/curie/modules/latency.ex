@@ -1,4 +1,8 @@
 defmodule Curie.Latency do
+  @moduledoc """
+  Discord's websocket connection latency.
+  """
+
   use GenServer
 
   alias Nostrum.Struct.WSState

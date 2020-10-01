@@ -1,4 +1,8 @@
 defmodule Curie.Pot do
+  @moduledoc """
+  'Pot' game module.
+  """
+
   use Curie.Commands
   use GenServer
 

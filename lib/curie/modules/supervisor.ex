@@ -1,4 +1,8 @@
 defmodule Curie.ActivitySupervisor do
+  @moduledoc """
+  Game activity and leaderboard supervisor.
+  """
+
   use Supervisor
 
   @type supervisor_init_tuple :: {:supervisor.sup_flags(), [:supervisor.child_spec()]}

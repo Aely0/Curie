@@ -1,4 +1,8 @@
 defmodule Curie.Leaderboard do
+  @moduledoc """
+  Interactive guild leaderbaord embed handler.
+  """
+
   use Curie.Commands
   use GenServer
 

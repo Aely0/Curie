@@ -1,4 +1,8 @@
 defmodule Curie.Scheduler do
+  @moduledoc """
+  Periodic task scheduler.
+  """
+
   use GenServer
 
   alias Curie.Scheduler.Tasks

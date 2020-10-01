@@ -1,4 +1,8 @@
 defmodule Curie.Help do
+  @moduledoc """
+  Command info provider.
+  """
+
   use Curie.Commands
 
   import IEx.Helpers, only: [r: 1]

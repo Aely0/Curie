@@ -1,4 +1,8 @@
 defmodule Curie.Help.Info do
+  @moduledoc """
+  Command info.
+  """
+
   @prefix Application.get_env(:curie, :prefix)
   @tempest Application.get_env(:curie, :tempest)
 

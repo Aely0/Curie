@@ -1,4 +1,6 @@
 defmodule Curie.Data.Overwatch do
+  @moduledoc false
+
   use Ecto.Schema
   import Ecto.Changeset
 

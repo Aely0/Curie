@@ -1,4 +1,6 @@
 defmodule Curie.Data.Leaderboard do
+  @moduledoc false
+
   use Ecto.Schema
   import Ecto.Changeset
   alias Nostrum.Snowflake

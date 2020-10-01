@@ -1,4 +1,8 @@
 defmodule Curie.Images do
+  @moduledoc """
+  Keyword triggered image responses.
+  """
+
   use Curie.Commands
   use GenServer
 

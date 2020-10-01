@@ -1,4 +1,8 @@
 defmodule Curie.Log do
+  @moduledoc """
+  Logged guild events pushed to guild log channel.
+  """
+
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
   alias Nostrum.Struct.{Guild, Invite}

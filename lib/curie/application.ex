@@ -1,4 +1,8 @@
 defmodule Curie.Application do
+  @moduledoc """
+  Application entry point.
+  """
+
   use Application
 
   @spec header :: :ok

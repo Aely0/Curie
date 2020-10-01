@@ -1,4 +1,8 @@
 defmodule Curie.MessageCache do
+  @moduledoc """
+  Incoming Discord message cache.
+  """
+
   use GenServer
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]

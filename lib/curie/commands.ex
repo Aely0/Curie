@@ -1,4 +1,8 @@
 defmodule Curie.Commands do
+  @moduledoc """
+  Helper for command modules.
+  """
+
   alias Nostrum.Struct.Message
 
   @type command_call :: {String.t(), Message.t(), [String.t()]}

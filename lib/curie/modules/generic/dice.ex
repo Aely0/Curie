@@ -1,4 +1,8 @@
 defmodule Curie.Generic.Dice do
+  @moduledoc """
+  D&D-like dice.
+  """
+
   @type dice_count :: pos_integer
   @type side_count :: pos_integer
   @type display_mode :: String.t()

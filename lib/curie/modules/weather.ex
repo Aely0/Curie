@@ -1,4 +1,8 @@
 defmodule Curie.Weather do
+  @moduledoc """
+  Weather command module.
+  """
+
   use Curie.Commands
 
   import Nostrum.Struct.Embed

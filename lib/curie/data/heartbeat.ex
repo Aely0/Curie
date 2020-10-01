@@ -1,4 +1,6 @@
 defmodule Curie.Data.Heartbeat do
+  @moduledoc false
+
   use Ecto.Schema
   import Ecto.Changeset
 

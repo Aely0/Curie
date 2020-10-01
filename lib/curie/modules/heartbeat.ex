@@ -1,4 +1,8 @@
 defmodule Curie.Heartbeat do
+  @moduledoc """
+  DB synced heartbeat for validating data integrity.
+  """
+
   alias Curie.Data.Heartbeat
   alias Curie.Data
 

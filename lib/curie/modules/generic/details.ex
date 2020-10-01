@@ -1,4 +1,8 @@
 defmodule Curie.Generic.Details do
+  @moduledoc """
+  Guild member info command.
+  """
+
   use Bitwise
 
   alias Data.Details, as: StoredDetails

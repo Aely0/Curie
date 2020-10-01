@@ -1,4 +1,8 @@
 defmodule Curie.Generic do
+  @moduledoc """
+  Collection of generic commands.
+  """
+
   use Curie.Commands
   use Bitwise
 

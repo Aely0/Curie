@@ -1,4 +1,8 @@
 defmodule Curie do
+  @moduledoc """
+  Generic top level utility functions.
+  """
+
   import Nostrum.Api, only: [bangify: 1]
   import Nostrum.Struct.Embed
 
