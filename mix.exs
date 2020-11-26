@@ -5,7 +5,7 @@ defmodule Curie.MixProject do
     [
       app: :curie,
       version: "1.0.0",
-      elixir: "~> 1.6",
+      elixir: "~> 1.11",
       start_permanent: Mix.env() == :prod,
       deps: deps()
     ]
@@ -15,14 +15,14 @@ defmodule Curie.MixProject do
   def application do
     [
       mod: {Curie.Application, []},
-      extra_applications: [:logger]
+      extra_applications: [:logger, :iex]
     ]
   end
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:credo, "~> 1.4", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.5.0-rc.2", only: [:dev, :test], runtime: false},
       {:nostrum, git: "https://github.com/Kraigie/nostrum.git"},
       {:logger_file_backend, "~> 0.0.10"},
       {:ecto, "~> 3.4"},
