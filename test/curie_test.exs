@@ -13,9 +13,9 @@ defmodule CurieTest do
 
   defp add_typo_checks(map) do
     Map.merge(map, %{
-      commands: ~w/felweed rally details cat overwatch roll ping/,
-      typos: ~w/falwed raly detaisls ca owervatch rol oing/,
-      invalid: ~w/asdggs aly dettassasa tas weraaaa lo iogn/
+      commands: ~w/felweed details cat overwatch roll ping/,
+      typos: ~w/falwed detaisls ca owervatch rol oing/,
+      invalid: ~w/asdggs dettassasa tas weraaaa lo iogn/
     })
   end
 
@@ -61,7 +61,7 @@ defmodule CurieTest do
   describe "Curie.avatar_url/2" do
     test "check validity of formatted avatar url", %{curie_id: curie_id, guild_id: guild_id} do
       {:ok, %{user: user}} = Curie.get_member({guild_id, :id, curie_id})
-      assert {:ok, response} = user |> Curie.avatar_url() |> Curie.get()
+      assert {:ok, _response} = user |> Curie.avatar_url() |> Curie.get()
     end
   end
 

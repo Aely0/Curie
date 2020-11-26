@@ -11,8 +11,8 @@ defmodule Curie.Generic do
   alias Curie.Generic.{Details, Dice, Purge}
   alias Nostrum.Api
 
-  @check_typo ~w/felweed rally avatar details cat dog overwatch rust roll ping/
-  @roles Application.get_env(:curie, :roles)
+  @check_typo ~w/felweed avatar details cat dog overwatch rust roll ping/
+  @roles Application.compile_env(:curie, :roles)
 
   @impl Curie.Commands
   def command({"eval", @owner = message = %{content: @prefix <> "eval" <> code}, [_ | _]}) do
@@ -45,8 +45,8 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({"change_avatar", @owner = message, [path]}) do
-    case File.read(path) do
+  def command({"change_avatar", @owner = message, path}) do
+    case path |> Enum.join(" ") |> File.read() do
       {:ok, file} ->
         %{".jpg" => "jpeg", ".png" => "png", ".gif" => "gif"}
         |> (& &1[Path.extname(path)]).()
@@ -65,8 +65,8 @@ defmodule Curie.Generic do
   end
 
   @impl Curie.Commands
-  def command({role, %{author: %{id: id}, guild_id: guild, member: member} = message, args})
-      when role in ["felweed", "rally"] and args != [] and @roles != nil do
+  def command({"felweed" = role, %{author: %{id: id}, guild_id: guild, member: member} = message, args})
+      when args != [] and @roles != nil do
     with {{:ok, author}, :get_author} <-
            {if(member, do: {:ok, member}, else: Curie.get_member({guild, :id, id})), :get_author},
          {true, :author_is_mod} <- {@roles[role].mod_role_id in author.roles, :author_is_mod},
