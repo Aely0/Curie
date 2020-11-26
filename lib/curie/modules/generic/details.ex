@@ -19,6 +19,7 @@ defmodule Curie.Generic.Details do
     :stored,
     :display_name,
     :discord_tag,
+    :sessions,
     :status,
     :activity,
     :last_spoke,
@@ -37,6 +38,7 @@ defmodule Curie.Generic.Details do
           stored: StoredDetails.t(),
           display_name: String.t(),
           discord_tag: String.t(),
+          sessions: String.t(),
           status: String.t(),
           activity: String.t(),
           last_spoke: String.t(),
@@ -47,6 +49,16 @@ defmodule Curie.Generic.Details do
         }
 
   @self __MODULE__
+
+  @activity_prefix %{
+    0 => "Playing ",
+    1 => "Streaming ",
+    2 => "Listening to ",
+    5 => "Competing in "
+  }
+
+  @spec capitalize(atom) :: String.t()
+  defp capitalize(atom), do: atom |> Atom.to_string() |> String.capitalize()
 
   @spec get_cached({Member.t(), Guild.id()}) :: @self.t()
   defp get_cached({%{user: %{id: id}} = member, guild_id}) do
@@ -73,6 +85,28 @@ defmodule Curie.Generic.Details do
     struct(details, discord_tag: "#{username}##{disc}")
   end
 
+  @spec get_sessions(@self.t()) :: @self.t()
+  defp get_sessions(%{presence: {:ok, %{client_status: sessions}}} = details) do
+    sessions =
+      Enum.map(sessions, fn
+        {platform, :dnd} ->
+          "#{capitalize(platform)}: Do Not Disturb"
+
+        {platform, status} ->
+          "#{capitalize(platform)}: #{capitalize(status)}"
+      end)
+      |> case do
+        [] -> "None"
+        sessions -> "(#{Enum.join(sessions, ", ")})"
+      end
+
+    struct(details, sessions: sessions)
+  end
+
+  defp get_sessions(%{presence: {:error, :presence_not_found}} = details) do
+    struct(details, sessions: "None")
+  end
+
   @spec get_status(@self.t()) :: @self.t()
   defp get_status(%{presence: presence, stored: stored} = details) do
     %{
@@ -89,7 +123,7 @@ defmodule Curie.Generic.Details do
             else: "Do Not Disturb"
 
         {:ok, %{status: status}} when status != :offline ->
-          status_name = status |> Atom.to_string() |> String.capitalize()
+          status_name = capitalize(status)
 
           if last_status_change && last_status_type == to_string(status),
             do: status_name <> " for " <> Curie.unix_to_amount(last_status_change),
@@ -108,9 +142,14 @@ defmodule Curie.Generic.Details do
   defp get_activity(%{presence: presence} = details) do
     activity =
       case presence do
+        {:ok, %{game: %{emoji: %{name: emoji}, state: state, type: 4}}} ->
+          emoji <> " " <> String.capitalize(state)
+
+        {:ok, %{game: %{state: state, type: 4}}} ->
+          String.capitalize(state)
+
         {:ok, %{game: %{name: name, type: type, timestamps: %{start: start}}}} ->
-          %{0 => "Playing ", 1 => "Streaming ", 2 => "Listening to "}[type] <>
-            name <> " for " <> Curie.unix_to_amount(trunc(start / 1000))
+          @activity_prefix[type] <> name <> " for " <> Curie.unix_to_amount(trunc(start / 1000))
 
         {:ok, %{status: :online}} ->
           "Stuff and things"
@@ -178,6 +217,7 @@ defmodule Curie.Generic.Details do
     """
     Display Name: #{details.display_name}
     Member: #{details.discord_tag}
+    Sessions: #{details.sessions}
     Status: #{details.status}
     Activity: #{details.activity}
     Last spoke: #{details.last_spoke}
@@ -196,6 +236,7 @@ defmodule Curie.Generic.Details do
     |> get_stored()
     |> get_display_name()
     |> get_discord_tag()
+    |> get_sessions()
     |> get_status()
     |> get_activity()
     |> get_last_spoke()
