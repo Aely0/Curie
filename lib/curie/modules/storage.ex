@@ -5,14 +5,12 @@ defmodule Curie.Storage do
 
   use Curie.Commands
 
+  alias Curie.Data
+  alias Curie.Data.{Balance, Details, Status}
+  alias Curie.Heartbeat
   alias Nostrum.Cache.{ChannelCache, GuildCache}
   alias Nostrum.Struct.Guild.Member
   alias Nostrum.Struct.{Message, User}
-
-  alias Curie.Data
-  alias Curie.Data.{Balance, Details, Status}
-
-  alias Curie.Heartbeat
 
   @type presence :: {Guild.id(), old_presence :: map, new_presence :: map}
 

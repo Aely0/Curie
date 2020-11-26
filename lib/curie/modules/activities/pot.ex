@@ -6,11 +6,10 @@ defmodule Curie.Pot do
   use Curie.Commands
   use GenServer
 
-  alias Nostrum.Cache.ChannelCache
-  alias Nostrum.Struct.{Channel, Message, User}
-
   alias Curie.{Currency, Storage}
   alias Curie.Data.Balance
+  alias Nostrum.Cache.ChannelCache
+  alias Nostrum.Struct.{Channel, Message, User}
 
   @self __MODULE__
 

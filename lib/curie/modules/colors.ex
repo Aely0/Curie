@@ -5,15 +5,14 @@ defmodule Curie.Colors do
 
   use Curie.Commands
 
+  alias Curie.{Currency, Storage}
   alias Nostrum.Api
   alias Nostrum.Cache.GuildCache
   alias Nostrum.Struct.Guild.Role
   alias Nostrum.Struct.{Guild, Message, User}
 
-  alias Curie.{Currency, Storage}
-
   @check_typo ~w/color color_preview color_remove/
-  @color_roles Application.get_env(:curie, :color_roles)
+  @color_roles Application.compile_env(:curie, :color_roles)
   @snowflakes @color_roles["snowflakes"]
   @color_cost 500
 

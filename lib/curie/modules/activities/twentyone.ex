@@ -8,12 +8,11 @@ defmodule Curie.TwentyOne do
 
   import Curie.Pot, only: [not_enough_players: 1]
 
+  alias Curie.{Currency, Storage}
   alias Nostrum.Api
   alias Nostrum.Cache.ChannelCache
   alias Nostrum.Struct.{Channel, Message, User}
   alias Nostrum.Struct.Guild.Member
-
-  alias Curie.{Currency, Storage}
 
   @type player_status :: :playing | :standing | :busted
   @type card_value_total :: pos_integer()

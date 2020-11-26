@@ -8,17 +8,15 @@ defmodule Curie.Scheduler.Tasks do
   import Nostrum.Struct.Embed
 
   alias Crontab.CronExpression
-
   alias Curie.Currency
   alias Curie.Data
   alias Curie.Data.{Balance, Overwatch, Status, Streams}
-
   alias Nostrum.Api
   alias Nostrum.Cache.PresenceCache
   alias Nostrum.Struct.{Guild, User}
 
-  @stream_message_cooldown Application.get_env(:curie, :stream_message_cooldown)
-  @overwatch Application.get_env(:curie, :channels)[:overwatch]
+  @stream_message_cooldown Application.compile_env(:curie, :stream_message_cooldown)
+  @overwatch Application.compile_env(:curie, :channels)[:overwatch]
   @shadowmere 90_579_372_049_723_392
 
   @spec get :: %{CronExpression.t() => [function] | function}

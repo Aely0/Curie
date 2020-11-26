@@ -3,12 +3,12 @@ defmodule Curie.Help.Info do
   Command info.
   """
 
-  @prefix Application.get_env(:curie, :prefix)
-  @tempest Application.get_env(:curie, :tempest)
+  @prefix Application.compile_env(:curie, :prefix)
+  @tempest Application.compile_env(:curie, :tempest)
 
   @commands ~w/21 ace add avatar balance cat color curie
   currency deck details dog felweed gift help hit images
-  lead overwatch ping pot rally roll rust stand weather/
+  lead overwatch ping pot roll rust stand weather/
 
   @spec command_list() :: [String.t()]
   def command_list, do: @commands
@@ -372,23 +372,6 @@ defmodule Curie.Help.Info do
       **#{@prefix}pot half limit**
 
       Related commands: **#{@prefix}add value**
-      """
-    }
-  end
-
-  def command("rally") do
-    %{
-      short: "[+] For Rally moderators.",
-      long: """
-      Adds / Removes role Rally  to / from a member.
-      Cannot be used on yourself or other moderators.
-      Target member can be a member's name,
-      full Discord tag, mention or account ID.
-
-      Examples:
-      **#{@prefix}rally Curie**
-
-      Moderators: Mežbests.
       """
     }
   end

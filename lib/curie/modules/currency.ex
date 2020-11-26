@@ -7,12 +7,11 @@ defmodule Curie.Currency do
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
-  alias Nostrum.Struct.Guild.Member
-  alias Nostrum.Struct.{Message, User}
-
   alias Curie.Data
   alias Curie.Data.Balance
   alias Curie.Storage
+  alias Nostrum.Struct.Guild.Member
+  alias Nostrum.Struct.{Message, User}
 
   @check_typo ~w/balance gift/
 

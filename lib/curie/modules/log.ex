@@ -5,15 +5,14 @@ defmodule Curie.Log do
 
   import Nostrum.Snowflake, only: [is_snowflake: 1]
 
+  alias Curie.MessageCache
   alias Nostrum.Api
   alias Nostrum.Struct.Event.MessageDelete
   alias Nostrum.Struct.{Guild, Invite}
   alias Nostrum.Struct.Guild.Member
 
-  alias Curie.MessageCache
-
-  @invisible Application.get_env(:curie, :channels).invisible
-  @logs Application.get_env(:curie, :channels).logs
+  @invisible Application.compile_env(:curie, :channels).invisible
+  @logs Application.compile_env(:curie, :channels).logs
 
   @spec iso_to_unix(String.t()) :: non_neg_integer | nil
   def iso_to_unix(iso) do

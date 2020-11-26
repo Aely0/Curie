@@ -1,11 +1,10 @@
 defmodule StreamTest do
   use ExUnit.Case, async: true
 
-  alias Nostrum.Api
-
   alias Curie.Data
   alias Curie.Data.Streams
   alias Curie.Stream
+  alias Nostrum.Api
 
   defp add_ids(map) do
     Map.merge(map, %{

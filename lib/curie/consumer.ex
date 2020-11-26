@@ -5,11 +5,10 @@ defmodule Curie.Consumer do
 
   use Nostrum.Consumer
 
-  alias Nostrum.Consumer
-  alias Nostrum.Struct.Message
-
   alias Curie.Commands
   alias Curie.Scheduler.Tasks
+  alias Nostrum.Consumer
+  alias Nostrum.Struct.Message
 
   @self __MODULE__
 

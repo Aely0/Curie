@@ -8,11 +8,10 @@ defmodule Curie.Leaderboard do
 
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Api
-  alias Nostrum.Struct.Embed
-
   alias Curie.Data
   alias Curie.Data.{Balance, Leaderboard}
+  alias Nostrum.Api
+  alias Nostrum.Struct.Embed
 
   @type action :: :forward | :backward | :refresh | :new
 

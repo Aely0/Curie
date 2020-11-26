@@ -6,7 +6,6 @@ defmodule Curie.Generic.Details do
   use Bitwise
 
   alias Data.Details, as: StoredDetails
-
   alias Nostrum.Api
   alias Nostrum.Cache.{GuildCache, PresenceCache}
   alias Nostrum.Struct.{Guild, User}

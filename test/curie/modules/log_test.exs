@@ -1,10 +1,9 @@
 defmodule LogTest do
   use ExUnit.Case, async: true
 
-  alias Nostrum.Api
-
   alias Curie.Log
   alias Curie.MessageCache
+  alias Nostrum.Api
 
   defp add_ids(map) do
     Map.merge(map, %{

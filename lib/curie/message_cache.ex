@@ -14,7 +14,7 @@ defmodule Curie.MessageCache do
 
   @self __MODULE__
 
-  @ignore [Application.get_env(:curie, :owner)]
+  @ignore [Application.compile_env(:curie, :owner)]
   @limit 500
 
   @spec start_link(any) :: GenServer.on_start()

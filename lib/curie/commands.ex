@@ -10,7 +10,7 @@ defmodule Curie.Commands do
 
   @callback command(command_call) :: any
 
-  @prefix Application.get_env(:curie, :prefix)
+  @prefix Application.compile_env(:curie, :prefix)
 
   @spec __using__(any) :: any
   defmacro __using__(_opts) do
@@ -20,9 +20,9 @@ defmodule Curie.Commands do
       @behaviour unquote(__MODULE__)
       @super unquote(__MODULE__)
 
-      @owner %{author: %{id: Application.get_env(:curie, :owner)}}
-      @tempest Application.get_env(:curie, :tempest)
-      @prefix Application.get_env(:curie, :prefix)
+      @owner %{author: %{id: Application.compile_env(:curie, :owner)}}
+      @tempest Application.compile_env(:curie, :tempest)
+      @prefix Application.compile_env(:curie, :prefix)
 
       @spec command(@super.command_call) :: any
       def command(_command_call), do: :pass

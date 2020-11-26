@@ -17,7 +17,7 @@ defmodule Curie do
   @type destination :: Channel.id() | Message.t()
   @type options :: keyword | map | String.t()
 
-  @colors Application.get_env(:curie, :colors)
+  @colors Application.compile_env(:curie, :colors)
 
   @spec my_id :: {:ok, User.id()} | {:error, ApiError.t() | HTTPoison.Error.t()}
   def my_id do
@@ -101,6 +101,9 @@ defmodule Curie do
         Process.sleep(500)
         Curie.send(channel_or_message, options, retries + 1)
 
+      {:error, %{status_code: 403}} = error ->
+        error
+
       {:error, _error} when retries <= 5 ->
         Process.sleep(500)
         Curie.send(channel_or_message, options, retries + 1)
@@ -134,6 +137,9 @@ defmodule Curie do
       {:error, %{status_code: code}} when code >= 500 and retries <= 5 ->
         Process.sleep(500)
         edit(channel_id, message_id, options, retries + 1)
+
+      {:error, %{status_code: 403}} = error ->
+        error
 
       {:error, _error} when retries <= 5 ->
         Process.sleep(500)

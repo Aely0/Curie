@@ -7,11 +7,10 @@ defmodule Curie.Stream do
 
   import Nostrum.Struct.Embed
 
-  alias Nostrum.Cache.UserCache
-  alias Nostrum.Struct.{Embed, Guild, Message, User}
-
   alias Curie.Data
   alias Curie.Data.Streams
+  alias Nostrum.Cache.UserCache
+  alias Nostrum.Struct.{Embed, Guild, Message, User}
 
   require Logger
 
@@ -20,11 +19,11 @@ defmodule Curie.Stream do
 
   @self __MODULE__
 
-  @cooldown Application.get_env(:curie, :stream_message_cooldown)
-  @general Application.get_env(:curie, :channels).general
+  @cooldown Application.compile_env(:curie, :stream_message_cooldown)
+  @general Application.compile_env(:curie, :channels).general
 
-  @twitch_client_id Application.get_env(:curie, :twitch_client_id)
-  @twitch_client_secret Application.get_env(:curie, :twitch_client_secret)
+  @twitch_client_id Application.compile_env(:curie, :twitch_client_id)
+  @twitch_client_secret Application.compile_env(:curie, :twitch_client_secret)
 
   # 5 minutes (in seconds)
   @token_refresh_threshold 300
