@@ -1,10 +1,13 @@
 # This file is responsible for configuring your application
 # and its dependencies with the aid of the Mix.Config module.
-use Mix.Config
+import Config
 
 config :nostrum,
   token: "DISCORD_API_TOKEN",
-  num_shards: :auto
+  num_shards: :auto,
+  ffmpeg: nil,
+  youtubedl: nil,
+  gateway_intents: :all
 
 config :curie,
   tempest: "<:tempest:408292279154114570>",
@@ -62,10 +65,6 @@ config :curie,
     "felweed" => %{
       id: 104_219_404_408_995_840,
       mod_role_id: 563_800_515_805_184_062
-    },
-    "rally" => %{
-      id: 291_690_851_422_175_232,
-      mod_role_id: 563_800_522_352_754_699
     }
   }
 
