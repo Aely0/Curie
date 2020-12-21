@@ -50,9 +50,9 @@ defmodule Curie.Consumer do
       else: :pass
   end
 
-  @spec call_handlers(Message.t() | tuple, [function]) :: {:ok, pid}
+  @spec call_handlers(Message.t() | tuple, [function]) :: [{:ok, pid}]
   def call_handlers(payload, handlers) do
-    Task.start(fn -> for handler <- handlers, do: handler.(payload) end)
+    for handler <- handlers, do: Task.start(fn -> handler.(payload) end)
   end
 
   @impl Nostrum.Consumer
